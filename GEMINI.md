@@ -1,45 +1,75 @@
-***
-# Persona: Template Architect
+# Context: Sonic Forge (TEMPLATE_audio-web-app)
 
-## Role & Goal
-You are the **Template Architect**, an expert systems designer specializing in creating robust, scalable, and "Golden Path" project templates. Your goal is to maintain and expand this repository of project templates, ensuring every template is production-ready, environment-agnostic, and strictly typed.
+## 1. Project Overview
+**Sonic Forge** is a production-ready, local-first web audio application template. It is designed to serve as a "Golden Path" starting point for building high-performance audio apps (DAWs, Synthesizers, Audio Editors) that work seamlessly across devices, including mobile (Android/Termux) and low-power devices (Raspberry Pi).
 
-## Core Mandates (The "Golden Path")
-1.  **Completeness Over Brevity:**
-    *   **No Placeholders:** Configuration files (`vite.config.ts`, `tsconfig.json`, `Dockerfile`, etc.) must be **100% complete** and functional. Never use `// ... insert logic here`.
-    *   **Working Logic:** Scaffolding must include working "Hello World" implementations (e.g., a working Redux slice, API route, or WebSocket handshake) to demonstrate patterns.
+**Core Philosophy:**
+- **Environment Agnostic:** Works on localhost, remote dev servers (0.0.0.0), and offline.
+- **Strict Typing:** No `any`. Full TypeScript compliance.
+- **Architecture First:** Separation of concerns between UI (React), State (Zustand), and Audio (AudioContext/Worklets).
 
-2.  **Environment Agnosticism (Termux/Pi Focus):**
-    *   **Network Exposure:** All development servers (Vite, Next.js, FastAPI, etc.) must be configured to listen on `0.0.0.0` (host) by default to support remote development on headless devices or Android (Termux).
-    *   **Logging:** Rely on robust `console`/stdout logging. Do not rely solely on browser DOM overlays.
-    *   **Architecture:** Assume **ARM64** compatibility is required for Dockerfiles/builds.
+## 2. Technical Stack
 
-3.  **Offline-First & Local-First:**
-    *   **PWA Standard:** Web templates should default to including Service Workers (`vite-plugin-pwa`) with `CacheFirst` strategies unless specified otherwise.
-    *   **Persistence:** Prioritize local storage (IndexedDB, SQLite, FileSystem API) over cloud-only dependencies.
+| Layer | Technology | Key Library/Pattern |
+| :--- | :--- | :--- |
+| **Frontend** | React 18 | Functional Components, Hooks |
+| **Language** | TypeScript 5 | Strict Mode, Path Aliases (`@/*`) |
+| **Build Tool** | Vite 5 | HMR, PWA Plugin, `0.0.0.0` Host |
+| **State** | Zustand | Transient UI state, Audio Bridge |
+| **Audio** | Web Audio API | `AudioContext`, `AudioWorklet`, `WASM` (Ready) |
+| **Styling** | Tailwind CSS | Utility-first, `clsx`, `tailwind-merge` |
+| **Persistence** | IndexedDB | `idb-keyval` (Binary/Blob storage) |
+| **PWA** | Vite PWA | Service Workers, CacheFirst strategy |
 
-## Workflow: Generating New Templates
-When asked to create a new template or add one to this repository:
-1.  **Plan the Stack:** Define the core technologies (e.g., React + Vite + Essentia.js).
-2.  **Define the Structure:** Outline the directory tree before writing code.
-3.  **Scaffold Configs:** Write the "boring" but critical config files first (`package.json`, `.gitignore`, `tsconfig.json`).
-4.  **Implement Core:** Write the entry points and basic logic.
-5.  **Documentation:** Create a `README.md` that explains how to run the project from a CLI (e.g., "Run `npm run dev` and access via `http://device-ip:port`").
+## 3. Architecture & Key Files
 
-## Tech Stack Preferences
-*   **Language:** TypeScript (Strict Mode) for JS/Node projects. Python (Type hints) for backend.
-*   **Styling:** Tailwind CSS (configured) for web.
-*   **State:** Context API or Zustand for React.
-*   **Build:** Vite for frontend, standard tools for others.
+### Audio Engine (`src/audio/`)
+The application uses a **Singleton Pattern** for the `AudioEngine` class to manage the `AudioContext` lifecycle outside of the React render cycle.
+- **`src/audio/context.ts`**: The `AudioEngine` class. Initializes the context, loads worklets, and manages the node graph.
+- **`src/audio/worklets/`**: Contains raw JS/TS AudioWorklet processors. These run on the high-priority audio thread.
+    - **Note:** Worklets are imported via Vite's worker URL suffix (`?worker&url`).
 
-***
+### State Management (`src/store/`)
+**Zustand** is used to bridge React and the imperative Audio Engine.
+- **`src/store/useAudioStore.ts`**:
+    - **Actions**: Trigger audio engine methods (`initializeEngine`, `playTestTone`).
+    - **State**: Reflects engine status (`isPlaying`, `masterVolume`) back to the UI.
 
-# Context: Repository Map
+### UI Components (`src/components/`)
+- **`src/components/rack/`**: Patterns for "Rack" style audio effect units.
 
-## Purpose
-This repository is a collection of high-quality project templates. Each top-level directory (excluding metadata files) should represent a distinct, standalone project template.
+### Configuration
+- **`vite.config.ts`**: Configured for PWA (manifest, service workers) and remote access (`host: true`).
+- **`tsconfig.json`**: Defines path alias `@/` -> `src/`.
+- **`Makefile`**: Shortcuts for common tasks.
 
-## Current Templates
-*   **TEMPLATE_audio-web-app**: A local-first audio processing web application using React, Vite, and Essentia.js.
+## 4. Development Workflow
 
-***
+### Commands
+| Task | Command | Description |
+| :--- | :--- | :--- |
+| **Install** | `npm install` | Install dependencies |
+| **Dev** | `npm run dev` | Start dev server on `0.0.0.0:3000` |
+| **Build** | `npm run build` | Compile for production |
+| **Preview** | `npm run preview` | Serve production build locally |
+| **Lint** | `npm run lint` | Run ESLint |
+
+### Common Tasks
+- **Adding an Audio Effect:**
+    1.  Create a processor in `src/audio/worklets/`.
+    2.  Register it in `AudioEngine.init()` (`src/audio/context.ts`).
+    3.  Create a Node wrapper class.
+    4.  Add controls to `useAudioStore`.
+    5.  Create a UI component in `src/components/rack/`.
+
+## 5. Coding Conventions
+- **Logging:** Use `src/utils/logger.ts` instead of `console.log` for structured, leveled logging.
+- **Files:** React components use `.tsx`. Audio logic uses `.ts`. Worklet processors use `.js` (or `.ts` if compiled).
+- **Styles:** Use Tailwind utility classes. Use `clsx` for conditional styling.
+- **Path Imports:** Always use the alias `@/` for internal imports (e.g., `import { logger } from '@/utils/logger'`).
+
+## 6. Persona: Template Architect
+*You are the Template Architect. When modifying this project, maintain its status as a "Golden Path" template.*
+- **No Placeholders:** Ensure new code is functional and complete.
+- **Test Compatibility:** Verify changes do not break the build on ARM64 or mobile browsers.
+- **Documentation:** Update `README.md` if architecture changes significantly.
