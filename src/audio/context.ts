@@ -1,7 +1,11 @@
 import { logger } from "@/utils/logger";
-import { SonicGainNode } from "./worklets/node";
+import { RackModule } from "@/store/useAudioStore";
+import { DynamicEQNode } from "./worklets/DynamicEQNode";
+
 // @ts-ignore
 import processorUrl from './worklets/processor.js?worker&url';
+// @ts-ignore
+import dynamicEqUrl from './worklets/dynamic-eq-processor.js?worker&url';
 
 /**
  * Singleton AudioContext Manager.
@@ -10,9 +14,14 @@ import processorUrl from './worklets/processor.js?worker&url';
 class AudioEngine {
   public context: AudioContext | null = null;
   public masterGain: GainNode | null = null;
-  public workletNode: SonicGainNode | null = null;
   public analyser: AnalyserNode | null = null;
-
+  
+  // Rack Routing
+  public rackInput: GainNode | null = null;
+  public rackOutput: GainNode | null = null;
+  
+  // The 'nodeMap' maps module.id -> AudioNode
+  private nodeMap = new Map<string, AudioNode>();
   private isInitialized = false;
 
   constructor() {
@@ -27,31 +36,30 @@ class AudioEngine {
       this.context = new window.AudioContext();
 
       // 1. Load AudioWorklet
-      // We use the Vite worker import URL we defined at the top
-      logger.info("Loading AudioWorklet module...");
-      logger.info(`Processor URL: ${processorUrl}`);
+      logger.info(`Loading AudioWorklet modules...`);
       try {
         await this.context.audioWorklet.addModule(processorUrl);
-        logger.info("AudioWorklet module loaded successfully.");
+        await this.context.audioWorklet.addModule(dynamicEqUrl);
+        logger.info("AudioWorklet modules loaded successfully.");
       } catch (err) {
-        logger.error(`Failed to load AudioWorklet module from ${processorUrl}`, err);
+        logger.error(`Failed to load AudioWorklet modules`, err);
         throw err;
       }
 
-      // 2. Create Nodes
+      // 2. Create Infrastructure Nodes
       this.masterGain = this.context.createGain();
       this.masterGain.gain.value = 1.0;
 
       this.analyser = this.context.createAnalyser();
       this.analyser.fftSize = 2048;
 
-      this.workletNode = new SonicGainNode(this.context);
+      this.rackInput = this.context.createGain();
+      this.rackOutput = this.context.createGain();
 
-      // 3. Simple Routing for Demo: Oscillator -> Worklet -> Analyser -> Master -> Destination
-      // Note: We'll create the oscillator on 'play' to allow stopping/starting
-
-      // Connect Master chain
-      this.workletNode.connect(this.analyser);
+      // 3. Routing: RackInput -> [Rack Modules] -> RackOutput -> Analyser -> Master -> Destination
+      // Initially, connect input directly to output (empty rack)
+      this.rackInput.connect(this.rackOutput);
+      this.rackOutput.connect(this.analyser);
       this.analyser.connect(this.masterGain);
       this.masterGain.connect(this.context.destination);
 
@@ -70,17 +78,113 @@ class AudioEngine {
   }
 
   /**
-   * For testing: Plays a simple test tone through the worklet
+   * Rebuilds the audio graph based on the provided rack modules.
+   * Handles hot-swapping and reordering of nodes.
+   */
+  rebuildGraph(rack: RackModule[]) {
+    if (!this.context || !this.rackInput || !this.rackOutput) return;
+    
+    // 1. Disconnect everything to start fresh routing
+    this.rackInput.disconnect();
+    
+    // Disconnect all existing module nodes
+    this.nodeMap.forEach(node => node.disconnect());
+
+    // 2. Cleanup: Remove nodes that are no longer in the rack
+    const currentIds = new Set(rack.map(m => m.id));
+    for (const [id] of this.nodeMap) {
+        if (!currentIds.has(id)) {
+            this.nodeMap.delete(id);
+        }
+    }
+
+    // 3. Build the Chain
+    let previousNode: AudioNode = this.rackInput;
+
+    rack.forEach(module => {
+        let node: AudioNode | undefined | null = this.nodeMap.get(module.id);
+        
+        if (!node) {
+            // Instantiate new node if missing
+            node = this.createModuleNode(module);
+            if (node) {
+                this.nodeMap.set(module.id, node);
+            }
+        } else {
+             this.updateNodeParams(node, module);
+        }
+
+        if (node) {
+            if (!module.bypass) {
+                previousNode.connect(node);
+                previousNode = node;
+            }
+        }
+    });
+
+    // 4. Connect end of chain to RackOutput
+    previousNode.connect(this.rackOutput);
+  }
+
+  /**
+   * Factory method to create AudioNodes for modules.
+   */
+  private createModuleNode(module: RackModule): AudioNode | null {
+      if (!this.context) return null;
+
+      try {
+        switch (module.type) {
+            case 'DYNAMIC_EQ':
+                const deqNode = new DynamicEQNode(this.context);
+                this.updateNodeParams(deqNode, module);
+                return deqNode;
+            case 'TRANSIENT_SHAPER':
+                 logger.warn("TransientShaperNode implementation missing. Using passthrough.");
+                 return this.context.createGain();
+            case 'LIMITER':
+                return this.context.createGain();
+            default:
+                return null;
+        }
+      } catch (e) {
+          logger.error(`Failed to create node for ${module.type}`, e);
+          return this.context.createGain(); // Fallback
+      }
+  }
+
+  private updateNodeParams(node: AudioNode, module: RackModule) {
+      if (module.type === 'DYNAMIC_EQ' && node instanceof DynamicEQNode) {
+          Object.entries(module.parameters).forEach(([key, value]) => {
+              node.setParam(key, value);
+          });
+      }
+  }
+
+  /**
+   * Updates a single parameter on a specific module node.
+   */
+  public updateModuleParam(id: string, param: string, value: number) {
+      const node = this.nodeMap.get(id);
+      if (node) {
+          if (node instanceof DynamicEQNode) {
+             node.setParam(param, value);
+          }
+          // Add logic for other node types here
+      }
+  }
+
+  /**
+   * For testing: Plays a simple test tone through the rack
    */
   playTestTone() {
-    if (!this.context || !this.workletNode) return;
+    if (!this.context || !this.rackInput) return;
 
     const osc = this.context.createOscillator();
     osc.type = 'sawtooth';
     osc.frequency.setValueAtTime(440, this.context.currentTime);
 
-    // Connect osc to our custom worklet
-    osc.connect(this.workletNode);
+    // Connect osc to the Rack Input
+    osc.connect(this.rackInput);
 
     osc.start();
     osc.stop(this.context.currentTime + 2); // Play for 2 seconds
