@@ -1,70 +1,16 @@
-import React, { useRef, useEffect } from 'react';
+import React from 'react';
 import { useAudioStore, RackModule } from '@/store/useAudioStore';
-import { audioEngine } from '@/audio/context';
 import { DynamicEQUnit } from './DynamicEQUnit';
 import { LimiterUnit } from './LimiterUnit';
 import { MidSideEQUnit } from './MidSideEQUnit';
 import { CabSimUnit } from './CabSimUnit';
 import { MeteringUnit } from './MeteringUnit';
+import { MasteringVisualizer } from '../visualizers/MasteringVisualizer';
 
 export const EffectsRack: React.FC = () => {
-  const { rack, addModule, removeModule, updateModuleParam, isInitialized } = useAudioStore();
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { rack, addModule, removeModule, updateModuleParam } = useAudioStore();
   
-  // ... existing visualizer logic ...
-
-  // Visualizer Loop (Bypasses React Render Cycle)
-  useEffect(() => {
-    if (!isInitialized || !canvasRef.current) return;
-
-    let animationId: number;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const render = () => {
-      if (!audioEngine.analyser) {
-          animationId = requestAnimationFrame(render);
-          return;
-      }
-
-      const bufferLength = audioEngine.analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-      audioEngine.analyser.getByteTimeDomainData(dataArray);
-
-      ctx.fillStyle = '#1e293b'; // Slate-800
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = '#3b82f6'; // Blue-500
-      ctx.beginPath();
-
-      const sliceWidth = canvas.width * 1.0 / bufferLength;
-      let x = 0;
-
-      for (let i = 0; i < bufferLength; i++) {
-        const v = dataArray[i] / 128.0;
-        const y = v * canvas.height / 2;
-
-        if (i === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
-        }
-
-        x += sliceWidth;
-      }
-
-      ctx.lineTo(canvas.width, canvas.height / 2);
-      ctx.stroke();
-
-      animationId = requestAnimationFrame(render);
-    };
-
-    render();
-    
-    return () => cancelAnimationFrame(animationId);
-  }, [isInitialized]);
+  // Removed old canvasRef and useEffect logic as MasteringVisualizer handles it now.
 
   return (
     <div className="w-full h-full flex flex-col p-4 gap-4 overflow-y-auto">
@@ -116,7 +62,7 @@ export const EffectsRack: React.FC = () => {
           </div>
       </div>
 
-      <div className="flex flex-col gap-4 items-center">
+      <div className="flex flex-col gap-4 items-center flex-1">
         {rack.map((module) => (
             module.type === 'DYNAMIC_EQ' ? (
                 <DynamicEQUnit 
@@ -168,15 +114,8 @@ export const EffectsRack: React.FC = () => {
         )}
       </div>
 
-      {/* Visualizer Canvas */}
-      <div className="border border-slate-700 rounded-md overflow-hidden bg-black relative h-32 shrink-0 mt-auto">
-        <canvas
-            ref={canvasRef}
-            width={800}
-            height={200}
-            className="w-full h-full"
-        />
-      </div>
+      {/* Visualizer Suite */}
+      <MasteringVisualizer />
     </div>
   );
 };
@@ -204,10 +143,10 @@ const ModuleUnit = ({ module, onRemove, onUpdate }: {
                             min={getMin(key)}
                             max={getMax(key)}
                             step={getStep(key)}
-                            value={val}
+                            value={val as number}
                             onChange={(e) => onUpdate(key, parseFloat(e.target.value))}
                         />
-                         <span className="text-xs text-slate-400 font-mono">{val}</span>
+                         <span className="text-xs text-slate-400 font-mono">{val as number}</span>
                     </div>
                 ))}
             </div>

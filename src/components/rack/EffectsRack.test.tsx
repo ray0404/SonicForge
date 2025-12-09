@@ -8,10 +8,13 @@ vi.mock('@/audio/context', () => ({
   audioEngine: {
     analyser: {
         frequencyBinCount: 128,
-        getByteTimeDomainData: vi.fn()
+        getByteTimeDomainData: vi.fn(),
+        getByteFrequencyData: vi.fn(),
     },
     rebuildGraph: vi.fn(),
-    updateModuleParam: vi.fn()
+    updateModuleParam: vi.fn(),
+    loadSource: vi.fn().mockResolvedValue({ duration: 100 }), // Mock source loading
+    renderOffline: vi.fn() // Mock offline render
   }
 }));
 

@@ -15,12 +15,16 @@ export interface RackModule {
 interface AudioState {
   isInitialized: boolean;
   isPlaying: boolean;
+  sourceDuration: number;
+  currentTime: number;
   masterVolume: number; // 0.0 to 1.0
   rack: RackModule[];
   assets: Record<string, AudioBuffer>;
 
   initializeEngine: () => Promise<void>;
   togglePlay: () => void;
+  seek: (time: number) => void;
+  loadSourceFile: (file: File) => Promise<void>;
   setMasterVolume: (val: number) => void;
   
   addModule: (type: RackModuleType) => void;
@@ -35,6 +39,8 @@ interface AudioState {
 export const useAudioStore = create<AudioState>((set, get) => ({
   isInitialized: false,
   isPlaying: false,
+  sourceDuration: 0,
+  currentTime: 0,
   masterVolume: 1.0,
   rack: [],
   assets: {},
@@ -46,6 +52,14 @@ export const useAudioStore = create<AudioState>((set, get) => ({
       set({ isInitialized: true });
       // Attempt to load previous session
       get().loadPreset();
+      
+      // Playback loop for UI updates
+      setInterval(() => {
+          if (audioEngine.isPlaying && audioEngine.context) {
+              const elapsed = audioEngine.context.currentTime - audioEngine.startTime;
+              set({ currentTime: elapsed });
+          }
+      }, 100);
     } catch (error) {
       logger.error("Store failed to init engine", error);
     }
@@ -53,13 +67,32 @@ export const useAudioStore = create<AudioState>((set, get) => ({
 
   togglePlay: () => {
     audioEngine.resume();
-    if (!get().isPlaying) {
-       audioEngine.playTestTone();
-       set({ isPlaying: true });
-       setTimeout(() => set({ isPlaying: false }), 2000);
-    } else {
+    if (get().isPlaying) {
+       audioEngine.pause();
        set({ isPlaying: false });
+    } else {
+       audioEngine.play();
+       set({ isPlaying: true });
     }
+  },
+
+  seek: (time: number) => {
+      audioEngine.seek(time);
+      set({ currentTime: time });
+  },
+
+  loadSourceFile: async (file: File) => {
+      try {
+          const buffer = await audioEngine.loadSource(file);
+          set({ 
+              sourceDuration: buffer.duration,
+              currentTime: 0,
+              isPlaying: false // Stop previous playback
+          });
+          logger.info("Source file loaded.");
+      } catch (e) {
+          logger.error("Failed to load source file", e);
+      }
   },
 
   setMasterVolume: (val: number) => {

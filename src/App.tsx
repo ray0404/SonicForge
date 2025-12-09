@@ -2,10 +2,11 @@ import { useEffect } from 'react';
 import { useAudioStore } from '@/store/useAudioStore';
 import { useProjectPersistence } from '@/hooks/useProjectPersistence';
 import { EffectsRack } from '@/components/rack/EffectsRack';
-import { Save, AlertTriangle, Power, Volume2 } from 'lucide-react';
+import { Transport } from '@/components/Transport';
+import { Save, AlertTriangle } from 'lucide-react';
 
 function App() {
-  const { isInitialized, initializeEngine, togglePlay, isPlaying, masterVolume, setMasterVolume } = useAudioStore();
+  const { isInitialized, initializeEngine } = useAudioStore();
   const { saveProject, isPersistedToDisk } = useProjectPersistence();
 
   useEffect(() => {
@@ -39,48 +40,34 @@ function App() {
   return (
     <div className="flex flex-col h-full bg-background text-slate-200">
       {/* Header / Transport Bar */}
-      <header className="flex items-center justify-between px-6 py-3 bg-surface border-b border-slate-700 shadow-sm">
-          <div className="flex items-center gap-2">
-             <div className="w-8 h-8 bg-gradient-to-br from-primary to-purple-600 rounded-md"></div>
-             <h1 className="text-lg font-bold tracking-tight">Sonic Forge</h1>
-          </div>
+      <header className="flex flex-col border-b border-slate-700 shadow-sm">
+          {/* Top Bar: Title & Global Actions */}
+          <div className="flex items-center justify-between px-6 py-2 bg-surface border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                 <div className="w-6 h-6 bg-gradient-to-br from-primary to-purple-600 rounded-md"></div>
+                 <h1 className="text-md font-bold tracking-tight text-slate-100">Sonic Forge <span className="text-xs font-normal text-slate-500 ml-2">Mastering Suite</span></h1>
+              </div>
 
-          <div className="flex items-center gap-4">
-              <button
-                 onClick={togglePlay}
-                 className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${isPlaying ? 'bg-red-500/20 text-red-400 border border-red-500/50' : 'bg-slate-700 hover:bg-slate-600'}`}
-              >
-                 <Power size={18} />
-                 {isPlaying ? 'Stop' : 'Play Tone'}
-              </button>
-
-              <div className="flex items-center gap-2 bg-slate-900/50 px-3 py-2 rounded-md border border-slate-700">
-                  <Volume2 size={16} className="text-slate-400"/>
-                  <input
-                    type="range"
-                    min="0" max="1" step="0.01"
-                    value={masterVolume}
-                    onChange={(e) => setMasterVolume(parseFloat(e.target.value))}
-                    className="w-24 h-1 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-slate-200"
-                  />
+              <div className="flex items-center gap-2">
+                  {!isPersistedToDisk && (
+                      <div className="flex items-center gap-1 text-amber-500 bg-amber-900/20 px-2 py-1 rounded text-xs border border-amber-500/20">
+                          <AlertTriangle size={12} />
+                          <span>Unsaved</span>
+                      </div>
+                  )}
+                  <button
+                    onClick={handleSave}
+                    className="flex items-center gap-2 px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded text-xs font-bold transition-colors"
+                    title="Save Project"
+                  >
+                      <Save size={14} />
+                      Save
+                  </button>
               </div>
           </div>
-
-          <div className="flex items-center gap-2">
-              {!isPersistedToDisk && (
-                  <div className="flex items-center gap-1 text-amber-500 bg-amber-900/20 px-2 py-1 rounded text-xs border border-amber-500/20">
-                      <AlertTriangle size={12} />
-                      <span>Browser Storage Only</span>
-                  </div>
-              )}
-              <button
-                onClick={handleSave}
-                className="p-2 bg-primary hover:bg-blue-600 rounded-md transition-colors"
-                title="Save Project"
-              >
-                  <Save size={18} />
-              </button>
-          </div>
+          
+          {/* Transport Controls */}
+          <Transport />
       </header>
 
       {/* Main Workspace */}

@@ -31,6 +31,13 @@ class AudioEngine {
   public rackInput: GainNode | null = null;
   public rackOutput: GainNode | null = null;
   
+  // Source Management
+  public sourceBuffer: AudioBuffer | null = null;
+  public sourceNode: AudioBufferSourceNode | null = null;
+  public startTime: number = 0;
+  public pauseTime: number = 0;
+  public isPlaying: boolean = false;
+
   // The 'nodeMap' maps module.id -> AudioNode | ConvolutionNode
   private nodeMap = new Map<string, AudioNode | ConvolutionNode>();
   private isInitialized = false;
@@ -89,6 +96,81 @@ class AudioEngine {
     if (this.context?.state === 'suspended') {
       this.context.resume();
     }
+  }
+
+  /**
+   * Loads an audio file into the source buffer
+   */
+  async loadSource(file: File): Promise<AudioBuffer> {
+      if (!this.context) throw new Error("Audio Context not initialized");
+      const arrayBuffer = await file.arrayBuffer();
+      this.sourceBuffer = await this.context.decodeAudioData(arrayBuffer);
+      return this.sourceBuffer;
+  }
+
+  /**
+   * Plays the loaded source buffer from the current position
+   */
+  play() {
+      if (!this.context || !this.sourceBuffer || !this.rackInput) return;
+      if (this.isPlaying) return;
+
+      this.sourceNode = this.context.createBufferSource();
+      this.sourceNode.buffer = this.sourceBuffer;
+      this.sourceNode.connect(this.rackInput);
+
+      // Schedule playback
+      // We need to handle the offset (pauseTime)
+      // Play from pauseTime
+      this.startTime = this.context.currentTime - this.pauseTime;
+      this.sourceNode.start(0, this.pauseTime);
+      this.isPlaying = true;
+      
+      this.sourceNode.onended = () => {
+          // Verify if it ended naturally or was stopped
+          // If we stopped it manually, isPlaying will be false (set by stop/pause)
+          // But here onended fires async.
+          // For now, simple logic:
+          // If we reach the end, pauseTime should reset? 
+          // Let's leave looping/reset logic to the Store/UI for now.
+      };
+  }
+
+  /**
+   * Pauses playback
+   */
+  pause() {
+      if (!this.sourceNode || !this.context) return;
+      if (!this.isPlaying) return;
+
+      this.sourceNode.stop();
+      this.sourceNode.disconnect();
+      this.sourceNode = null;
+      
+      // Calculate where we stopped
+      this.pauseTime = this.context.currentTime - this.startTime;
+      this.isPlaying = false;
+  }
+
+  /**
+   * Seeks to a specific time (seconds)
+   */
+  seek(time: number) {
+      if (!this.sourceBuffer) return;
+      
+      // Clamp time
+      time = Math.max(0, Math.min(time, this.sourceBuffer.duration));
+      
+      const wasPlaying = this.isPlaying;
+      if (wasPlaying) {
+          this.pause();
+      }
+      
+      this.pauseTime = time;
+      
+      if (wasPlaying) {
+          this.play();
+      }
   }
 
   /**
@@ -247,21 +329,100 @@ class AudioEngine {
   }
 
   /**
-   * For testing: Plays a simple test tone through the rack
+   * Renders the current rack state to an offline buffer (WAV export)
    */
-  playTestTone() {
-    if (!this.context || !this.rackInput) return;
+  async renderOffline(rack: RackModule[], assets: Record<string, AudioBuffer>): Promise<AudioBuffer | null> {
+      if (!this.sourceBuffer) {
+          logger.warn("No source buffer loaded. Cannot export.");
+          return null;
+      }
 
-    const osc = this.context.createOscillator();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(440, this.context.currentTime);
+      // 1. Create Offline Context
+      const length = this.sourceBuffer.length;
+      const sampleRate = this.sourceBuffer.sampleRate;
+      const offlineCtx = new OfflineAudioContext(2, length, sampleRate);
 
-    // Connect osc to the Rack Input
-    osc.connect(this.rackInput);
+      // 2. Load Worklets into Offline Context (Crucial!)
+      // Note: We need to re-add modules because it's a separate context.
+      try {
+        await offlineCtx.audioWorklet.addModule(dynamicEqUrl);
+        await offlineCtx.audioWorklet.addModule(transientUrl);
+        await offlineCtx.audioWorklet.addModule(limiterUrl);
+        await offlineCtx.audioWorklet.addModule(midsideUrl);
+        // We skip LUFS meter for offline render usually, or add it if we want to measure stats.
+      } catch (err) {
+          logger.error("Failed to load worklets for offline render", err);
+          return null;
+      }
 
-    osc.start();
-    osc.stop(this.context.currentTime + 2); // Play for 2 seconds
-    logger.info("Playing test tone...");
+      // 3. Rebuild Graph in Offline Context
+      const source = offlineCtx.createBufferSource();
+      source.buffer = this.sourceBuffer;
+
+      // Create nodes manually since 'createModuleNode' uses 'this.context' (the realtime one).
+      // We need a helper or just duplicate logic here for safety.
+      // Ideally 'createModuleNode' takes a context arg.
+      // Let's refactor createModuleNode to be static or take context.
+      // For now, we'll inline the graph building for the offline export to be explicit.
+      
+      let previousNode: AudioNode = source;
+
+      // Map module IDs to new Offline nodes
+      const offlineNodeMap = new Map<string, AudioNode | ConvolutionNode>();
+
+      for (const module of rack) {
+          if (module.bypass) continue;
+
+          let node: AudioNode | ConvolutionNode | null = null;
+
+          if (module.type === 'DYNAMIC_EQ') {
+              const n = new DynamicEQNode(offlineCtx as unknown as AudioContext); // Cast for TS
+              Object.entries(module.parameters).forEach(([k, v]) => n.setParam(k, v));
+              node = n;
+          } else if (module.type === 'TRANSIENT_SHAPER') {
+              const n = new TransientShaperNode(offlineCtx as unknown as AudioContext);
+              Object.entries(module.parameters).forEach(([k, v]) => n.setParam(k as any, v));
+              node = n;
+          } else if (module.type === 'LIMITER') {
+              const n = new LimiterNode(offlineCtx as unknown as AudioContext);
+              Object.entries(module.parameters).forEach(([k, v]) => n.setParam(k as any, v));
+              node = n;
+          } else if (module.type === 'MIDSIDE_EQ') {
+              const n = new MidSideEQNode(offlineCtx as unknown as AudioContext);
+              Object.entries(module.parameters).forEach(([k, v]) => n.setParam(k as any, v));
+              node = n;
+          } else if (module.type === 'CAB_SIM') {
+              const n = new ConvolutionNode(offlineCtx as unknown as AudioContext);
+              if (module.parameters.mix !== undefined) n.setMix(module.parameters.mix);
+              
+              if (module.parameters.irAssetId) {
+                  const buffer = assets[module.parameters.irAssetId];
+                  if (buffer) {
+                      n.setBuffer(buffer);
+                  }
+              }
+              node = n;
+          }
+          // Skip Metering for offline
+
+          if (node) {
+              if (node instanceof ConvolutionNode) {
+                  previousNode.connect(node.input);
+                  previousNode = node.output;
+              } else {
+                  previousNode.connect(node as AudioNode);
+                  previousNode = node as AudioNode;
+              }
+              offlineNodeMap.set(module.id, node);
+          }
+      }
+
+      previousNode.connect(offlineCtx.destination);
+
+      // 4. Render
+      source.start(0);
+      const renderedBuffer = await offlineCtx.startRendering();
+      return renderedBuffer;
   }
 }
 
