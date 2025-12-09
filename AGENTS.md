@@ -42,3 +42,37 @@ This document outlines the rules and patterns for AI agents modifying the Sonic 
 *   **Source Management:** Always check `useAudioStore.getState().assets` for blobs (IRs) or `sourceBuffer` for the main track.
 *   **Offline Context:** `OfflineAudioContext` is separate from `AudioContext`. You must `addModule()` to *both* and recreate nodes for *both*.
 *   **Type Safety:** Use `RackModuleType` union to ensure exhaustive checks in factories.
+
+---
+
+> This *rough*  blueprint "template" is to be used as reference for creating and/or implementing project updates from Jules blueprint .md files.
+> Outlined is workflow specifications to assist Jules asynchronous AI coding agent in implementing project updates, due to its asynchronous nature.
+> for blueprint as input: "Workflow Constraints" outlined are **non-negotiable**. Other aspects of blueprint are open to interpretation.
+
+# 🤖 Jules Asynchronous Blueprint: [Blueprint Name]
+
+**Context:** [Project Name]
+**Current Agenda:** [Reference to main Roadmap Phase]
+**Asynchronous Intent:** [The specific goal of this batch, e.g., "Rapid Scaffolding", "Content Gen"]
+
+## 🔒 Workflow Constraints
+1.  **Temporal Void:** Tasks must be implementable *now* or *later* with zero friction.
+2.  **Decoupled:** No direct dependencies on active feature branches or volatile React state.
+3.  **Additive:** Code should exist in new files/folders (`lib/`, `utils/`, `assets/`) or standalone classes.
+
+## 📋 Task Manifest
+
+### Category [X]: [Category Name]
+*(Description of category focus)*
+
+**[Task #] - [Task Name]**
+* **The Ask:** [Specific instruction on what to code/generate. e.g., "Write a standalone class..."]
+* **The Hook:** [Explanation of where/how this integrates into the User Roadmap later. "Essential for Phase X..."]
+* **Artifact:** [Expected file output, e.g., `src/utils/math.ts`]
+
+*(Repeat for 10 tasks)*
+
+## 🚀 Selection Guide
+* **For Immediate User Value:** Pick tasks [X, Y, Z].
+* **For Long-term Architecture:** Pick tasks [A, B, C].
+
