@@ -123,3 +123,29 @@ export class EnvelopeFollower {
         return this.envelope;
     }
 }
+
+export class DelayLine {
+    constructor(maxDelaySeconds, sampleRate) {
+        this.size = Math.ceil(maxDelaySeconds * sampleRate);
+        this.buffer = new Float32Array(this.size);
+        this.writeIndex = 0;
+    }
+
+    // Write a sample to the buffer
+    write(input) {
+        this.buffer[this.writeIndex] = input;
+        this.writeIndex = (this.writeIndex + 1) % this.size;
+    }
+
+    // Read a sample from 'delaySamples' ago
+    // e.g. delaySamples = 100 means read the sample that was written 100 samples ago
+    read(delaySamples) {
+        // Calculate read index
+        // We add this.size to ensure the result is positive before modulo
+        let readIndex = this.writeIndex - Math.floor(delaySamples);
+        while (readIndex < 0) readIndex += this.size;
+        
+        // No interpolation for now (integer delay)
+        return this.buffer[readIndex % this.size];
+    }
+}

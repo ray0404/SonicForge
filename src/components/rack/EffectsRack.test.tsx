@@ -65,6 +65,24 @@ describe('EffectsRack', () => {
         expect(screen.getByText('attackGain')).toBeInTheDocument();
     });
 
+    it('should add a Limiter module when button is clicked', () => {
+        render(<EffectsRack />);
+        const addButton = screen.getByText('+ Add Limiter');
+        fireEvent.click(addButton);
+        expect(screen.getByText('Limiter')).toBeInTheDocument();
+        expect(screen.getByText('ceiling')).toBeInTheDocument();
+    });
+
+    it('should add a MidSide EQ module when button is clicked', () => {
+        render(<EffectsRack />);
+        const addButton = screen.getByText('+ Add MS EQ');
+        fireEvent.click(addButton);
+        expect(screen.getByText('Mid/Side EQ')).toBeInTheDocument();
+        // The UI displays "Mid (L+R)" and "Side (L-R)" sections, and "Freq"/"Gain" labels.
+        expect(screen.getByText('Mid (L+R)')).toBeInTheDocument();
+        expect(screen.getAllByText('Freq')).toHaveLength(2);
+    });
+
     it('should show save button', () => {
         render(<EffectsRack />);
         expect(screen.getByText('Save')).toBeInTheDocument();

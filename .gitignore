@@ -116,3 +116,6 @@ dist
 
 # OS X
 .DS_Store
+
+# Blueprints
+blueprints/

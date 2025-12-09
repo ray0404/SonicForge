@@ -3,7 +3,7 @@ import { audioEngine } from '@/audio/context';
 import { logger } from '@/utils/logger';
 import { get as getIDB, set as setIDB } from 'idb-keyval';
 
-export type RackModuleType = 'DYNAMIC_EQ' | 'TRANSIENT_SHAPER' | 'LIMITER';
+export type RackModuleType = 'DYNAMIC_EQ' | 'TRANSIENT_SHAPER' | 'LIMITER' | 'MIDSIDE_EQ';
 
 export interface RackModule {
   id: string;
@@ -78,6 +78,10 @@ export const useAudioStore = create<AudioState>((set, get) => ({
       newModule.parameters = { frequency: 1000, gain: 0, Q: 1.0, threshold: -20, ratio: 2, attack: 0.01, release: 0.1 };
     } else if (type === 'TRANSIENT_SHAPER') {
       newModule.parameters = { attackGain: 0, sustainGain: 0 };
+    } else if (type === 'LIMITER') {
+      newModule.parameters = { threshold: -0.5, ceiling: -0.1, release: 0.1, lookahead: 5 };
+    } else if (type === 'MIDSIDE_EQ') {
+      newModule.parameters = { midGain: 0, midFreq: 1000, sideGain: 0, sideFreq: 1000 };
     }
 
     set((state) => ({ rack: [...state.rack, newModule] }));

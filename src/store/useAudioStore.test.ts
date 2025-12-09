@@ -52,6 +52,26 @@ describe('useAudioStore', () => {
     expect(state.rack[0].parameters.attackGain).toBe(0);
   });
 
+  it('should add a Limiter module', () => {
+    const { addModule } = useAudioStore.getState();
+    addModule('LIMITER');
+    
+    const state = useAudioStore.getState();
+    expect(state.rack).toHaveLength(1);
+    expect(state.rack[0].type).toBe('LIMITER');
+    expect(state.rack[0].parameters.threshold).toBe(-0.5);
+  });
+
+  it('should add a MidSide EQ module', () => {
+    const { addModule } = useAudioStore.getState();
+    addModule('MIDSIDE_EQ');
+    
+    const state = useAudioStore.getState();
+    expect(state.rack).toHaveLength(1);
+    expect(state.rack[0].type).toBe('MIDSIDE_EQ');
+    expect(state.rack[0].parameters.midGain).toBe(0);
+  });
+
   it('should remove a module', () => {
     const { addModule, removeModule } = useAudioStore.getState();
     addModule('DYNAMIC_EQ');

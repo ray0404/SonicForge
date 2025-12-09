@@ -2,11 +2,17 @@ import { logger } from "@/utils/logger";
 import { RackModule } from "@/store/useAudioStore";
 import { DynamicEQNode } from "./worklets/DynamicEQNode";
 import { TransientShaperNode } from "./worklets/TransientShaperNode";
+import { LimiterNode } from "./worklets/LimiterNode";
+import { MidSideEQNode } from "./worklets/MidSideEQNode";
 
 // @ts-ignore
 import dynamicEqUrl from './worklets/dynamic-eq-processor.js?worker&url';
 // @ts-ignore
 import transientUrl from './worklets/transient-processor.js?worker&url';
+// @ts-ignore
+import limiterUrl from './worklets/limiter-processor.js?worker&url';
+// @ts-ignore
+import midsideUrl from './worklets/midside-eq-processor.js?worker&url';
 
 /**
  * Singleton AudioContext Manager.
@@ -41,6 +47,8 @@ class AudioEngine {
       try {
         await this.context.audioWorklet.addModule(dynamicEqUrl);
         await this.context.audioWorklet.addModule(transientUrl);
+        await this.context.audioWorklet.addModule(limiterUrl);
+        await this.context.audioWorklet.addModule(midsideUrl);
         logger.info("AudioWorklet modules loaded successfully.");
       } catch (err) {
         logger.error(`Failed to load AudioWorklet modules`, err);
@@ -144,7 +152,13 @@ class AudioEngine {
                  this.updateNodeParams(tsNode, module);
                  return tsNode;
             case 'LIMITER':
-                return this.context.createGain();
+                 const limiterNode = new LimiterNode(this.context);
+                 this.updateNodeParams(limiterNode, module);
+                 return limiterNode;
+            case 'MIDSIDE_EQ':
+                 const msNode = new MidSideEQNode(this.context);
+                 this.updateNodeParams(msNode, module);
+                 return msNode;
             default:
                 return null;
         }
@@ -163,6 +177,14 @@ class AudioEngine {
           Object.entries(module.parameters).forEach(([key, value]) => {
               node.setParam(key as any, value);
           });
+      } else if (module.type === 'LIMITER' && node instanceof LimiterNode) {
+          Object.entries(module.parameters).forEach(([key, value]) => {
+              node.setParam(key as any, value);
+          });
+      } else if (module.type === 'MIDSIDE_EQ' && node instanceof MidSideEQNode) {
+          Object.entries(module.parameters).forEach(([key, value]) => {
+              node.setParam(key as any, value);
+          });
       }
   }
 
@@ -175,6 +197,10 @@ class AudioEngine {
           if (node instanceof DynamicEQNode) {
              node.setParam(param, value);
           } else if (node instanceof TransientShaperNode) {
+             node.setParam(param as any, value);
+          } else if (node instanceof LimiterNode) {
+             node.setParam(param as any, value);
+          } else if (node instanceof MidSideEQNode) {
              node.setParam(param as any, value);
           }
           // Add logic for other node types here

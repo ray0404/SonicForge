@@ -2,6 +2,8 @@ import React, { useRef, useEffect } from 'react';
 import { useAudioStore, RackModule } from '@/store/useAudioStore';
 import { audioEngine } from '@/audio/context';
 import { DynamicEQUnit } from './DynamicEQUnit';
+import { LimiterUnit } from './LimiterUnit';
+import { MidSideEQUnit } from './MidSideEQUnit';
 
 export const EffectsRack: React.FC = () => {
   const { rack, addModule, removeModule, updateModuleParam, isInitialized } = useAudioStore();
@@ -85,6 +87,18 @@ export const EffectsRack: React.FC = () => {
             >
                 + Add Shaper
             </button>
+            <button 
+                onClick={() => addModule('LIMITER')}
+                className="px-4 py-2 bg-red-600 hover:bg-red-500 rounded text-sm font-bold transition-colors text-white"
+            >
+                + Add Limiter
+            </button>
+            <button 
+                onClick={() => addModule('MIDSIDE_EQ')}
+                className="px-4 py-2 bg-green-600 hover:bg-green-500 rounded text-sm font-bold transition-colors text-white"
+            >
+                + Add MS EQ
+            </button>
           </div>
       </div>
 
@@ -92,6 +106,20 @@ export const EffectsRack: React.FC = () => {
         {rack.map((module) => (
             module.type === 'DYNAMIC_EQ' ? (
                 <DynamicEQUnit 
+                    key={module.id} 
+                    module={module} 
+                    onRemove={() => removeModule(module.id)}
+                    onUpdate={(p, v) => updateModuleParam(module.id, p, v)}
+                />
+            ) : module.type === 'LIMITER' ? (
+                <LimiterUnit 
+                    key={module.id} 
+                    module={module} 
+                    onRemove={() => removeModule(module.id)}
+                    onUpdate={(p, v) => updateModuleParam(module.id, p, v)}
+                />
+            ) : module.type === 'MIDSIDE_EQ' ? (
+                <MidSideEQUnit 
                     key={module.id} 
                     module={module} 
                     onRemove={() => removeModule(module.id)}
