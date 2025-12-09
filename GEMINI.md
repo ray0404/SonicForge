@@ -1,75 +1,53 @@
-# Context: Sonic Forge (TEMPLATE_audio-web-app)
+# Context: Sonic Forge
 
 ## 1. Project Overview
-**Sonic Forge** is a production-ready, local-first web audio application template. It is designed to serve as a "Golden Path" starting point for building high-performance audio apps (DAWs, Synthesizers, Audio Editors) that work seamlessly across devices, including mobile (Android/Termux) and low-power devices (Raspberry Pi).
+**Sonic Forge** is a production-ready, local-first web audio application template ("Golden Path"). It provides a modular rack architecture for building high-performance audio tools (DAWs, processors) that run seamlessly on desktop and mobile (Termux/Android).
 
 **Core Philosophy:**
-- **Environment Agnostic:** Works on localhost, remote dev servers (0.0.0.0), and offline.
-- **Strict Typing:** No `any`. Full TypeScript compliance.
-- **Architecture First:** Separation of concerns between UI (React), State (Zustand), and Audio (AudioContext/Worklets).
+- **Modular Rack:** Effects are hot-swappable nodes in a chain.
+- **Audio Worklet First:** All DSP happens off the main thread.
+- **Strict Typing:** TypeScript 5+ with full strict mode.
+- **Offline Capable:** Full PWA support with IndexedDB persistence.
 
 ## 2. Technical Stack
-
-| Layer | Technology | Key Library/Pattern |
+| Layer | Technology | Key Usage |
 | :--- | :--- | :--- |
-| **Frontend** | React 18 | Functional Components, Hooks |
+| **Frontend** | React 18 | Functional Components, Hooks, Canvas Vis |
 | **Language** | TypeScript 5 | Strict Mode, Path Aliases (`@/*`) |
-| **Build Tool** | Vite 5 | HMR, PWA Plugin, `0.0.0.0` Host |
-| **State** | Zustand | Transient UI state, Audio Bridge |
-| **Audio** | Web Audio API | `AudioContext`, `AudioWorklet`, `WASM` (Ready) |
-| **Styling** | Tailwind CSS | Utility-first, `clsx`, `tailwind-merge` |
-| **Persistence** | IndexedDB | `idb-keyval` (Binary/Blob storage) |
-| **PWA** | Vite PWA | Service Workers, CacheFirst strategy |
+| **State** | Zustand | Transient UI state, Rack Module management |
+| **Audio** | Web Audio API | `AudioWorklet`, `BiquadFilter` (Custom JS implementation) |
+| **Build** | Vite 5 | HMR, PWA Plugin, `0.0.0.0` Host |
+| **Styling** | Tailwind CSS | Utility-first, `clsx` |
+| **Persistence** | IndexedDB | `idb-keyval` for saving/loading rack presets |
 
 ## 3. Architecture & Key Files
 
 ### Audio Engine (`src/audio/`)
-The application uses a **Singleton Pattern** for the `AudioEngine` class to manage the `AudioContext` lifecycle outside of the React render cycle.
-- **`src/audio/context.ts`**: The `AudioEngine` class. Initializes the context, loads worklets, and manages the node graph.
-- **`src/audio/worklets/`**: Contains raw JS/TS AudioWorklet processors. These run on the high-priority audio thread.
-    - **Note:** Worklets are imported via Vite's worker URL suffix (`?worker&url`).
+The `AudioEngine` singleton (`context.ts`) manages the Web Audio Graph.
+- **`context.ts`**: Handles graph construction, module factory (`createModuleNode`), and routing.
+- **`worklets/`**:
+    - **`transient-processor.js`**: Transient Shaper DSP (detects attack/sustain).
+    - **`dynamic-eq-processor.js`**: Dynamic EQ DSP (sidechain filtering).
+    - **`lib/dsp-helpers.js`**: Shared DSP classes (`EnvelopeFollower`, `BiquadFilter`).
+    - **`TransientShaperNode.ts` / `DynamicEQNode.ts`**: Main-thread wrappers.
 
 ### State Management (`src/store/`)
-**Zustand** is used to bridge React and the imperative Audio Engine.
-- **`src/store/useAudioStore.ts`**:
-    - **Actions**: Trigger audio engine methods (`initializeEngine`, `playTestTone`).
-    - **State**: Reflects engine status (`isPlaying`, `masterVolume`) back to the UI.
+- **`useAudioStore.ts`**: Zustand store. Manages the `rack` array (order of effects) and module parameters.
+- **Flow:** UI updates Store -> Store updates AudioEngine -> AudioEngine updates AudioNodes.
 
-### UI Components (`src/components/`)
-- **`src/components/rack/`**: Patterns for "Rack" style audio effect units.
-
-### Configuration
-- **`vite.config.ts`**: Configured for PWA (manifest, service workers) and remote access (`host: true`).
-- **`tsconfig.json`**: Defines path alias `@/` -> `src/`.
-- **`Makefile`**: Shortcuts for common tasks.
+### UI Components (`src/components/rack/`)
+- **`EffectsRack.tsx`**: Main container. Handles adding/removing modules and the output visualizer.
+- **`DynamicEQUnit.tsx`**: Specialized component with Canvas-based frequency response and gain reduction visualization.
 
 ## 4. Development Workflow
-
-### Commands
-| Task | Command | Description |
-| :--- | :--- | :--- |
-| **Install** | `npm install` | Install dependencies |
-| **Dev** | `npm run dev` | Start dev server on `0.0.0.0:3000` |
-| **Build** | `npm run build` | Compile for production |
-| **Preview** | `npm run preview` | Serve production build locally |
-| **Lint** | `npm run lint` | Run ESLint |
-
-### Common Tasks
-- **Adding an Audio Effect:**
-    1.  Create a processor in `src/audio/worklets/`.
-    2.  Register it in `AudioEngine.init()` (`src/audio/context.ts`).
-    3.  Create a Node wrapper class.
-    4.  Add controls to `useAudioStore`.
-    5.  Create a UI component in `src/components/rack/`.
+| Command | Description |
+| :--- | :--- |
+| `npm run dev` | Start dev server (host: 0.0.0.0) |
+| `npm run build` | Full production build (TSC + Vite) |
+| `npm run test` | Run Vitest suite (Unit + Integration) |
 
 ## 5. Coding Conventions
-- **Logging:** Use `src/utils/logger.ts` instead of `console.log` for structured, leveled logging.
-- **Files:** React components use `.tsx`. Audio logic uses `.ts`. Worklet processors use `.js` (or `.ts` if compiled).
-- **Styles:** Use Tailwind utility classes. Use `clsx` for conditional styling.
-- **Path Imports:** Always use the alias `@/` for internal imports (e.g., `import { logger } from '@/utils/logger'`).
-
-## 6. Persona: Template Architect
-*You are the Template Architect. When modifying this project, maintain its status as a "Golden Path" template.*
-- **No Placeholders:** Ensure new code is functional and complete.
-- **Test Compatibility:** Verify changes do not break the build on ARM64 or mobile browsers.
-- **Documentation:** Update `README.md` if architecture changes significantly.
+- **DSP:** Keep logic in `src/audio/worklets/`. Use `dsp-helpers.js` for shared math.
+- **Nodes:** Every processor must have a matching `Node` class in TS.
+- **State:** UI never talks to `AudioEngine` directly; it dispatches actions to `useAudioStore`.
+- **Imports:** Use `@/` alias.
