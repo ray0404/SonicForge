@@ -49,10 +49,20 @@ describe('EffectsRack', () => {
         const addButton = screen.getByText('+ Add DynEQ');
         fireEvent.click(addButton);
         
-        // Expect DYNAMIC_EQ text to appear
-        expect(screen.getByText('DYNAMIC_EQ')).toBeInTheDocument();
+        // Expect Dynamic EQ text to appear
+        expect(screen.getByText('Dynamic EQ')).toBeInTheDocument();
         // Expect sliders
         expect(screen.getByText('frequency')).toBeInTheDocument();
+    });
+
+    it('should add a Transient Shaper module when button is clicked', () => {
+        render(<EffectsRack />);
+        
+        const addButton = screen.getByText('+ Add Shaper');
+        fireEvent.click(addButton);
+        
+        expect(screen.getByText('TRANSIENT_SHAPER')).toBeInTheDocument();
+        expect(screen.getByText('attackGain')).toBeInTheDocument();
     });
 
     it('should show save button', () => {

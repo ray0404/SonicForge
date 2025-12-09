@@ -42,6 +42,16 @@ describe('useAudioStore', () => {
     expect(state.rack[0].parameters.frequency).toBe(1000);
   });
 
+  it('should add a Transient Shaper module', () => {
+    const { addModule } = useAudioStore.getState();
+    addModule('TRANSIENT_SHAPER');
+    
+    const state = useAudioStore.getState();
+    expect(state.rack).toHaveLength(1);
+    expect(state.rack[0].type).toBe('TRANSIENT_SHAPER');
+    expect(state.rack[0].parameters.attackGain).toBe(0);
+  });
+
   it('should remove a module', () => {
     const { addModule, removeModule } = useAudioStore.getState();
     addModule('DYNAMIC_EQ');

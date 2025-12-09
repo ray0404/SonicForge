@@ -1,11 +1,12 @@
 import { logger } from "@/utils/logger";
 import { RackModule } from "@/store/useAudioStore";
 import { DynamicEQNode } from "./worklets/DynamicEQNode";
+import { TransientShaperNode } from "./worklets/TransientShaperNode";
 
 // @ts-ignore
-import processorUrl from './worklets/processor.js?worker&url';
-// @ts-ignore
 import dynamicEqUrl from './worklets/dynamic-eq-processor.js?worker&url';
+// @ts-ignore
+import transientUrl from './worklets/transient-processor.js?worker&url';
 
 /**
  * Singleton AudioContext Manager.
@@ -38,8 +39,8 @@ class AudioEngine {
       // 1. Load AudioWorklet
       logger.info(`Loading AudioWorklet modules...`);
       try {
-        await this.context.audioWorklet.addModule(processorUrl);
         await this.context.audioWorklet.addModule(dynamicEqUrl);
+        await this.context.audioWorklet.addModule(transientUrl);
         logger.info("AudioWorklet modules loaded successfully.");
       } catch (err) {
         logger.error(`Failed to load AudioWorklet modules`, err);
@@ -139,8 +140,9 @@ class AudioEngine {
                 this.updateNodeParams(deqNode, module);
                 return deqNode;
             case 'TRANSIENT_SHAPER':
-                 logger.warn("TransientShaperNode implementation missing. Using passthrough.");
-                 return this.context.createGain();
+                 const tsNode = new TransientShaperNode(this.context);
+                 this.updateNodeParams(tsNode, module);
+                 return tsNode;
             case 'LIMITER':
                 return this.context.createGain();
             default:
@@ -157,6 +159,10 @@ class AudioEngine {
           Object.entries(module.parameters).forEach(([key, value]) => {
               node.setParam(key, value);
           });
+      } else if (module.type === 'TRANSIENT_SHAPER' && node instanceof TransientShaperNode) {
+          Object.entries(module.parameters).forEach(([key, value]) => {
+              node.setParam(key as any, value);
+          });
       }
   }
 
@@ -168,6 +174,8 @@ class AudioEngine {
       if (node) {
           if (node instanceof DynamicEQNode) {
              node.setParam(param, value);
+          } else if (node instanceof TransientShaperNode) {
+             node.setParam(param as any, value);
           }
           // Add logic for other node types here
       }

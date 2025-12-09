@@ -77,7 +77,7 @@ export const useAudioStore = create<AudioState>((set, get) => ({
     if (type === 'DYNAMIC_EQ') {
       newModule.parameters = { frequency: 1000, gain: 0, Q: 1.0, threshold: -20, ratio: 2, attack: 0.01, release: 0.1 };
     } else if (type === 'TRANSIENT_SHAPER') {
-      newModule.parameters = { attackGain: 1.0, sustainGain: 1.0 };
+      newModule.parameters = { attackGain: 0, sustainGain: 0 };
     }
 
     set((state) => ({ rack: [...state.rack, newModule] }));

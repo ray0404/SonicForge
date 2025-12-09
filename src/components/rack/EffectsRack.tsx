@@ -1,10 +1,13 @@
 import React, { useRef, useEffect } from 'react';
 import { useAudioStore, RackModule } from '@/store/useAudioStore';
 import { audioEngine } from '@/audio/context';
+import { DynamicEQUnit } from './DynamicEQUnit';
 
 export const EffectsRack: React.FC = () => {
   const { rack, addModule, removeModule, updateModuleParam, isInitialized } = useAudioStore();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  
+  // ... existing visualizer logic ...
 
   // Visualizer Loop (Bypasses React Render Cycle)
   useEffect(() => {
@@ -76,20 +79,35 @@ export const EffectsRack: React.FC = () => {
             >
                 + Add DynEQ
             </button>
+            <button 
+                onClick={() => addModule('TRANSIENT_SHAPER')}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded text-sm font-bold transition-colors text-white"
+            >
+                + Add Shaper
+            </button>
           </div>
       </div>
 
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 items-center">
         {rack.map((module) => (
-            <ModuleUnit 
-                key={module.id} 
-                module={module} 
-                onRemove={() => removeModule(module.id)}
-                onUpdate={(p, v) => updateModuleParam(module.id, p, v)}
-            />
+            module.type === 'DYNAMIC_EQ' ? (
+                <DynamicEQUnit 
+                    key={module.id} 
+                    module={module} 
+                    onRemove={() => removeModule(module.id)}
+                    onUpdate={(p, v) => updateModuleParam(module.id, p, v)}
+                />
+            ) : (
+                <ModuleUnit 
+                    key={module.id} 
+                    module={module} 
+                    onRemove={() => removeModule(module.id)}
+                    onUpdate={(p, v) => updateModuleParam(module.id, p, v)}
+                />
+            )
         ))}
         {rack.length === 0 && (
-            <div className="text-slate-500 text-center p-8 border border-dashed border-slate-700 rounded-lg">
+            <div className="text-slate-500 text-center p-8 border border-dashed border-slate-700 rounded-lg w-full">
                 Rack is empty. Add a module to start.
             </div>
         )}
@@ -148,6 +166,7 @@ function getMin(param: string) {
     if (param === 'gain') return -20;
     if (param === 'threshold') return -60;
     if (param === 'attack' || param === 'release') return 0.001;
+    if (param === 'attackGain' || param === 'sustainGain') return -24;
     return 0;
 }
 function getMax(param: string) {
@@ -157,10 +176,12 @@ function getMax(param: string) {
     if (param === 'attack' || param === 'release') return 1;
     if (param === 'ratio') return 20;
     if (param === 'Q') return 10;
+    if (param === 'attackGain' || param === 'sustainGain') return 24;
     return 1;
 }
 function getStep(param: string) {
     if (param === 'frequency') return 1;
     if (param === 'ratio' || param === 'Q') return 0.1;
+    if (param === 'attackGain' || param === 'sustainGain') return 0.1;
     return 0.01;
 }

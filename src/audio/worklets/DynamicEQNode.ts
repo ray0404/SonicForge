@@ -1,6 +1,8 @@
 import { logger } from "@/utils/logger";
 
 export class DynamicEQNode extends AudioWorkletNode {
+  public currentGainReduction: number = 0;
+
   constructor(context: AudioContext) {
     super(context, 'dynamic-eq-processor', {
       numberOfInputs: 1,
@@ -19,9 +21,7 @@ export class DynamicEQNode extends AudioWorkletNode {
 
     this.port.onmessage = (event) => {
       if (event.data.type === 'debug') {
-        // We can expose this via an event listener or callback if needed
-        // For now, we'll just log it if it's significant, or suppress it to avoid spam
-        // logger.debug(`[DynamicEQ] Max GR: ${event.data.gainReduction}`);
+        this.currentGainReduction = event.data.gainReduction;
       }
     };
   }
