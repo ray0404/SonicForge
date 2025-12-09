@@ -1,9 +1,11 @@
 import { logger } from "@/utils/logger";
-import { RackModule } from "@/store/useAudioStore";
+import { RackModule, useAudioStore } from "@/store/useAudioStore";
 import { DynamicEQNode } from "./worklets/DynamicEQNode";
 import { TransientShaperNode } from "./worklets/TransientShaperNode";
 import { LimiterNode } from "./worklets/LimiterNode";
 import { MidSideEQNode } from "./worklets/MidSideEQNode";
+import { MeteringNode } from "./worklets/MeteringNode";
+import { ConvolutionNode } from "./worklets/ConvolutionNode";
 
 // @ts-ignore
 import dynamicEqUrl from './worklets/dynamic-eq-processor.js?worker&url';
@@ -13,6 +15,8 @@ import transientUrl from './worklets/transient-processor.js?worker&url';
 import limiterUrl from './worklets/limiter-processor.js?worker&url';
 // @ts-ignore
 import midsideUrl from './worklets/midside-eq-processor.js?worker&url';
+// @ts-ignore
+import lufsUrl from './worklets/lufs-processor.js?worker&url';
 
 /**
  * Singleton AudioContext Manager.
@@ -27,8 +31,8 @@ class AudioEngine {
   public rackInput: GainNode | null = null;
   public rackOutput: GainNode | null = null;
   
-  // The 'nodeMap' maps module.id -> AudioNode
-  private nodeMap = new Map<string, AudioNode>();
+  // The 'nodeMap' maps module.id -> AudioNode | ConvolutionNode
+  private nodeMap = new Map<string, AudioNode | ConvolutionNode>();
   private isInitialized = false;
 
   constructor() {
@@ -49,6 +53,7 @@ class AudioEngine {
         await this.context.audioWorklet.addModule(transientUrl);
         await this.context.audioWorklet.addModule(limiterUrl);
         await this.context.audioWorklet.addModule(midsideUrl);
+        await this.context.audioWorklet.addModule(lufsUrl);
         logger.info("AudioWorklet modules loaded successfully.");
       } catch (err) {
         logger.error(`Failed to load AudioWorklet modules`, err);
@@ -111,7 +116,7 @@ class AudioEngine {
     let previousNode: AudioNode = this.rackInput;
 
     rack.forEach(module => {
-        let node: AudioNode | undefined | null = this.nodeMap.get(module.id);
+        let node: AudioNode | ConvolutionNode | undefined | null = this.nodeMap.get(module.id);
         
         if (!node) {
             // Instantiate new node if missing
@@ -125,8 +130,14 @@ class AudioEngine {
 
         if (node) {
             if (!module.bypass) {
-                previousNode.connect(node);
-                previousNode = node;
+                // Handle Custom Node Wrappers that aren't native AudioNodes
+                if (node instanceof ConvolutionNode) {
+                    previousNode.connect(node.input);
+                    previousNode = node.output;
+                } else {
+                    previousNode.connect(node as AudioNode);
+                    previousNode = node as AudioNode;
+                }
             }
         }
     });
@@ -138,7 +149,7 @@ class AudioEngine {
   /**
    * Factory method to create AudioNodes for modules.
    */
-  private createModuleNode(module: RackModule): AudioNode | null {
+  private createModuleNode(module: RackModule): AudioNode | ConvolutionNode | null {
       if (!this.context) return null;
 
       try {
@@ -159,6 +170,12 @@ class AudioEngine {
                  const msNode = new MidSideEQNode(this.context);
                  this.updateNodeParams(msNode, module);
                  return msNode;
+            case 'CAB_SIM':
+                const cabNode = new ConvolutionNode(this.context);
+                this.updateNodeParams(cabNode, module);
+                return cabNode;
+            case 'LOUDNESS_METER':
+                return new MeteringNode(this.context);
             default:
                 return null;
         }
@@ -168,7 +185,7 @@ class AudioEngine {
       }
   }
 
-  private updateNodeParams(node: AudioNode, module: RackModule) {
+  private updateNodeParams(node: AudioNode | ConvolutionNode, module: RackModule) {
       if (module.type === 'DYNAMIC_EQ' && node instanceof DynamicEQNode) {
           Object.entries(module.parameters).forEach(([key, value]) => {
               node.setParam(key, value);
@@ -185,13 +202,28 @@ class AudioEngine {
           Object.entries(module.parameters).forEach(([key, value]) => {
               node.setParam(key as any, value);
           });
+      } else if (module.type === 'CAB_SIM' && node instanceof ConvolutionNode) {
+          if (module.parameters.mix !== undefined) {
+              node.setMix(module.parameters.mix);
+          }
+          if (module.parameters.irAssetId) {
+              // Access store via direct import or pass it in? 
+              // Circular dependency risk if we import store here. 
+              // Better to access via module params or separate asset registry.
+              // We updated store to hold assets.
+              const assets = useAudioStore.getState().assets;
+              const buffer = assets[module.parameters.irAssetId];
+              if (buffer) {
+                  node.setBuffer(buffer);
+              }
+          }
       }
   }
 
   /**
    * Updates a single parameter on a specific module node.
    */
-  public updateModuleParam(id: string, param: string, value: number) {
+  public updateModuleParam(id: string, param: string, value: any) {
       const node = this.nodeMap.get(id);
       if (node) {
           if (node instanceof DynamicEQNode) {
@@ -202,6 +234,13 @@ class AudioEngine {
              node.setParam(param as any, value);
           } else if (node instanceof MidSideEQNode) {
              node.setParam(param as any, value);
+          } else if (node instanceof ConvolutionNode) {
+             if (param === 'mix') node.setMix(value);
+             if (param === 'irAssetId') {
+                 const assets = useAudioStore.getState().assets;
+                 const buffer = assets[value];
+                 if (buffer) node.setBuffer(buffer);
+             }
           }
           // Add logic for other node types here
       }

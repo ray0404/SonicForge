@@ -3,13 +3,13 @@ import { audioEngine } from '@/audio/context';
 import { logger } from '@/utils/logger';
 import { get as getIDB, set as setIDB } from 'idb-keyval';
 
-export type RackModuleType = 'DYNAMIC_EQ' | 'TRANSIENT_SHAPER' | 'LIMITER' | 'MIDSIDE_EQ';
+export type RackModuleType = 'DYNAMIC_EQ' | 'TRANSIENT_SHAPER' | 'LIMITER' | 'MIDSIDE_EQ' | 'CAB_SIM' | 'LOUDNESS_METER';
 
 export interface RackModule {
   id: string;
   type: RackModuleType;
   bypass: boolean;
-  parameters: Record<string, number>;
+  parameters: Record<string, any>; // Changed from number to any to support string IDs
 }
 
 interface AudioState {
@@ -17,6 +17,7 @@ interface AudioState {
   isPlaying: boolean;
   masterVolume: number; // 0.0 to 1.0
   rack: RackModule[];
+  assets: Record<string, AudioBuffer>;
 
   initializeEngine: () => Promise<void>;
   togglePlay: () => void;
@@ -24,8 +25,9 @@ interface AudioState {
   
   addModule: (type: RackModuleType) => void;
   removeModule: (id: string) => void;
-  updateModuleParam: (id: string, param: string, value: number) => void;
+  updateModuleParam: (id: string, param: string, value: any) => void;
   
+  loadAsset: (file: File) => Promise<string>;
   savePreset: () => Promise<void>;
   loadPreset: () => Promise<void>;
 }
@@ -35,6 +37,7 @@ export const useAudioStore = create<AudioState>((set, get) => ({
   isPlaying: false,
   masterVolume: 1.0,
   rack: [],
+  assets: {},
 
   initializeEngine: async () => {
     if (get().isInitialized) return;
@@ -82,6 +85,10 @@ export const useAudioStore = create<AudioState>((set, get) => ({
       newModule.parameters = { threshold: -0.5, ceiling: -0.1, release: 0.1, lookahead: 5 };
     } else if (type === 'MIDSIDE_EQ') {
       newModule.parameters = { midGain: 0, midFreq: 1000, sideGain: 0, sideFreq: 1000 };
+    } else if (type === 'CAB_SIM') {
+      newModule.parameters = { irAssetId: '', mix: 1.0 };
+    } else if (type === 'LOUDNESS_METER') {
+      newModule.parameters = {};
     }
 
     set((state) => ({ rack: [...state.rack, newModule] }));
@@ -93,7 +100,7 @@ export const useAudioStore = create<AudioState>((set, get) => ({
     audioEngine.rebuildGraph(get().rack);
   },
 
-  updateModuleParam: (id: string, param: string, value: number) => {
+  updateModuleParam: (id: string, param: string, value: any) => {
     set((state) => ({
       rack: state.rack.map(m => 
         m.id === id 
@@ -101,28 +108,38 @@ export const useAudioStore = create<AudioState>((set, get) => ({
         : m
       )
     }));
-    // We update the node directly in the engine if possible for performance,
-    // but here we just rely on the component state updates or a specific engine call.
-    // Ideally, we call a method on the engine to update just that param.
-    // For now, let's just ensure the engine has the latest state if it queries it,
-    // but strictly speaking, AudioParam changes should be sent to the node.
-    // The UI calls `updateModuleParam`, which updates the store. 
-    // We need to push this change to the engine node!
-    const module = get().rack.find(m => m.id === id);
-    if (module) {
-        // We can manually trigger an update on the engine node map
-        // This is a bit of a leak of abstraction, but necessary without a full rebuild.
-        // Or we add `audioEngine.updateParam(id, param, value)`
-        // Let's do it via rebuildGraph for now? No, that's heavy.
-        // Let's trust that the UI sliders might *also* want to drive the node directly?
-        // No, standard React way: Store update -> Side effect.
-        // We'll add a side effect here.
-        audioEngine.updateModuleParam(id, param, value);
-    }
+    audioEngine.updateModuleParam(id, param, value);
+  },
+
+  loadAsset: async (file: File): Promise<string> => {
+      try {
+          const arrayBuffer = await file.arrayBuffer();
+          // We need AudioContext to decode
+          if (!audioEngine.context) throw new Error("Audio Engine not initialized");
+          
+          const audioBuffer = await audioEngine.context.decodeAudioData(arrayBuffer);
+          const assetId = crypto.randomUUID();
+          
+          // Save to IDB (Optimized: save file blob, not decoded buffer)
+          await setIDB(`asset_${assetId}`, file);
+          
+          // Update State
+          set(state => ({
+              assets: { ...state.assets, [assetId]: audioBuffer }
+          }));
+          
+          logger.info(`Asset loaded: ${assetId}`);
+          return assetId;
+      } catch (e) {
+          logger.error("Failed to load asset", e);
+          throw e;
+      }
   },
 
   savePreset: async () => {
       const state = get();
+      // We only save the rack config. Assets are already in IDB via loadAsset.
+      // But we should probably save a map of used asset IDs to ensure they aren't GC'd if we implement that.
       const preset = {
           rack: state.rack,
           masterVolume: state.masterVolume
@@ -136,6 +153,27 @@ export const useAudioStore = create<AudioState>((set, get) => ({
         const preset = await getIDB('current_session_state');
         if (preset && preset.rack) {
             set({ rack: preset.rack, masterVolume: preset.masterVolume || 1.0 });
+            
+            // Re-hydrate assets?
+            // The modules in 'rack' will have 'irAssetId'.
+            // We need to fetch those Blobs from IDB and decode them.
+            // This is async.
+            const uniqueAssetIds = new Set<string>();
+            preset.rack.forEach((m: RackModule) => {
+                if (m.type === 'CAB_SIM' && m.parameters.irAssetId) {
+                    uniqueAssetIds.add(m.parameters.irAssetId);
+                }
+            });
+
+            for (const id of uniqueAssetIds) {
+                 const file = await getIDB(`asset_${id}`) as File;
+                 if (file && audioEngine.context) {
+                     const arrayBuffer = await file.arrayBuffer();
+                     const audioBuffer = await audioEngine.context.decodeAudioData(arrayBuffer);
+                     set(state => ({ assets: { ...state.assets, [id]: audioBuffer } }));
+                 }
+            }
+
             audioEngine.rebuildGraph(preset.rack);
             logger.info("Preset loaded.");
         }

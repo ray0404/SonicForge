@@ -83,6 +83,23 @@ describe('EffectsRack', () => {
         expect(screen.getAllByText('Freq')).toHaveLength(2);
     });
 
+    it('should add a Cab Sim module when button is clicked', () => {
+        render(<EffectsRack />);
+        const addButton = screen.getByText('+ Add Cab');
+        fireEvent.click(addButton);
+        expect(screen.getByText('Cab Sim / IR')).toBeInTheDocument();
+        // Check for Mix control since "Drag WAV Here" is drawn on canvas
+        expect(screen.getByText('Mix')).toBeInTheDocument();
+    });
+
+    it('should add a Loudness Meter module when button is clicked', () => {
+        render(<EffectsRack />);
+        const addButton = screen.getByText('+ Add Meter');
+        fireEvent.click(addButton);
+        expect(screen.getByText('LUFS Meter')).toBeInTheDocument();
+        expect(screen.getByText('Remove')).toBeInTheDocument();
+    });
+
     it('should show save button', () => {
         render(<EffectsRack />);
         expect(screen.getByText('Save')).toBeInTheDocument();

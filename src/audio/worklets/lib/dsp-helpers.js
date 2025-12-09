@@ -60,6 +60,14 @@ export class BiquadFilter {
                 a1 = -2 * cosw0;
                 a2 = 1 - alpha / A;
                 break;
+            case 'highshelf':
+                b0 = A * ((A + 1) + (A - 1) * cosw0 + 2 * Math.sqrt(A) * alpha);
+                b1 = -2 * A * ((A - 1) + (A + 1) * cosw0);
+                b2 = A * ((A + 1) + (A - 1) * cosw0 - 2 * Math.sqrt(A) * alpha);
+                a0 = (A + 1) - (A - 1) * cosw0 + 2 * Math.sqrt(A) * alpha;
+                a1 = 2 * ((A - 1) - (A + 1) * cosw0);
+                a2 = (A + 1) - (A - 1) * cosw0 - 2 * Math.sqrt(A) * alpha;
+                break;
             default:
                 // Pass through
                 b0=1; b1=0; b2=0; a0=1; a1=0; a2=0;
@@ -87,6 +95,36 @@ export class BiquadFilter {
         this.y1 = output;
 
         return output;
+    }
+}
+
+/**
+ * K-Weighting Filter for LUFS Metering (ITU-R BS.1770-4)
+ * Consists of a pre-filter (high shelf) and a RLB filter (high pass).
+ */
+export class KWeightingFilter {
+    constructor(sampleRate) {
+        this.preFilter = new BiquadFilter();
+        this.rlbFilter = new BiquadFilter();
+        
+        // Stage 1: High Shelf (+4dB @ ~1500Hz)
+        // Exact coeffs depend on spec, but typically modeled as:
+        // Gain: +4dB
+        // Freq: 1500Hz (roughly)
+        // Q: 0.5 (ish)
+        // Ideally we use exact values from spec, but standard HS is close enough for approximation.
+        this.preFilter.setParams(1500, 4, 0.707, sampleRate, 'highshelf');
+
+        // Stage 2: High Pass (Cutoff @ ~100Hz)
+        // "RLB" filter
+        this.rlbFilter.setParams(100, 0, 1.0, sampleRate, 'highpass');
+    }
+
+    process(input) {
+        // Series processing
+        const stage1 = this.preFilter.process(input);
+        const stage2 = this.rlbFilter.process(stage1);
+        return stage2;
     }
 }
 

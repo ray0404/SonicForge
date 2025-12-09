@@ -72,6 +72,26 @@ describe('useAudioStore', () => {
     expect(state.rack[0].parameters.midGain).toBe(0);
   });
 
+  it('should add a Cab Sim module', () => {
+    const { addModule } = useAudioStore.getState();
+    addModule('CAB_SIM');
+    
+    const state = useAudioStore.getState();
+    expect(state.rack).toHaveLength(1);
+    expect(state.rack[0].type).toBe('CAB_SIM');
+    expect(state.rack[0].parameters.mix).toBe(1.0);
+    expect(state.rack[0].parameters.irAssetId).toBeDefined();
+  });
+
+  it('should add a Loudness Meter module', () => {
+    const { addModule } = useAudioStore.getState();
+    addModule('LOUDNESS_METER');
+    
+    const state = useAudioStore.getState();
+    expect(state.rack).toHaveLength(1);
+    expect(state.rack[0].type).toBe('LOUDNESS_METER');
+  });
+
   it('should remove a module', () => {
     const { addModule, removeModule } = useAudioStore.getState();
     addModule('DYNAMIC_EQ');

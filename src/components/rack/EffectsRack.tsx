@@ -4,6 +4,8 @@ import { audioEngine } from '@/audio/context';
 import { DynamicEQUnit } from './DynamicEQUnit';
 import { LimiterUnit } from './LimiterUnit';
 import { MidSideEQUnit } from './MidSideEQUnit';
+import { CabSimUnit } from './CabSimUnit';
+import { MeteringUnit } from './MeteringUnit';
 
 export const EffectsRack: React.FC = () => {
   const { rack, addModule, removeModule, updateModuleParam, isInitialized } = useAudioStore();
@@ -99,6 +101,18 @@ export const EffectsRack: React.FC = () => {
             >
                 + Add MS EQ
             </button>
+            <button 
+                onClick={() => addModule('CAB_SIM')}
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded text-sm font-bold transition-colors text-white"
+            >
+                + Add Cab
+            </button>
+            <button 
+                onClick={() => addModule('LOUDNESS_METER')}
+                className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded text-sm font-bold transition-colors text-white"
+            >
+                + Add Meter
+            </button>
           </div>
       </div>
 
@@ -124,6 +138,19 @@ export const EffectsRack: React.FC = () => {
                     module={module} 
                     onRemove={() => removeModule(module.id)}
                     onUpdate={(p, v) => updateModuleParam(module.id, p, v)}
+                />
+            ) : module.type === 'CAB_SIM' ? (
+                <CabSimUnit 
+                    key={module.id} 
+                    module={module} 
+                    onRemove={() => removeModule(module.id)}
+                    onUpdate={(p, v) => updateModuleParam(module.id, p, v)}
+                />
+            ) : module.type === 'LOUDNESS_METER' ? (
+                <MeteringUnit 
+                    key={module.id} 
+                    module={module} 
+                    onRemove={() => removeModule(module.id)}
                 />
             ) : (
                 <ModuleUnit 
