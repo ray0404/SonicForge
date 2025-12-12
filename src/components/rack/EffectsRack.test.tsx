@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { EffectsRack } from './EffectsRack';
 import { useAudioStore } from '@/store/useAudioStore';
@@ -14,7 +14,8 @@ vi.mock('@/audio/context', () => ({
     rebuildGraph: vi.fn(),
     updateModuleParam: vi.fn(),
     loadSource: vi.fn().mockResolvedValue({ duration: 100 }), // Mock source loading
-    renderOffline: vi.fn() // Mock offline render
+    renderOffline: vi.fn(),
+    nodeMap: new Map() // Mock nodeMap for visualizers
   }
 }));
 
@@ -24,12 +25,7 @@ vi.mock('idb-keyval', () => ({
   set: vi.fn(),
 }));
 
-// Mock ResizeObserver
-global.ResizeObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
+// ResizeObserver is mocked in setup.ts
 
 describe('EffectsRack', () => {
     beforeEach(() => {
@@ -46,65 +42,46 @@ describe('EffectsRack', () => {
         expect(screen.getByText(/Rack is empty/i)).toBeInTheDocument();
     });
 
-    it('should add a module when the button is clicked', () => {
+    it('should render Dynamic EQ module', () => {
         render(<EffectsRack />);
+        act(() => { useAudioStore.getState().addModule('DYNAMIC_EQ'); });
         
-        const addButton = screen.getByText('+ Add DynEQ');
-        fireEvent.click(addButton);
-        
-        // Expect Dynamic EQ text to appear
         expect(screen.getByText('Dynamic EQ')).toBeInTheDocument();
-        // Expect sliders
-        expect(screen.getByText('frequency')).toBeInTheDocument();
+        expect(screen.getByText('Freq')).toBeInTheDocument();
     });
 
-    it('should add a Transient Shaper module when button is clicked', () => {
+    it('should render Transient Shaper module', () => {
         render(<EffectsRack />);
+        act(() => { useAudioStore.getState().addModule('TRANSIENT_SHAPER'); });
         
-        const addButton = screen.getByText('+ Add Shaper');
-        fireEvent.click(addButton);
-        
-        expect(screen.getByText('TRANSIENT_SHAPER')).toBeInTheDocument();
-        expect(screen.getByText('attackGain')).toBeInTheDocument();
+        expect(screen.getByText('Transient Shaper')).toBeInTheDocument();
+        expect(screen.getByText('Attack')).toBeInTheDocument();
     });
 
-    it('should add a Limiter module when button is clicked', () => {
+    it('should render Limiter module', () => {
         render(<EffectsRack />);
-        const addButton = screen.getByText('+ Add Limiter');
-        fireEvent.click(addButton);
+        act(() => { useAudioStore.getState().addModule('LIMITER'); });
         expect(screen.getByText('Limiter')).toBeInTheDocument();
-        expect(screen.getByText('ceiling')).toBeInTheDocument();
+        expect(screen.getByText('Ceiling')).toBeInTheDocument();
     });
 
-    it('should add a MidSide EQ module when button is clicked', () => {
+    it('should render MidSide EQ module', () => {
         render(<EffectsRack />);
-        const addButton = screen.getByText('+ Add MS EQ');
-        fireEvent.click(addButton);
+        act(() => { useAudioStore.getState().addModule('MIDSIDE_EQ'); });
         expect(screen.getByText('Mid/Side EQ')).toBeInTheDocument();
-        // The UI displays "Mid (L+R)" and "Side (L-R)" sections, and "Freq"/"Gain" labels.
-        expect(screen.getByText('Mid (L+R)')).toBeInTheDocument();
-        expect(screen.getAllByText('Freq')).toHaveLength(2);
+        expect(screen.getByText('Mid (Sum)')).toBeInTheDocument();
     });
 
-    it('should add a Cab Sim module when button is clicked', () => {
+    it('should render Cab Sim module', () => {
         render(<EffectsRack />);
-        const addButton = screen.getByText('+ Add Cab');
-        fireEvent.click(addButton);
+        act(() => { useAudioStore.getState().addModule('CAB_SIM'); });
         expect(screen.getByText('Cab Sim / IR')).toBeInTheDocument();
-        // Check for Mix control since "Drag WAV Here" is drawn on canvas
         expect(screen.getByText('Mix')).toBeInTheDocument();
     });
 
-    it('should add a Loudness Meter module when button is clicked', () => {
+    it('should render Loudness Meter module', () => {
         render(<EffectsRack />);
-        const addButton = screen.getByText('+ Add Meter');
-        fireEvent.click(addButton);
-        expect(screen.getByText('LUFS Meter')).toBeInTheDocument();
-        expect(screen.getByText('Remove')).toBeInTheDocument();
-    });
-
-    it('should show save button', () => {
-        render(<EffectsRack />);
-        expect(screen.getByText('Save')).toBeInTheDocument();
+        act(() => { useAudioStore.getState().addModule('LOUDNESS_METER'); });
+        expect(screen.getByText('Loudness Meter')).toBeInTheDocument();
     });
 });

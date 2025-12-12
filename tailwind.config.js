@@ -12,7 +12,14 @@ export default {
         surface: '#1e293b',    // slate-800
         primary: '#3b82f6',    // blue-500
         accent: '#f59e0b',     // amber-500
+        'knob-ring': '#334155', // slate-700
+        'knob-indicator': '#3b82f6', // blue-500
+        'rack-bg': '#020617', // slate-950
+        'active-led': '#22c55e', // green-500
       },
+      cursor: {
+        'ns-resize': 'ns-resize',
+      }
     },
   },
   plugins: [],

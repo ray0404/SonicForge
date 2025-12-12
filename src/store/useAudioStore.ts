@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { arrayMove } from '@dnd-kit/sortable';
 import { audioEngine } from '@/audio/context';
 import { logger } from '@/utils/logger';
 import { get as getIDB, set as setIDB } from 'idb-keyval';
@@ -29,6 +30,8 @@ interface AudioState {
   
   addModule: (type: RackModuleType) => void;
   removeModule: (id: string) => void;
+  toggleModuleBypass: (id: string) => void;
+  reorderRack: (startIndex: number, endIndex: number) => void;
   updateModuleParam: (id: string, param: string, value: any) => void;
   
   loadAsset: (file: File) => Promise<string>;
@@ -130,6 +133,20 @@ export const useAudioStore = create<AudioState>((set, get) => ({
 
   removeModule: (id: string) => {
     set((state) => ({ rack: state.rack.filter(m => m.id !== id) }));
+    audioEngine.rebuildGraph(get().rack);
+  },
+
+  reorderRack: (startIndex: number, endIndex: number) => {
+    set((state) => ({ rack: arrayMove(state.rack, startIndex, endIndex) }));
+    audioEngine.rebuildGraph(get().rack);
+  },
+
+  toggleModuleBypass: (id: string) => {
+    set((state) => ({
+      rack: state.rack.map(m =>
+        m.id === id ? { ...m, bypass: !m.bypass } : m
+      )
+    }));
     audioEngine.rebuildGraph(get().rack);
   },
 

@@ -1,82 +1,72 @@
 import React from 'react';
 import { RackModule } from '@/store/useAudioStore';
+import { ModuleShell } from '@/components/ui/ModuleShell';
+import { Knob } from '@/components/ui/Knob';
 
 interface MidSideEQUnitProps {
   module: RackModule;
   onRemove: () => void;
+  onBypass: () => void;
   onUpdate: (param: string, value: number) => void;
+  dragHandleProps?: any;
 }
 
-export const MidSideEQUnit: React.FC<MidSideEQUnitProps> = ({ module, onRemove, onUpdate }) => {
-  const getMin = (p: string) => {
-    if (p.includes('Freq')) return 20;
-    if (p.includes('Gain')) return -15;
-    return 0;
-  };
-  const getMax = (p: string) => {
-    if (p.includes('Freq')) return 20000;
-    if (p.includes('Gain')) return 15;
-    return 1;
-  };
-  const getStep = (p: string) => {
-    if (p.includes('Freq')) return 1;
-    return 0.1;
-  };
+export const MidSideEQUnit: React.FC<MidSideEQUnitProps> = ({ module, onRemove, onBypass, onUpdate, dragHandleProps }) => {
+  const minF = 20;
+  const maxF = 20000;
+  const minLog = Math.log(minF);
+  const maxLog = Math.log(maxF);
+  const scale = maxLog - minLog;
+
+  const mapTo01Freq = (val: number) => (Math.log(val) - minLog) / scale;
+  const mapFrom01Freq = (val: number) => Math.exp(val * scale + minLog);
 
   return (
-    <div className="bg-slate-800 rounded-lg p-4 shadow-lg border border-slate-700 w-full max-w-lg">
-      <div className="flex justify-between items-center mb-4">
-         <span className="font-bold text-green-400">Mid/Side EQ</span>
-         <button onClick={onRemove} className="text-red-500 text-xs hover:text-red-400">Remove</button>
-      </div>
+    <ModuleShell
+        title="Mid/Side EQ"
+        color="text-green-400"
+        onBypass={onBypass}
+        onRemove={onRemove}
+        isBypassed={module.bypass}
+        dragHandleProps={dragHandleProps}
+    >
+      <div className="flex gap-8 justify-center p-2">
+         {/* Mid Channel */}
+         <div className="flex flex-col items-center gap-4 p-4 bg-slate-950/30 rounded border border-slate-800">
+             <h4 className="text-xs font-bold text-green-500 uppercase tracking-widest">Mid (Sum)</h4>
+             <div className="flex gap-4">
+                <Knob
+                    label="Freq" unit="Hz"
+                    value={module.parameters.midFreq} min={20} max={20000}
+                    mapTo01={mapTo01Freq} mapFrom01={mapFrom01Freq}
+                    onChange={(v) => onUpdate('midFreq', v)}
+                />
+                <Knob
+                    label="Gain" unit="dB"
+                    value={module.parameters.midGain} min={-15} max={15}
+                    onChange={(v) => onUpdate('midGain', v)}
+                />
+             </div>
+         </div>
 
-      <div className="grid grid-cols-2 gap-8">
-        {/* Mid Channel */}
-        <div className="bg-slate-900/50 p-4 rounded border border-slate-700">
-            <h4 className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">Mid (L+R)</h4>
-            <div className="flex flex-col gap-4">
-                {['midFreq', 'midGain'].map(key => (
-                     <div key={key} className="flex flex-col gap-1">
-                        <label className="text-[10px] uppercase font-bold text-slate-500 flex justify-between">
-                            {key.replace('mid', '')} <span className="text-slate-300">{module.parameters[key]}</span>
-                        </label>
-                        <input 
-                            type="range" 
-                            className="h-1 bg-slate-600 rounded appearance-none cursor-pointer accent-green-500"
-                            min={getMin(key)}
-                            max={getMax(key)}
-                            step={getStep(key)}
-                            value={module.parameters[key]}
-                            onChange={(e) => onUpdate(key, parseFloat(e.target.value))}
-                        />
-                    </div>
-                ))}
-            </div>
-        </div>
-
-        {/* Side Channel */}
-        <div className="bg-slate-900/50 p-4 rounded border border-slate-700">
-            <h4 className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">Side (L-R)</h4>
-            <div className="flex flex-col gap-4">
-                {['sideFreq', 'sideGain'].map(key => (
-                     <div key={key} className="flex flex-col gap-1">
-                        <label className="text-[10px] uppercase font-bold text-slate-500 flex justify-between">
-                            {key.replace('side', '')} <span className="text-slate-300">{module.parameters[key]}</span>
-                        </label>
-                        <input 
-                            type="range" 
-                            className="h-1 bg-slate-600 rounded appearance-none cursor-pointer accent-yellow-500"
-                            min={getMin(key)}
-                            max={getMax(key)}
-                            step={getStep(key)}
-                            value={module.parameters[key]}
-                            onChange={(e) => onUpdate(key, parseFloat(e.target.value))}
-                        />
-                    </div>
-                ))}
-            </div>
-        </div>
+         {/* Side Channel */}
+         <div className="flex flex-col items-center gap-4 p-4 bg-slate-950/30 rounded border border-slate-800">
+             <h4 className="text-xs font-bold text-amber-500 uppercase tracking-widest">Side (Diff)</h4>
+             <div className="flex gap-4">
+                <Knob
+                    label="Freq" unit="Hz"
+                    value={module.parameters.sideFreq} min={20} max={20000}
+                    mapTo01={mapTo01Freq} mapFrom01={mapFrom01Freq}
+                    onChange={(v) => onUpdate('sideFreq', v)}
+                />
+                <Knob
+                    label="Gain" unit="dB"
+                    value={module.parameters.sideGain} min={-15} max={15}
+                    onChange={(v) => onUpdate('sideGain', v)}
+                />
+             </div>
+         </div>
       </div>
-    </div>
+    </ModuleShell>
   );
 };
