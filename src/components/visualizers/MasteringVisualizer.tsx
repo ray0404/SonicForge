@@ -58,24 +58,50 @@ export const MasteringVisualizer: React.FC = () => {
           ctx.stroke();
       }
 
-      // Goniometer (Placeholder / Fake using Time Domain for now)
+      // Goniometer
       // Real goniometer requires L/R phase comparison.
-      // We'll draw a "Waveform" in the gonio box for now as a placeholder for Stereo width
-      const waveData = new Uint8Array(analyser.frequencyBinCount);
-      analyser.getByteTimeDomainData(waveData);
+      const analyserL = audioEngine.analyserL;
+      const analyserR = audioEngine.analyserR;
       
       const gCanvas = gonioRef.current;
       const gCtx = gCanvas?.getContext('2d');
-      if (gCanvas && gCtx) {
-          gCtx.fillStyle = '#0f172a';
+      
+      if (gCanvas && gCtx && analyserL && analyserR) {
+          gCtx.fillStyle = 'rgba(15, 23, 42, 0.2)'; // Fade out effect
           gCtx.fillRect(0, 0, gCanvas.width, gCanvas.height);
           
+          const bufferLength = analyserL.frequencyBinCount;
+          const dataL = new Uint8Array(bufferLength);
+          const dataR = new Uint8Array(bufferLength);
+          
+          analyserL.getByteTimeDomainData(dataL);
+          analyserR.getByteTimeDomainData(dataR);
+          
+          gCtx.lineWidth = 1;
           gCtx.strokeStyle = '#10b981'; // Green
           gCtx.beginPath();
-          for (let i = 0; i < waveData.length; i++) {
-              const v = waveData[i] / 128.0;
-              const y = v * gCanvas.height / 2;
-              const x = (i / waveData.length) * gCanvas.width;
+          
+          const cx = gCanvas.width / 2;
+          const cy = gCanvas.height / 2;
+          const scale = gCanvas.height / 2; // Max excursion
+          
+          for (let i = 0; i < bufferLength; i += 4) { // Downsample for performance
+              // Normalize 0-255 to -1 to 1
+              const l = (dataL[i] / 128.0) - 1.0;
+              const r = (dataR[i] / 128.0) - 1.0;
+              
+              // Rotate 45 degrees (Mid/Side)
+              // Side (L-R) -> X
+              // Mid (L+R) -> Y
+              const side = (l - r) * 0.707; // 1/sqrt(2)
+              const mid = (l + r) * 0.707;
+              
+              // Plot
+              // x = cx + side * scale
+              // y = cy - mid * scale (Canvas Y is inverted)
+              const x = cx + side * scale;
+              const y = cy - mid * scale;
+              
               if (i === 0) gCtx.moveTo(x, y);
               else gCtx.lineTo(x, y);
           }

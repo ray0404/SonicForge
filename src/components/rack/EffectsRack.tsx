@@ -5,13 +5,10 @@ import { LimiterUnit } from './LimiterUnit';
 import { MidSideEQUnit } from './MidSideEQUnit';
 import { CabSimUnit } from './CabSimUnit';
 import { MeteringUnit } from './MeteringUnit';
-import { MasteringVisualizer } from '../visualizers/MasteringVisualizer';
 
 export const EffectsRack: React.FC = () => {
   const { rack, addModule, removeModule, updateModuleParam } = useAudioStore();
   
-  // Removed old canvasRef and useEffect logic as MasteringVisualizer handles it now.
-
   return (
     <div className="w-full h-full flex flex-col p-4 gap-4 overflow-y-auto">
       <div className="flex justify-between items-center">
@@ -113,9 +110,6 @@ export const EffectsRack: React.FC = () => {
             </div>
         )}
       </div>
-
-      {/* Visualizer Suite */}
-      <MasteringVisualizer />
     </div>
   );
 };

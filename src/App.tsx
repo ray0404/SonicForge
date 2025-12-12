@@ -4,6 +4,7 @@ import { useProjectPersistence } from '@/hooks/useProjectPersistence';
 import { EffectsRack } from '@/components/rack/EffectsRack';
 import { Transport } from '@/components/Transport';
 import { Save, AlertTriangle } from 'lucide-react';
+import { MasteringVisualizer } from '@/components/visualizers/MasteringVisualizer';
 
 function App() {
   const { isInitialized, initializeEngine } = useAudioStore();
@@ -71,8 +72,13 @@ function App() {
       </header>
 
       {/* Main Workspace */}
-      <main className="flex-1 overflow-hidden relative">
-          <EffectsRack />
+      <main className="flex-1 overflow-hidden relative flex flex-col">
+          <div className="flex-1 overflow-y-auto">
+            <EffectsRack />
+          </div>
+          <div className="h-48 shrink-0 border-t border-slate-700 bg-slate-900">
+            <MasteringVisualizer />
+          </div>
       </main>
 
       {/* Status Bar */}

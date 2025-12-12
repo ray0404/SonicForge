@@ -26,6 +26,9 @@ class AudioEngine {
   public context: AudioContext | null = null;
   public masterGain: GainNode | null = null;
   public analyser: AnalyserNode | null = null;
+  public analyserL: AnalyserNode | null = null;
+  public analyserR: AnalyserNode | null = null;
+  public splitter: ChannelSplitterNode | null = null;
   
   // Rack Routing
   public rackInput: GainNode | null = null;
@@ -74,15 +77,31 @@ class AudioEngine {
       this.analyser = this.context.createAnalyser();
       this.analyser.fftSize = 2048;
 
+      this.splitter = this.context.createChannelSplitter(2);
+      this.analyserL = this.context.createAnalyser();
+      this.analyserL.fftSize = 2048;
+      this.analyserR = this.context.createAnalyser();
+      this.analyserR.fftSize = 2048;
+
       this.rackInput = this.context.createGain();
       this.rackOutput = this.context.createGain();
 
-      // 3. Routing: RackInput -> [Rack Modules] -> RackOutput -> Analyser -> Master -> Destination
-      // Initially, connect input directly to output (empty rack)
+      // 3. Routing: RackInput -> [Rack Modules] -> RackOutput
+      // Parallel Paths from RackOutput:
+      // Path A: -> Analyser (Mono Sum/Stereo Interleaved) -> Master -> Dest
+      // Path B: -> Splitter -> AnalyserL / AnalyserR (Goniometer)
+      
       this.rackInput.connect(this.rackOutput);
+      
+      // Main Audio Path
       this.rackOutput.connect(this.analyser);
       this.analyser.connect(this.masterGain);
       this.masterGain.connect(this.context.destination);
+
+      // Analysis Path
+      this.rackOutput.connect(this.splitter);
+      this.splitter.connect(this.analyserL, 0);
+      this.splitter.connect(this.analyserR, 1);
 
       this.isInitialized = true;
       logger.info("Audio Engine Initialized Successfully.");
@@ -226,6 +245,13 @@ class AudioEngine {
 
     // 4. Connect end of chain to RackOutput
     previousNode.connect(this.rackOutput);
+    
+    // Ensure parallel analysis paths are alive (sometimes browser GC acts up if nodes disconnected?)
+    // But rackOutput never disconnected from them, only rackInput disconnected from rack.
+    // Actually, we disconnected rackInput. 
+    // And "Disconnect all existing module nodes".
+    // rackOutput itself was NOT disconnected from its destinations.
+    // So Analyser/Master connections persist.
   }
 
   /**
