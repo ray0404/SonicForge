@@ -1,5 +1,6 @@
 import React, { useCallback, useRef, useEffect, useState } from 'react';
 import { useAudioStore, RackModule } from '@/store/useAudioStore';
+import { ModuleShell } from '@/components/ui/ModuleShell';
 
 interface CabSimUnitProps {
   module: RackModule;
@@ -15,7 +16,7 @@ export const CabSimUnit: React.FC<CabSimUnitProps> = ({ module, onRemove, onUpda
   const assetId = module.parameters.irAssetId;
   const audioBuffer = assets[assetId];
 
-  // Draw Waveform
+  // Draw Waveform (Unchanged logic)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -33,7 +34,6 @@ export const CabSimUnit: React.FC<CabSimUnitProps> = ({ module, onRemove, onUpda
         return;
     }
 
-    // Draw Buffer
     const data = audioBuffer.getChannelData(0);
     const step = Math.ceil(data.length / canvas.width);
     const amp = canvas.height / 2;
@@ -73,12 +73,14 @@ export const CabSimUnit: React.FC<CabSimUnitProps> = ({ module, onRemove, onUpda
   }, [loadAsset, onUpdate]);
 
   return (
-    <div className="bg-slate-800 rounded-lg p-4 shadow-lg border border-slate-700 w-full max-w-sm">
-      <div className="flex justify-between items-center mb-4">
-         <span className="font-bold text-amber-400">Cab Sim / IR</span>
-         <button onClick={onRemove} className="text-red-500 text-xs hover:text-red-400">Remove</button>
-      </div>
-
+    <ModuleShell 
+      id={module.id} 
+      title="Cab Sim" 
+      bypass={module.bypass} 
+      onRemove={onRemove} 
+      colorClass="text-amber-400"
+      className="w-full max-w-sm"
+    >
       <div 
         className={`w-full h-20 rounded border-2 border-dashed mb-4 overflow-hidden transition-colors ${isDragging ? 'border-amber-400 bg-slate-700' : 'border-slate-600 bg-slate-900'}`}
         onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
@@ -102,6 +104,6 @@ export const CabSimUnit: React.FC<CabSimUnitProps> = ({ module, onRemove, onUpda
               onChange={(e) => onUpdate('mix', parseFloat(e.target.value))}
           />
       </div>
-    </div>
+    </ModuleShell>
   );
 };

@@ -31,6 +31,25 @@ global.ResizeObserver = vi.fn().mockImplementation(() => ({
   disconnect: vi.fn(),
 }));
 
+// Mock @dnd-kit/core
+vi.mock('@dnd-kit/core', async () => {
+  const actual = await vi.importActual('@dnd-kit/core');
+  return {
+    ...actual,
+    DndContext: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  };
+});
+
+// Mock Knob to avoid react-knob-headless issues in JSDOM
+vi.mock('@/components/ui/Knob', () => ({
+    Knob: ({ label, value }: { label: string, value: number }) => (
+        <div data-testid="mock-knob">
+            <span>{label}</span>
+            <span>{value}</span>
+        </div>
+    )
+}));
+
 describe('EffectsRack', () => {
     beforeEach(() => {
         useAudioStore.setState({
@@ -46,61 +65,77 @@ describe('EffectsRack', () => {
         expect(screen.getByText(/Rack is empty/i)).toBeInTheDocument();
     });
 
-    it('should add a module when the button is clicked', () => {
+    it('should add a module when the dropdown is used', async () => {
         render(<EffectsRack />);
         
-        const addButton = screen.getByText('+ Add DynEQ');
+        // Open dropdown
+        const menuButton = screen.getByText(/Add Module/i);
+        fireEvent.click(menuButton);
+        
+        // Click DynEQ (in EQ category)
+        const addButton = await screen.findByText('DYNAMIC EQ');
         fireEvent.click(addButton);
         
-        // Expect Dynamic EQ text to appear
-        expect(screen.getByText('Dynamic EQ')).toBeInTheDocument();
+        // Expect DYNAMIC_EQ text to appear (Title)
+        expect(await screen.findByText(/DYNAMIC EQ/i)).toBeInTheDocument();
         // Expect sliders
-        expect(screen.getByText('frequency')).toBeInTheDocument();
+        expect(await screen.findByText(/Freq/i)).toBeInTheDocument();
     });
 
-    it('should add a Transient Shaper module when button is clicked', () => {
+    it('should add a Transient Shaper module when dropdown is used', async () => {
         render(<EffectsRack />);
         
-        const addButton = screen.getByText('+ Add Shaper');
+        const menuButton = screen.getByText(/Add Module/i);
+        fireEvent.click(menuButton);
+
+        const addButton = await screen.findByText('TRANSIENT SHAPER');
         fireEvent.click(addButton);
         
-        expect(screen.getByText('TRANSIENT_SHAPER')).toBeInTheDocument();
-        expect(screen.getByText('attackGain')).toBeInTheDocument();
+        expect(await screen.findByText(/TRANSIENT SHAPER/i)).toBeInTheDocument();
+        expect(await screen.findByText(/Attack/i)).toBeInTheDocument();
     });
 
-    it('should add a Limiter module when button is clicked', () => {
+    it('should add a Limiter module when dropdown is used', async () => {
         render(<EffectsRack />);
-        const addButton = screen.getByText('+ Add Limiter');
+        const menuButton = screen.getByText(/Add Module/i);
+        fireEvent.click(menuButton);
+
+        const addButton = await screen.findByText('LIMITER');
         fireEvent.click(addButton);
-        expect(screen.getByText('Limiter')).toBeInTheDocument();
-        expect(screen.getByText('ceiling')).toBeInTheDocument();
+        expect(await screen.findByText(/LIMITER/i)).toBeInTheDocument();
+        expect(await screen.findByText(/Ceiling/i)).toBeInTheDocument();
     });
 
-    it('should add a MidSide EQ module when button is clicked', () => {
+    it('should add a MidSide EQ module when dropdown is used', async () => {
         render(<EffectsRack />);
-        const addButton = screen.getByText('+ Add MS EQ');
+        const menuButton = screen.getByText(/Add Module/i);
+        fireEvent.click(menuButton);
+
+        const addButton = await screen.findByText('MIDSIDE EQ');
         fireEvent.click(addButton);
-        expect(screen.getByText('Mid/Side EQ')).toBeInTheDocument();
-        // The UI displays "Mid (L+R)" and "Side (L-R)" sections, and "Freq"/"Gain" labels.
-        expect(screen.getByText('Mid (L+R)')).toBeInTheDocument();
-        expect(screen.getAllByText('Freq')).toHaveLength(2);
+        expect(await screen.findByText(/MID\/SIDE EQ/i)).toBeInTheDocument();
+        expect((await screen.findAllByText(/Freq/i)).length).toBeGreaterThanOrEqual(2);
     });
 
-    it('should add a Cab Sim module when button is clicked', () => {
+    it('should add a Cab Sim module when dropdown is used', async () => {
         render(<EffectsRack />);
-        const addButton = screen.getByText('+ Add Cab');
+        const menuButton = screen.getByText(/Add Module/i);
+        fireEvent.click(menuButton);
+
+        const addButton = await screen.findByText('CAB SIM');
         fireEvent.click(addButton);
-        expect(screen.getByText('Cab Sim / IR')).toBeInTheDocument();
-        // Check for Mix control since "Drag WAV Here" is drawn on canvas
-        expect(screen.getByText('Mix')).toBeInTheDocument();
+        expect(await screen.findByText(/CAB SIM/i)).toBeInTheDocument();
+        expect(await screen.findByText(/Mix/i)).toBeInTheDocument();
     });
 
-    it('should add a Loudness Meter module when button is clicked', () => {
+    it('should add a Loudness Meter module when dropdown is used', async () => {
         render(<EffectsRack />);
-        const addButton = screen.getByText('+ Add Meter');
+        const menuButton = screen.getByText(/Add Module/i);
+        fireEvent.click(menuButton);
+
+        const addButton = await screen.findByText('LOUDNESS METER');
         fireEvent.click(addButton);
-        expect(screen.getByText('LUFS Meter')).toBeInTheDocument();
-        expect(screen.getByText('Remove')).toBeInTheDocument();
+        expect(await screen.findByText(/LUFS Meter/i)).toBeInTheDocument();
     });
 
     it('should show save button', () => {

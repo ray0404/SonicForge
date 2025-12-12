@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { RackModule } from '@/store/useAudioStore';
 import { audioEngine } from '@/audio/context';
 import { MeteringNode } from '@/audio/worklets/MeteringNode';
+import { ModuleShell } from '@/components/ui/ModuleShell';
 
 interface MeteringUnitProps {
   module: RackModule;
@@ -77,18 +78,20 @@ export const MeteringUnit: React.FC<MeteringUnitProps> = ({ module, onRemove }) 
   }, [module]);
 
   return (
-    <div className="bg-slate-800 rounded-lg p-4 shadow-lg border border-slate-700 w-full max-w-sm">
-      <div className="flex justify-between items-center mb-4">
-         <span className="font-bold text-cyan-400">LUFS Meter</span>
-         <button onClick={onRemove} className="text-red-500 text-xs hover:text-red-400">Remove</button>
-      </div>
-      
+    <ModuleShell 
+      id={module.id} 
+      title="LUFS Meter" 
+      bypass={module.bypass} 
+      onRemove={onRemove} 
+      colorClass="text-cyan-400"
+      className="w-full max-w-sm"
+    >
       <canvas 
         ref={canvasRef}
         width={300}
         height={80}
-        className="w-full bg-slate-900 rounded border border-slate-700"
+        className="w-full bg-slate-900 rounded border border-slate-700 shadow-inner"
       />
-    </div>
+    </ModuleShell>
   );
 };

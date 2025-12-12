@@ -1,118 +1,155 @@
-import React from 'react';
-import { useAudioStore, RackModule } from '@/store/useAudioStore';
+import React, { useState } from 'react';
+import { useAudioStore, RackModule, RackModuleType } from '@/store/useAudioStore';
 import { DynamicEQUnit } from './DynamicEQUnit';
 import { LimiterUnit } from './LimiterUnit';
 import { MidSideEQUnit } from './MidSideEQUnit';
 import { CabSimUnit } from './CabSimUnit';
 import { MeteringUnit } from './MeteringUnit';
+import { TransientShaperUnit } from './TransientShaperUnit';
+import { Knob } from '@/components/ui/Knob';
+import { ModuleShell } from '@/components/ui/ModuleShell';
+import { DndContext, DragEndEvent, closestCenter } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { Plus, ChevronDown } from 'lucide-react';
 
 export const EffectsRack: React.FC = () => {
-  const { rack, addModule, removeModule, updateModuleParam } = useAudioStore();
-  
+  const { rack, addModule, removeModule, updateModuleParam, reorderRack } = useAudioStore();
+  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+        const oldIndex = rack.findIndex((item) => item.id === active.id);
+        const newIndex = rack.findIndex((item) => item.id === over?.id);
+        reorderRack(oldIndex, newIndex);
+    }
+  };
+
+  const categories: Record<string, RackModuleType[]> = {
+      Dynamics: ['LIMITER', 'TRANSIENT_SHAPER'],
+      EQ: ['DYNAMIC_EQ', 'MIDSIDE_EQ'],
+      Spatial: ['CAB_SIM'],
+      Utility: ['LOUDNESS_METER']
+  };
+
   return (
     <div className="w-full h-full flex flex-col p-4 gap-4 overflow-y-auto">
-      <div className="flex justify-between items-center">
-          <h2 className="text-xl font-bold text-slate-100">Effects Rack</h2>
-          <div className="flex gap-2">
+      <div className="flex justify-between items-center bg-slate-900/50 p-2 rounded-lg border border-slate-800">
+          <h2 className="text-lg font-bold text-slate-100 ml-2">Rack</h2>
+          <div className="flex gap-2 relative">
             <button 
                 onClick={async () => { await useAudioStore.getState().savePreset(); alert('Saved!'); }}
-                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm font-bold transition-colors text-white"
+                className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-xs font-bold transition-colors text-white"
             >
                 Save
             </button>
-            <button 
-                onClick={() => addModule('DYNAMIC_EQ')}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-bold transition-colors text-white"
-            >
-                + Add DynEQ
-            </button>
-            <button 
-                onClick={() => addModule('TRANSIENT_SHAPER')}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded text-sm font-bold transition-colors text-white"
-            >
-                + Add Shaper
-            </button>
-            <button 
-                onClick={() => addModule('LIMITER')}
-                className="px-4 py-2 bg-red-600 hover:bg-red-500 rounded text-sm font-bold transition-colors text-white"
-            >
-                + Add Limiter
-            </button>
-            <button 
-                onClick={() => addModule('MIDSIDE_EQ')}
-                className="px-4 py-2 bg-green-600 hover:bg-green-500 rounded text-sm font-bold transition-colors text-white"
-            >
-                + Add MS EQ
-            </button>
-            <button 
-                onClick={() => addModule('CAB_SIM')}
-                className="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded text-sm font-bold transition-colors text-white"
-            >
-                + Add Cab
-            </button>
-            <button 
-                onClick={() => addModule('LOUDNESS_METER')}
-                className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded text-sm font-bold transition-colors text-white"
-            >
-                + Add Meter
-            </button>
+            
+            {/* Add Module Dropdown */}
+            <div className="relative">
+                <button 
+                    onClick={() => setIsAddMenuOpen(!isAddMenuOpen)}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded text-xs font-bold transition-colors text-white"
+                >
+                    <Plus size={14} /> Add Module <ChevronDown size={14} />
+                </button>
+                
+                {isAddMenuOpen && (
+                    <>
+                        <div className="fixed inset-0 z-10" onClick={() => setIsAddMenuOpen(false)} />
+                        <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-20 overflow-hidden">
+                            {Object.entries(categories).map(([cat, types]) => (
+                                <div key={cat} className="border-b border-slate-700 last:border-0">
+                                    <div className="px-3 py-1.5 bg-slate-900/50 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{cat}</div>
+                                    {types.map(type => (
+                                        <button
+                                            key={type}
+                                            onClick={() => { addModule(type); setIsAddMenuOpen(false); }}
+                                            className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+                                        >
+                                            {type.replace('_', ' ')}
+                                        </button>
+                                    ))}
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                )}
+            </div>
           </div>
       </div>
 
-      <div className="flex flex-col gap-4 items-center flex-1">
-        {rack.map((module) => (
-            module.type === 'DYNAMIC_EQ' ? (
-                <DynamicEQUnit 
-                    key={module.id} 
-                    module={module} 
-                    onRemove={() => removeModule(module.id)}
-                    onUpdate={(p, v) => updateModuleParam(module.id, p, v)}
-                />
-            ) : module.type === 'LIMITER' ? (
-                <LimiterUnit 
-                    key={module.id} 
-                    module={module} 
-                    onRemove={() => removeModule(module.id)}
-                    onUpdate={(p, v) => updateModuleParam(module.id, p, v)}
-                />
-            ) : module.type === 'MIDSIDE_EQ' ? (
-                <MidSideEQUnit 
-                    key={module.id} 
-                    module={module} 
-                    onRemove={() => removeModule(module.id)}
-                    onUpdate={(p, v) => updateModuleParam(module.id, p, v)}
-                />
-            ) : module.type === 'CAB_SIM' ? (
-                <CabSimUnit 
-                    key={module.id} 
-                    module={module} 
-                    onRemove={() => removeModule(module.id)}
-                    onUpdate={(p, v) => updateModuleParam(module.id, p, v)}
-                />
-            ) : module.type === 'LOUDNESS_METER' ? (
-                <MeteringUnit 
-                    key={module.id} 
-                    module={module} 
-                    onRemove={() => removeModule(module.id)}
-                />
-            ) : (
-                <ModuleUnit 
-                    key={module.id} 
-                    module={module} 
-                    onRemove={() => removeModule(module.id)}
-                    onUpdate={(p, v) => updateModuleParam(module.id, p, v)}
-                />
-            )
-        ))}
-        {rack.length === 0 && (
-            <div className="text-slate-500 text-center p-8 border border-dashed border-slate-700 rounded-lg w-full">
-                Rack is empty. Add a module to start.
+      <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={rack.map(m => m.id)} strategy={verticalListSortingStrategy}>
+            <div className="flex flex-col gap-4 items-center flex-1 pb-20">
+                {rack.map((module) => (
+                    module.type === 'DYNAMIC_EQ' ? (
+                        <DynamicEQUnit 
+                            key={module.id} 
+                            module={module} 
+                            onRemove={() => removeModule(module.id)}
+                            onUpdate={(p, v) => updateModuleParam(module.id, p, v)}
+                        />
+                    ) : module.type === 'LIMITER' ? (
+                        <LimiterUnit 
+                            key={module.id} 
+                            module={module} 
+                            onRemove={() => removeModule(module.id)}
+                            onUpdate={(p, v) => updateModuleParam(module.id, p, v)}
+                        />
+                    ) : module.type === 'MIDSIDE_EQ' ? (
+                        <MidSideEQUnit 
+                            key={module.id} 
+                            module={module} 
+                            onRemove={() => removeModule(module.id)}
+                            onUpdate={(p, v) => updateModuleParam(module.id, p, v)}
+                        />
+                    ) : module.type === 'TRANSIENT_SHAPER' ? (
+                        <TransientShaperUnit 
+                            key={module.id} 
+                            module={module} 
+                            onRemove={() => removeModule(module.id)}
+                            onUpdate={(p, v) => updateModuleParam(module.id, p, v)}
+                        />
+                    ) : module.type === 'CAB_SIM' ? (
+                        <CabSimUnit 
+                            key={module.id} 
+                            module={module} 
+                            onRemove={() => removeModule(module.id)}
+                            onUpdate={(p, v) => updateModuleParam(module.id, p, v)}
+                        />
+                    ) : module.type === 'LOUDNESS_METER' ? (
+                        <MeteringUnit 
+                            key={module.id} 
+                            module={module} 
+                            onRemove={() => removeModule(module.id)}
+                        />
+                    ) : (
+                        <ModuleUnit 
+                            key={module.id} 
+                            module={module} 
+                            onRemove={() => removeModule(module.id)}
+                            onUpdate={(p, v) => updateModuleParam(module.id, p, v)}
+                        />
+                    )
+                ))}
+                {rack.length === 0 && (
+                    <div className="text-slate-500 text-center p-12 border-2 border-dashed border-slate-700/50 rounded-xl w-full max-w-lg mt-8">
+                        <p className="mb-2">Rack is empty</p>
+                        <button 
+                            onClick={() => setIsAddMenuOpen(true)}
+                            className="text-blue-400 hover:text-blue-300 font-bold"
+                        >
+                            + Add a Module
+                        </button>
+                    </div>
+                )}
             </div>
-        )}
-      </div>
+        </SortableContext>
+      </DndContext>
     </div>
   );
 };
+
 
 // Sub-component for individual modules
 const ModuleUnit = ({ module, onRemove, onUpdate }: { 
@@ -121,30 +158,27 @@ const ModuleUnit = ({ module, onRemove, onUpdate }: {
     onUpdate: (p: string, v: number) => void 
 }) => {
     return (
-        <div className="bg-slate-800 rounded-lg p-4 shadow-lg border border-slate-700 relative group">
-            <div className="flex justify-between items-center mb-4">
-                <span className="font-bold text-slate-300 text-sm tracking-wider">{module.type}</span>
-                <button onClick={onRemove} className="text-red-500 text-xs hover:text-red-400">Remove</button>
-            </div>
-            
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <ModuleShell 
+            id={module.id} 
+            title={module.type} 
+            bypass={module.bypass} 
+            onRemove={onRemove}
+            className="w-full max-w-sm"
+        >
+            <div className="grid grid-cols-4 gap-4">
                 {Object.entries(module.parameters).map(([key, val]) => (
-                    <div key={key} className="flex flex-col gap-1">
-                        <label className="text-[10px] uppercase font-bold text-slate-500">{key}</label>
-                        <input 
-                            type="range" 
-                            className="h-1 bg-slate-600 rounded appearance-none cursor-pointer accent-blue-500"
-                            min={getMin(key)}
-                            max={getMax(key)}
-                            step={getStep(key)}
-                            value={val as number}
-                            onChange={(e) => onUpdate(key, parseFloat(e.target.value))}
-                        />
-                         <span className="text-xs text-slate-400 font-mono">{val as number}</span>
-                    </div>
+                    <Knob 
+                        key={key}
+                        label={key} 
+                        value={val as number} 
+                        min={getMin(key)} 
+                        max={getMax(key)} 
+                        step={getStep(key)}
+                        onChange={v => onUpdate(key, v)} 
+                    />
                 ))}
             </div>
-        </div>
+        </ModuleShell>
     );
 };
 

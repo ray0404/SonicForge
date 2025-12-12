@@ -30,6 +30,7 @@ interface AudioState {
   addModule: (type: RackModuleType) => void;
   removeModule: (id: string) => void;
   updateModuleParam: (id: string, param: string, value: any) => void;
+  reorderRack: (startIndex: number, endIndex: number) => void;
   
   loadAsset: (file: File) => Promise<string>;
   savePreset: () => Promise<void>;
@@ -142,6 +143,17 @@ export const useAudioStore = create<AudioState>((set, get) => ({
       )
     }));
     audioEngine.updateModuleParam(id, param, value);
+  },
+
+  reorderRack: (startIndex: number, endIndex: number) => {
+      set((state) => {
+          const newRack = [...state.rack];
+          const [removed] = newRack.splice(startIndex, 1);
+          newRack.splice(endIndex, 0, removed);
+          return { rack: newRack };
+      });
+      // Side effect: Rebuild Graph
+      audioEngine.rebuildGraph(get().rack);
   },
 
   loadAsset: async (file: File): Promise<string> => {
