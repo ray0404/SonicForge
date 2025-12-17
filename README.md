@@ -13,7 +13,7 @@
 *   **Transport & Playback:** Load reference tracks, seek, play/pause, and visualize playback progress.
 *   **Analysis Suite:**
     *   **Spectrum Analyzer:** Logarithmic frequency visualization (20Hz - 20kHz).
-    *   **Goniometer:** (Placeholder) Stereo field visualization.
+    *   **Goniometer:** Real-time stereo field visualization (Lissajous figure).
     *   **Loudness Meter:** EBU R128 compliant LUFS metering (Momentary & Short-term).
 *   **Included Modules:**
     *   **Dynamic EQ:** 5-band equalizer with sidechain compression.
@@ -26,12 +26,21 @@
 
 ## 🛠️ Architecture
 
-Sonic Forge enforces a strict separation of concerns:
+Sonic Forge enforces a strict separation of concerns, often referred to as **"The Trinity Pattern"**:
 
-1.  **DSP Layer (`src/audio/worklets/`):** Pure JavaScript processing logic.
-2.  **Audio Engine (`src/audio/context.ts`):** Singleton managing the `AudioContext` (realtime) and `OfflineAudioContext` (export).
-3.  **Application State (`src/store/`):** Zustand store managing rack configuration, assets, and playback state.
-4.  **UI Layer (`src/components/`):** React components for visualization (`MasteringVisualizer`), control (`Transport`), and effects (`EffectsRack`).
+1.  **DSP Layer (`src/audio/worklets/`):** 
+    *   The "Brain". Pure JavaScript processing logic that runs on the Audio Thread. 
+    *   Contains the raw mathematics for filters, dynamics, and saturation.
+2.  **Node Layer (`src/audio/worklets/`):** 
+    *   The "Bridge". TypeScript classes extending `AudioWorkletNode`. 
+    *   Manages parameter mapping and communication between the Main Thread and the Audio Thread.
+3.  **UI Layer (`src/components/`):** 
+    *   The "Face". React components for visualization and control.
+    *   Interacts with the `AudioEngine` and `Zustand` store, never directly with the DSP.
+
+**Supporting Infrastructure:**
+*   **Audio Engine (`src/audio/context.ts`):** Singleton managing the `AudioContext` (realtime) and `OfflineAudioContext` (export).
+*   **Application State (`src/store/`):** `Zustand` store managing rack configuration, assets, and playback state.
 
 ## 📦 Getting Started
 
@@ -73,7 +82,7 @@ npm run build
 
 ## 🧩 Adding New Effects
 
-Sonic Forge is designed to be extensible. To add a new effect:
+Sonic Forge is designed to be extensible. To add a new effect, follow the **Trinity Pattern**:
 
 1.  **DSP:** Write your processor in `src/audio/worklets/my-effect-processor.js`.
 2.  **Node:** Create a `MyEffectNode.ts` wrapper.

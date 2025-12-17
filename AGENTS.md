@@ -1,8 +1,21 @@
 # AI Agent Directives: Sonic Forge
 
-This document outlines the rules and patterns for AI agents modifying the Sonic Forge codebase.
+This document serves as the operational manual for Autonomous AI Agents (e.g., Google Jules) working on the Sonic Forge repository.
 
-## 1. Architectural Integrity
+## 1. Core Directives
+
+### Directive Alpha: "Do No Harm"
+*   **Constraint:** Do not modify `src/audio/context.ts` or `src/store/useAudioStore.ts` unless the task explicitly requires a fundamental architectural change. These are the stability backbones.
+*   **Approach:** Prefer **additive** changes. Create new Worklets, new Nodes, and new Components rather than rewriting existing functional ones.
+
+### Directive Beta: "The Temporal Void"
+*   **Assumption:** You are working in an environment where the dev server is **NOT** running. You cannot "see" the app running.
+*   **Consequence:** You must rely entirely on static analysis, code reading, and mental models of the "Trinity" architecture.
+*   **Validation:** You cannot visually verify changes. You MUST rely on:
+    1.  `npm run typecheck` (if available) or checking for TS errors.
+    2.  Writing and running unit tests (`npm run test`).
+
+## 2. Architectural Integrity
 *   **The Trinity Pattern:** Every audio effect requires three distinct parts:
     1.  **DSP (Worklet):** Raw JS in `src/audio/worklets/`. Must rely on `dsp-helpers.js` for math.
     2.  **Interface (Node):** TypeScript class extending `AudioWorkletNode` (or Native Node wrapper). Exposes typed parameters.
@@ -11,18 +24,18 @@ This document outlines the rules and patterns for AI agents modifying the Sonic 
     *   `UI` -> `Zustand Store` -> `AudioEngine` -> `AudioNode` -> `AudioWorklet`.
     *   *Never* modify AudioNodes directly from React components.
 
-## 2. DSP Implementation Guidelines
+## 3. DSP Implementation Guidelines
 *   **No WASM (Yet):** Stick to pure JavaScript classes in `dsp-helpers.js`.
 *   **Parameter Smoothing:** All `AudioParam` updates should use `setTargetAtTime` (k-rate) or `setValueAtTime` (immediate).
 *   **Memory Safety:** Do not create objects inside the `process()` loop. Pre-allocate arrays in the constructor.
 *   **Offline Compatibility:** All Worklets and Nodes must be capable of running in an `OfflineAudioContext`.
 
-## 3. Testing Strategy
+## 4. Testing Strategy
 *   **Unit Tests:** Test DSP math in `dsp-helpers.test.js`.
 *   **Integration Tests:** Test the *Store* (`useAudioStore.test.ts`) to verify rack state updates.
 *   **UI Tests:** Test `EffectsRack.tsx` to verify module rendering. *Mock `AudioContext` and `AnalyserNode` methods* to prevent Canvas/Web Audio crashes in JSDOM.
 
-## 4. How to Add a New Effect (Checklist)
+## 5. How to Add a New Effect (Checklist)
 1.  [ ] **DSP:** Create `src/audio/worklets/my-effect-processor.js`. Register it.
 2.  [ ] **Node:** Create `src/audio/worklets/MyEffectNode.ts`.
 3.  [ ] **Engine:**
@@ -38,7 +51,7 @@ This document outlines the rules and patterns for AI agents modifying the Sonic 
     *   Create component in `src/components/rack/`.
     *   Add button and rendering logic in `EffectsRack.tsx`.
 
-## 5. Common Pitfalls
+## 6. Common Pitfalls
 *   **Source Management:** Always check `useAudioStore.getState().assets` for blobs (IRs) or `sourceBuffer` for the main track.
 *   **Offline Context:** `OfflineAudioContext` is separate from `AudioContext`. You must `addModule()` to *both* and recreate nodes for *both*.
 *   **Type Safety:** Use `RackModuleType` union to ensure exhaustive checks in factories.
@@ -75,4 +88,3 @@ This document outlines the rules and patterns for AI agents modifying the Sonic 
 ## 🚀 Selection Guide
 * **For Immediate User Value:** Pick tasks [X, Y, Z].
 * **For Long-term Architecture:** Pick tasks [A, B, C].
-

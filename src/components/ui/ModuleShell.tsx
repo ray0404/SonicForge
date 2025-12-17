@@ -28,7 +28,7 @@ export const ModuleShell: React.FC<ModuleShellProps> = ({
         <div className="flex items-center gap-2">
            {/* Drag Handle */}
            <div
-             className="cursor-grab active:cursor-grabbing text-slate-600 hover:text-slate-400 focus:outline-none"
+             className="cursor-grab active:cursor-grabbing text-slate-600 hover:text-slate-400 focus:outline-none touch-none p-1"
              {...dragHandleProps}
            >
              <GripVertical size={16} />

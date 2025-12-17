@@ -3,7 +3,7 @@ import { vi } from 'vitest';
 
 // Mock ResizeObserver for Dnd-Kit
 global.ResizeObserver = class ResizeObserver {
-  constructor(callback: ResizeObserverCallback) {}
+  constructor(_callback: ResizeObserverCallback) {}
   observe() {}
   unobserve() {}
   disconnect() {}

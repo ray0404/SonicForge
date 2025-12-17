@@ -23,6 +23,8 @@ import { MidSideEQUnit } from './MidSideEQUnit';
 import { CabSimUnit } from './CabSimUnit';
 import { MeteringUnit } from './MeteringUnit';
 import { TransientShaperUnit } from './TransientShaperUnit';
+import { SaturationUnit } from './SaturationUnit';
+import { DitheringUnit } from './DitheringUnit';
 
 // Sortable Item Wrapper
 function SortableItem({ id, children }: { id: string, children: (dragHandleProps: any) => React.ReactNode }) {
@@ -43,8 +45,10 @@ function SortableItem({ id, children }: { id: string, children: (dragHandleProps
         position: 'relative' as 'relative',
     };
 
+    // REMOVED 'touch-none' from the wrapper div to allow scrolling on the body
+    // touch-none should only be on the drag handle
     return (
-        <div ref={setNodeRef} style={style} className="w-full touch-none">
+        <div ref={setNodeRef} style={style} className="w-full">
             {children({ ...attributes, ...listeners })}
         </div>
     );
@@ -76,7 +80,7 @@ export const EffectsRack: React.FC = () => {
       collisionDetection={closestCenter}
       onDragEnd={handleDragEnd}
     >
-        <div className="w-full flex flex-col gap-4 pb-20">
+        <div className="w-full flex flex-col gap-4 pb-32">
              {rack.length === 0 ? (
                  <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-xl py-20 text-slate-600 bg-slate-900/20">
                      <p className="font-bold">Rack is empty</p>
@@ -109,6 +113,10 @@ export const EffectsRack: React.FC = () => {
                                         return <CabSimUnit {...commonProps} onUpdate={onUpdate} />;
                                     case 'TRANSIENT_SHAPER':
                                         return <TransientShaperUnit {...commonProps} onUpdate={onUpdate} />;
+                                    case 'SATURATION':
+                                        return <SaturationUnit {...commonProps} onUpdate={onUpdate} />;
+                                    case 'DITHERING':
+                                        return <DitheringUnit {...commonProps} onUpdate={onUpdate} />;
                                     case 'LOUDNESS_METER':
                                         return <MeteringUnit {...commonProps} />;
                                     default:

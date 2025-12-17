@@ -6,6 +6,8 @@ import { LimiterNode } from "./worklets/LimiterNode";
 import { MidSideEQNode } from "./worklets/MidSideEQNode";
 import { MeteringNode } from "./worklets/MeteringNode";
 import { ConvolutionNode } from "./worklets/ConvolutionNode";
+import { SaturationNode } from "./worklets/SaturationNode";
+import { DitheringNode } from "./worklets/DitheringNode";
 
 // @ts-ignore
 import dynamicEqUrl from './worklets/dynamic-eq-processor.js?worker&url';
@@ -17,6 +19,10 @@ import limiterUrl from './worklets/limiter-processor.js?worker&url';
 import midsideUrl from './worklets/midside-eq-processor.js?worker&url';
 // @ts-ignore
 import lufsUrl from './worklets/lufs-processor.js?worker&url';
+// @ts-ignore
+import saturationUrl from './worklets/saturation-processor.js?worker&url';
+// @ts-ignore
+import ditheringUrl from './worklets/dithering-processor.js?worker&url';
 
 /**
  * Singleton AudioContext Manager.
@@ -64,6 +70,8 @@ class AudioEngine {
         await this.context.audioWorklet.addModule(limiterUrl);
         await this.context.audioWorklet.addModule(midsideUrl);
         await this.context.audioWorklet.addModule(lufsUrl);
+        await this.context.audioWorklet.addModule(saturationUrl);
+        await this.context.audioWorklet.addModule(ditheringUrl);
         logger.info("AudioWorklet modules loaded successfully.");
       } catch (err) {
         logger.error(`Failed to load AudioWorklet modules`, err);
@@ -284,6 +292,14 @@ class AudioEngine {
                 return cabNode;
             case 'LOUDNESS_METER':
                 return new MeteringNode(this.context);
+            case 'SATURATION':
+                const satNode = new SaturationNode(this.context);
+                this.updateNodeParams(satNode, module);
+                return satNode;
+            case 'DITHERING':
+                const dithNode = new DitheringNode(this.context);
+                this.updateNodeParams(dithNode, module);
+                return dithNode;
             default:
                 return null;
         }
@@ -325,6 +341,14 @@ class AudioEngine {
                   node.setBuffer(buffer);
               }
           }
+      } else if (module.type === 'SATURATION' && node instanceof SaturationNode) {
+          Object.entries(module.parameters).forEach(([key, value]) => {
+              node.setParam(key as any, value);
+          });
+      } else if (module.type === 'DITHERING' && node instanceof DitheringNode) {
+          Object.entries(module.parameters).forEach(([key, value]) => {
+              node.setParam(key as any, value);
+          });
       }
   }
 
@@ -349,6 +373,10 @@ class AudioEngine {
                  const buffer = assets[value];
                  if (buffer) node.setBuffer(buffer);
              }
+          } else if (node instanceof SaturationNode) {
+              node.setParam(param as any, value);
+          } else if (node instanceof DitheringNode) {
+              node.setParam(param as any, value);
           }
           // Add logic for other node types here
       }
@@ -375,6 +403,8 @@ class AudioEngine {
         await offlineCtx.audioWorklet.addModule(transientUrl);
         await offlineCtx.audioWorklet.addModule(limiterUrl);
         await offlineCtx.audioWorklet.addModule(midsideUrl);
+        await offlineCtx.audioWorklet.addModule(saturationUrl);
+        await offlineCtx.audioWorklet.addModule(ditheringUrl);
         // We skip LUFS meter for offline render usually, or add it if we want to measure stats.
       } catch (err) {
           logger.error("Failed to load worklets for offline render", err);
@@ -427,6 +457,14 @@ class AudioEngine {
                       n.setBuffer(buffer);
                   }
               }
+              node = n;
+          } else if (module.type === 'SATURATION') {
+              const n = new SaturationNode(offlineCtx as unknown as AudioContext);
+              Object.entries(module.parameters).forEach(([k, v]) => n.setParam(k as any, v));
+              node = n;
+          } else if (module.type === 'DITHERING') {
+              const n = new DitheringNode(offlineCtx as unknown as AudioContext);
+              Object.entries(module.parameters).forEach(([k, v]) => n.setParam(k as any, v));
               node = n;
           }
           // Skip Metering for offline

@@ -32,11 +32,15 @@ export const AddModuleMenu: React.FC = () => {
           { label: 'Dynamic EQ', type: 'DYNAMIC_EQ' },
           { label: 'Mid/Side EQ', type: 'MIDSIDE_EQ' },
       ],
+      'Saturation': [
+          { label: 'Analog Saturation', type: 'SATURATION' },
+      ],
       'Spatial': [
           { label: 'Cabinet Sim', type: 'CAB_SIM' },
       ],
       'Utility': [
           { label: 'Loudness Meter', type: 'LOUDNESS_METER' },
+          { label: 'TPDF Dithering', type: 'DITHERING' },
       ]
   };
 

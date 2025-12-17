@@ -1,0 +1,26 @@
+export interface SaturationOptions {
+    drive?: number;
+    type?: number; // 0: Tape, 1: Tube, 2: Fuzz
+    outputGain?: number;
+}
+  
+export class SaturationNode extends AudioWorkletNode {
+    constructor(context: AudioContext) {
+        super(context, 'saturation-processor');
+    }
+
+    static get parameterDescriptors() {
+        return [
+            { name: 'drive', defaultValue: 0.0, minValue: 0.0, maxValue: 10.0 },
+            { name: 'type', defaultValue: 1, minValue: 0, maxValue: 2 },
+            { name: 'outputGain', defaultValue: 0.0, minValue: -12.0, maxValue: 12.0 }
+        ];
+    }
+
+    setParam(param: keyof SaturationOptions, value: number) {
+        const p = this.parameters.get(param);
+        if (p) {
+            p.setTargetAtTime(value, this.context.currentTime, 0.01);
+        }
+    }
+}

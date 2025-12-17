@@ -4,7 +4,7 @@ import { audioEngine } from '@/audio/context';
 import { logger } from '@/utils/logger';
 import { get as getIDB, set as setIDB } from 'idb-keyval';
 
-export type RackModuleType = 'DYNAMIC_EQ' | 'TRANSIENT_SHAPER' | 'LIMITER' | 'MIDSIDE_EQ' | 'CAB_SIM' | 'LOUDNESS_METER';
+export type RackModuleType = 'DYNAMIC_EQ' | 'TRANSIENT_SHAPER' | 'LIMITER' | 'MIDSIDE_EQ' | 'CAB_SIM' | 'LOUDNESS_METER' | 'SATURATION' | 'DITHERING';
 
 export interface RackModule {
   id: string;
@@ -35,8 +35,8 @@ interface AudioState {
   updateModuleParam: (id: string, param: string, value: any) => void;
   
   loadAsset: (file: File) => Promise<string>;
-  savePreset: () => Promise<void>;
-  loadPreset: () => Promise<void>;
+  saveProject: () => Promise<void>;
+  loadProject: () => Promise<void>;
 }
 
 export const useAudioStore = create<AudioState>((set, get) => ({
@@ -54,7 +54,7 @@ export const useAudioStore = create<AudioState>((set, get) => ({
       await audioEngine.init();
       set({ isInitialized: true });
       // Attempt to load previous session
-      get().loadPreset();
+      get().loadProject();
       
       // Playback loop for UI updates
       setInterval(() => {
@@ -86,13 +86,17 @@ export const useAudioStore = create<AudioState>((set, get) => ({
 
   loadSourceFile: async (file: File) => {
       try {
+          // 1. Save File to IDB for persistence
+          await setIDB('current_project_source', file);
+
+          // 2. Decode
           const buffer = await audioEngine.loadSource(file);
           set({ 
               sourceDuration: buffer.duration,
               currentTime: 0,
               isPlaying: false // Stop previous playback
           });
-          logger.info("Source file loaded.");
+          logger.info("Source file loaded and saved to IDB.");
       } catch (e) {
           logger.error("Failed to load source file", e);
       }
@@ -125,6 +129,10 @@ export const useAudioStore = create<AudioState>((set, get) => ({
       newModule.parameters = { irAssetId: '', mix: 1.0 };
     } else if (type === 'LOUDNESS_METER') {
       newModule.parameters = {};
+    } else if (type === 'SATURATION') {
+      newModule.parameters = { drive: 0.0, type: 1, outputGain: 0.0 }; // Type 1 = Tube
+    } else if (type === 'DITHERING') {
+      newModule.parameters = { bitDepth: 24 };
     }
 
     set((state) => ({ rack: [...state.rack, newModule] }));
@@ -186,30 +194,27 @@ export const useAudioStore = create<AudioState>((set, get) => ({
       }
   },
 
-  savePreset: async () => {
+  saveProject: async () => {
       const state = get();
-      // We only save the rack config. Assets are already in IDB via loadAsset.
-      // But we should probably save a map of used asset IDs to ensure they aren't GC'd if we implement that.
-      const preset = {
+      const projectMeta = {
+          updatedAt: Date.now(),
           rack: state.rack,
           masterVolume: state.masterVolume
       };
-      await setIDB('current_session_state', preset);
-      logger.info("Preset saved.");
+      await setIDB('current_project_meta', projectMeta);
+      logger.info("Project saved.");
   },
 
-  loadPreset: async () => {
+  loadProject: async () => {
       try {
-        const preset = await getIDB('current_session_state');
-        if (preset && preset.rack) {
-            set({ rack: preset.rack, masterVolume: preset.masterVolume || 1.0 });
+        // 1. Load Meta
+        const meta = await getIDB('current_project_meta');
+        if (meta && meta.rack) {
+            set({ rack: meta.rack, masterVolume: meta.masterVolume || 1.0 });
             
-            // Re-hydrate assets?
-            // The modules in 'rack' will have 'irAssetId'.
-            // We need to fetch those Blobs from IDB and decode them.
-            // This is async.
+            // 2. Re-hydrate Assets (CabSim IRs)
             const uniqueAssetIds = new Set<string>();
-            preset.rack.forEach((m: RackModule) => {
+            meta.rack.forEach((m: RackModule) => {
                 if (m.type === 'CAB_SIM' && m.parameters.irAssetId) {
                     uniqueAssetIds.add(m.parameters.irAssetId);
                 }
@@ -224,11 +229,19 @@ export const useAudioStore = create<AudioState>((set, get) => ({
                  }
             }
 
-            audioEngine.rebuildGraph(preset.rack);
-            logger.info("Preset loaded.");
+            // 3. Load Source File
+            const sourceFile = await getIDB('current_project_source') as File;
+            if (sourceFile && audioEngine.context) {
+                 logger.info("Restoring source file from IDB...");
+                 const buffer = await audioEngine.loadSource(sourceFile);
+                 set({ sourceDuration: buffer.duration, currentTime: 0 });
+            }
+
+            audioEngine.rebuildGraph(meta.rack);
+            logger.info("Project loaded successfully.");
         }
       } catch (e) {
-          logger.error("Failed to load preset", e);
+          logger.error("Failed to load project", e);
       }
   }
 }));
