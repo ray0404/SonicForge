@@ -2,38 +2,29 @@ import React, { useRef, useEffect } from 'react';
 import { RackModule } from '@/store/useAudioStore';
 import { audioEngine } from '@/audio/context';
 import { DynamicEQNode } from '@/audio/worklets/DynamicEQNode';
+import { ModuleShell } from '@/components/ui/ModuleShell';
+import { Knob } from '@/components/ui/Knob';
 
 interface DynamicEQUnitProps {
   module: RackModule;
   onRemove: () => void;
+  onBypass: () => void;
   onUpdate: (param: string, value: number) => void;
+  dragHandleProps?: any;
 }
 
-export const DynamicEQUnit: React.FC<DynamicEQUnitProps> = ({ module, onRemove, onUpdate }) => {
+export const DynamicEQUnit: React.FC<DynamicEQUnitProps> = ({ module, onRemove, onBypass, onUpdate, dragHandleProps }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
-  // Helper to get ranges (reused from EffectsRack but scoped here)
-  const getMin = (p: string) => {
-    if (p === 'frequency') return 20;
-    if (p === 'gain') return -20;
-    if (p === 'threshold') return -60;
-    if (p === 'attack' || p === 'release') return 0.001;
-    return 0;
-  };
-  const getMax = (p: string) => {
-    if (p === 'frequency') return 20000;
-    if (p === 'gain') return 20;
-    if (p === 'threshold') return 0;
-    if (p === 'attack' || p === 'release') return 1;
-    if (p === 'ratio') return 20;
-    if (p === 'Q') return 10;
-    return 1;
-  };
-  const getStep = (p: string) => {
-      if (p === 'frequency') return 1;
-      if (p === 'ratio' || p === 'Q') return 0.1;
-      return 0.01;
-  };
+  // Log Mapping Functions for Frequency
+  const minF = 20;
+  const maxF = 20000;
+  const minLog = Math.log(minF);
+  const maxLog = Math.log(maxF);
+  const scale = maxLog - minLog;
+
+  const mapTo01Freq = (val: number) => (Math.log(val) - minLog) / scale;
+  const mapFrom01Freq = (val: number) => Math.exp(val * scale + minLog);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -44,17 +35,15 @@ export const DynamicEQUnit: React.FC<DynamicEQUnitProps> = ({ module, onRemove, 
     let animationId: number;
 
     const render = () => {
-      // 1. Get Node Data
-      // @ts-ignore - Accessing private map for visualization
+      // @ts-ignore
       const node = audioEngine.nodeMap.get(module.id) as DynamicEQNode | undefined;
       const gr = node ? node.currentGainReduction : 0;
 
-      // 2. Clear
-      ctx.fillStyle = '#0f172a'; // Slate-900
+      ctx.fillStyle = '#0f172a';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // 3. Draw Grid (Log Scale)
-      ctx.strokeStyle = '#334155'; // Slate-700
+      // Grid
+      ctx.strokeStyle = '#334155';
       ctx.lineWidth = 1;
       ctx.beginPath();
       const freqs = [63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
@@ -65,7 +54,6 @@ export const DynamicEQUnit: React.FC<DynamicEQUnitProps> = ({ module, onRemove, 
       });
       ctx.stroke();
 
-      // 4. Draw 0dB Line
       const y0 = getY(0, canvas.height);
       ctx.strokeStyle = '#475569';
       ctx.beginPath();
@@ -73,27 +61,18 @@ export const DynamicEQUnit: React.FC<DynamicEQUnitProps> = ({ module, onRemove, 
       ctx.lineTo(canvas.width, y0);
       ctx.stroke();
 
-      // 5. Draw Response Curve
-      // We calculate the response for the Peaking Filter
+      // Response
       const params = module.parameters;
       const width = canvas.width;
       
       ctx.beginPath();
-      ctx.strokeStyle = '#3b82f6'; // Blue-500
+      ctx.strokeStyle = '#3b82f6';
       ctx.lineWidth = 2;
 
-      // Dynamic curve (with GR applied)
-      // Since GR reduces the gain, the effective gain is params.gain - gr
-      // But wait, the GR is positive (dB reduction). 
-      // If gain is 0, and GR is 5, effective gain is -5?
-      // Check processor logic: const dynamicGain = staticGain - gainReduction;
-      // Yes.
       const dynamicGain = params.gain - gr;
       
       for (let i = 0; i < width; i++) {
-        // Map pixel x to frequency
         const freq = getFreq(i, width);
-        // Calculate Magnitude (dB)
         const mag = getPeakingMag(freq, params.frequency, params.Q, dynamicGain, 44100);
         const y = getY(mag, canvas.height);
         if (i === 0) ctx.moveTo(i, y);
@@ -101,10 +80,9 @@ export const DynamicEQUnit: React.FC<DynamicEQUnitProps> = ({ module, onRemove, 
       }
       ctx.stroke();
 
-      // 6. Draw Static Curve (Ghost) if GR > 0
       if (gr > 0.1) {
           ctx.beginPath();
-          ctx.strokeStyle = 'rgba(59, 130, 246, 0.3)'; // Blue-500 transparent
+          ctx.strokeStyle = 'rgba(59, 130, 246, 0.3)';
           ctx.lineWidth = 1;
           for (let i = 0; i < width; i++) {
             const freq = getFreq(i, width);
@@ -124,47 +102,74 @@ export const DynamicEQUnit: React.FC<DynamicEQUnitProps> = ({ module, onRemove, 
   }, [module]);
 
   return (
-    <div className="bg-slate-800 rounded-lg p-4 shadow-lg border border-slate-700 w-full max-w-2xl">
-      <div className="flex justify-between items-center mb-2">
-         <span className="font-bold text-blue-400">Dynamic EQ</span>
-         <button onClick={onRemove} className="text-red-500 text-xs hover:text-red-400">Remove</button>
-      </div>
-
+    <ModuleShell
+        title="Dynamic EQ"
+        color="text-blue-400"
+        onBypass={onBypass}
+        onRemove={onRemove}
+        isBypassed={module.bypass}
+        dragHandleProps={dragHandleProps}
+    >
       <canvas 
         ref={canvasRef} 
         width={600} 
-        height={200} 
-        className="w-full h-40 bg-slate-900 rounded mb-4 border border-slate-700"
+        height={160}
+        className="w-full h-40 bg-slate-950 rounded mb-4 border border-slate-700"
       />
 
-      <div className="grid grid-cols-4 gap-4">
-         {Object.entries(module.parameters).map(([key, val]) => (
-            <div key={key} className="flex flex-col gap-1">
-                <label className="text-[10px] uppercase font-bold text-slate-500 flex justify-between">
-                    {key} <span className="text-slate-300">{val.toFixed(2)}</span>
-                </label>
-                <input 
-                    type="range" 
-                    className="h-1 bg-slate-600 rounded appearance-none cursor-pointer accent-blue-500"
-                    min={getMin(key)}
-                    max={getMax(key)}
-                    step={getStep(key)}
-                    value={val}
-                    onChange={(e) => onUpdate(key, parseFloat(e.target.value))}
-                />
-            </div>
-         ))}
+      <div className="flex flex-wrap justify-between items-end gap-2 px-2">
+         <div className="flex gap-2">
+            <Knob
+                label="Freq" unit="Hz"
+                value={module.parameters.frequency} min={20} max={20000}
+                mapTo01={mapTo01Freq} mapFrom01={mapFrom01Freq}
+                onChange={(v) => onUpdate('frequency', v)}
+            />
+            <Knob
+                label="Q"
+                value={module.parameters.Q} min={0.1} max={10}
+                onChange={(v) => onUpdate('Q', v)}
+            />
+            <Knob
+                label="Gain" unit="dB"
+                value={module.parameters.gain} min={-20} max={20}
+                onChange={(v) => onUpdate('gain', v)}
+            />
+         </div>
+
+         <div className="w-px h-10 bg-slate-700 mx-1"></div>
+
+         <div className="flex gap-2">
+            <Knob
+                label="Thresh" unit="dB"
+                value={module.parameters.threshold} min={-60} max={0}
+                onChange={(v) => onUpdate('threshold', v)}
+            />
+            <Knob
+                label="Ratio"
+                value={module.parameters.ratio} min={1} max={20}
+                onChange={(v) => onUpdate('ratio', v)}
+            />
+            <Knob
+                label="Attack" unit="s"
+                value={module.parameters.attack} min={0.001} max={1} step={0.001}
+                onChange={(v) => onUpdate('attack', v)}
+            />
+            <Knob
+                label="Release" unit="s"
+                value={module.parameters.release} min={0.001} max={1} step={0.001}
+                onChange={(v) => onUpdate('release', v)}
+            />
+         </div>
       </div>
-    </div>
+    </ModuleShell>
   );
 };
 
 // --- Math Helpers ---
-
 function getX(freq: number, width: number): number {
     const minF = 20;
     const maxF = 20000;
-    // Log scale mapping
     const minLog = Math.log(minF);
     const maxLog = Math.log(maxF);
     const scale = (maxLog - minLog) / width;
@@ -181,23 +186,19 @@ function getFreq(x: number, width: number): number {
 }
 
 function getY(db: number, height: number): number {
-    // Range: +20dB to -20dB
     const minDb = -20;
     const maxDb = 20;
     const range = maxDb - minDb;
-    // Map db to 0-1 (inverse, 0 is top)
     const norm = 1 - (db - minDb) / range;
     return norm * height;
 }
 
-// Magnitude response of a Peaking EQ filter
 function getPeakingMag(f: number, f0: number, Q: number, gainDb: number, fs: number): number {
     const w0 = (2 * Math.PI * f0) / fs;
     const w = (2 * Math.PI * f) / fs;
     const A = Math.pow(10, gainDb / 40);
     const alpha = Math.sin(w0) / (2 * Q);
     
-    // Coefficients (Standard RBJ)
     const b0 = 1 + alpha * A;
     const b1 = -2 * Math.cos(w0);
     const b2 = 1 - alpha * A;
@@ -205,9 +206,6 @@ function getPeakingMag(f: number, f0: number, Q: number, gainDb: number, fs: num
     const a1 = -2 * Math.cos(w0);
     const a2 = 1 - alpha / A;
 
-    // Evaluate H(z) at z = e^(jw)
-    // H(e^jw) = (b0 + b1*e^-jw + b2*e^-2jw) / (a0 + a1*e^-jw + a2*e^-2jw)
-    
     const cosw = Math.cos(w);
     const cos2w = Math.cos(2*w);
     const sinw = Math.sin(w);
