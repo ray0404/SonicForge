@@ -3,6 +3,7 @@ import { ModuleShell } from '../ui/ModuleShell';
 import { Knob } from '../ui/Knob';
 import { RackModule } from '@/store/useAudioStore';
 import { clsx } from 'clsx';
+import { SidechainControl } from './SidechainControl';
 
 interface Props {
   module: RackModule;
@@ -75,24 +76,31 @@ export const CompressorUnit: React.FC<Props> = ({ module, onRemove, onBypass, on
             />
         </div>
 
-        {/* Mode Selector */}
-        <div className="flex flex-col items-center gap-1">
-            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Topology</span>
-            <div className="flex bg-slate-950/50 rounded p-0.5 border border-slate-800">
-                {modes.map((label, idx) => (
-                    <button
-                        key={label}
-                        onClick={() => onUpdate('mode', idx)}
-                        className={clsx(
-                            "px-2 py-1 text-[9px] font-bold rounded transition-all",
-                            module.parameters.mode === idx
-                                ? "bg-emerald-500 text-slate-950 shadow-[0_0_8px_rgba(16,185,129,0.4)]"
-                                : "text-slate-500 hover:text-slate-300 hover:bg-slate-800"
-                        )}
-                    >
-                        {label}
-                    </button>
-                ))}
+        <div className="flex gap-2">
+            {/* Mode Selector */}
+            <div className="flex-1 flex flex-col items-center gap-1">
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Topology</span>
+                <div className="flex bg-slate-950/50 rounded p-0.5 border border-slate-800">
+                    {modes.map((label, idx) => (
+                        <button
+                            key={label}
+                            onClick={() => onUpdate('mode', idx)}
+                            className={clsx(
+                                "px-2 py-1 text-[9px] font-bold rounded transition-all",
+                                module.parameters.mode === idx
+                                    ? "bg-emerald-500 text-slate-950 shadow-[0_0_8px_rgba(16,185,129,0.4)]"
+                                    : "text-slate-500 hover:text-slate-300 hover:bg-slate-800"
+                            )}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+            
+            {/* Sidechain */}
+            <div className="w-32">
+                <SidechainControl module={module} />
             </div>
         </div>
       </div>

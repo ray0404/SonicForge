@@ -5,7 +5,7 @@ const AudioWorkletNodeBase = AudioWorkletNode as TAudioWorkletNodeConstructor;
 export class MultibandCompressorNode extends AudioWorkletNodeBase<IAudioContext | IOfflineAudioContext> {
     constructor(context: IAudioContext | IOfflineAudioContext) {
         super(context, 'multiband-compressor-processor', {
-            numberOfInputs: 1,
+            numberOfInputs: 2,
             numberOfOutputs: 1,
             parameterData: {
                 lowFreq: 150,

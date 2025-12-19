@@ -19,6 +19,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
 
     process(inputs, outputs, parameters) {
         const input = inputs[0];
+        const scInput = inputs[1];
         const output = outputs[0];
         if (!input || !output) return true;
 
@@ -52,6 +53,8 @@ class CompressorProcessor extends AudioWorkletProcessor {
             const state = this.channels[ch];
             const inCh = input[ch];
             const outCh = output[ch];
+            // Use sidechain channel if available, otherwise fallback to input channel
+            const scCh = (scInput && scInput[ch] && scInput[ch].length > 0) ? scInput[ch] : inCh;
 
             const mode = modeP.length === 1 ? modeP[0] : modeP[0];
             const thresh = threshP.length === 1 ? threshP[0] : threshP[0];
@@ -71,11 +74,20 @@ class CompressorProcessor extends AudioWorkletProcessor {
 
             for (let i = 0; i < inCh.length; i++) {
                 const x = inCh[i];
+                // Use sidechain sample for detection
+                const scSample = scCh[i];
 
                 // 1. Detection Source
-                let detectorIn = x;
-                if (mode === 1) { // FET: Feedback
-                    detectorIn = state.lastOutput;
+                let detectorIn = scSample;
+                if (mode === 1) { // FET: Feedback (Feedback usually takes the output, ignoring SC in simple feedback topology unless explicitly keyed)
+                    // If SC is active, Feedback topology is weird. Usually SC overrides Feedback source.
+                    // But for now, if mode is FET, we use previous output. 
+                    // To support SC in FET, we'd need to process the SC signal through the gain cell (simulated).
+                    // For simplicity: If Sidechain is present (scInput is valid), we use SC (Feed-forward behavior forced).
+                    // If no SC, and FET mode, use feedback.
+                    if (!scInput || !scInput[ch] || scInput[ch].length === 0) {
+                         detectorIn = state.lastOutput;
+                    }
                 }
 
                 // 2. Level Detection (Peak)

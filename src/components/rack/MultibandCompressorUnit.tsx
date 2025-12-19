@@ -3,6 +3,7 @@ import { ModuleShell } from '../ui/ModuleShell';
 import { Knob } from '../ui/Knob';
 import { RackModule } from '@/store/useAudioStore';
 import { clsx } from 'clsx';
+import { SidechainControl } from './SidechainControl';
 
 interface Props {
   module: RackModule;
@@ -37,50 +38,56 @@ export const MultibandCompressorUnit: React.FC<Props> = ({ module, onRemove, onB
       color="text-emerald-400"
       dragHandleProps={dragHandleProps}
     >
-      <div className="flex flex-col gap-3">
-        {/* Crossovers */}
-        <div className="flex justify-center gap-8 pb-2 border-b border-slate-800">
-             <div className="flex flex-col items-center gap-1">
-                <span className="text-[9px] text-slate-500 uppercase tracking-wider">Low X-Over</span>
-                <input 
-                    type="number" 
-                    className="w-16 bg-slate-900 border border-slate-700 rounded px-1 text-center text-xs text-emerald-400 font-mono"
-                    value={module.parameters.lowFreq}
-                    onChange={(e) => onUpdate('lowFreq', Number(e.target.value))}
-                />
+      <div className="flex gap-4">
+        <div className="flex flex-col gap-3 flex-1">
+            {/* Crossovers */}
+            <div className="flex justify-center gap-8 pb-2 border-b border-slate-800">
+                <div className="flex flex-col items-center gap-1">
+                    <span className="text-[9px] text-slate-500 uppercase tracking-wider">Low X-Over</span>
+                    <input 
+                        type="number" 
+                        className="w-16 bg-slate-900 border border-slate-700 rounded px-1 text-center text-xs text-emerald-400 font-mono"
+                        value={module.parameters.lowFreq}
+                        onChange={(e) => onUpdate('lowFreq', Number(e.target.value))}
+                    />
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                    <span className="text-[9px] text-slate-500 uppercase tracking-wider">High X-Over</span>
+                    <input 
+                        type="number" 
+                        className="w-16 bg-slate-900 border border-slate-700 rounded px-1 text-center text-xs text-emerald-400 font-mono"
+                        value={module.parameters.highFreq}
+                        onChange={(e) => onUpdate('highFreq', Number(e.target.value))}
+                    />
+                </div>
             </div>
-            <div className="flex flex-col items-center gap-1">
-                <span className="text-[9px] text-slate-500 uppercase tracking-wider">High X-Over</span>
-                <input 
-                    type="number" 
-                    className="w-16 bg-slate-900 border border-slate-700 rounded px-1 text-center text-xs text-emerald-400 font-mono"
-                    value={module.parameters.highFreq}
-                    onChange={(e) => onUpdate('highFreq', Number(e.target.value))}
-                />
+
+            {/* Tabs */}
+            <div className="flex bg-slate-950 rounded-lg p-1 border border-slate-800">
+                {(['Low', 'Mid', 'High'] as const).map((band) => (
+                    <button
+                        key={band}
+                        onClick={() => setActiveBand(band)}
+                        className={clsx(
+                            "flex-1 py-1 text-[10px] font-bold uppercase tracking-wider rounded transition-all",
+                            activeBand === band 
+                                ? "bg-emerald-500/20 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.1)]" 
+                                : "text-slate-500 hover:text-slate-300 hover:bg-slate-800"
+                        )}
+                    >
+                        {band} Band
+                    </button>
+                ))}
+            </div>
+
+            {/* Band Controls */}
+            <div className="p-2 bg-slate-900/30 rounded-lg border border-slate-800/50">
+                {renderBandControls(activeBand)}
             </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex bg-slate-950 rounded-lg p-1 border border-slate-800">
-            {(['Low', 'Mid', 'High'] as const).map((band) => (
-                <button
-                    key={band}
-                    onClick={() => setActiveBand(band)}
-                    className={clsx(
-                        "flex-1 py-1 text-[10px] font-bold uppercase tracking-wider rounded transition-all",
-                        activeBand === band 
-                            ? "bg-emerald-500/20 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.1)]" 
-                            : "text-slate-500 hover:text-slate-300 hover:bg-slate-800"
-                    )}
-                >
-                    {band} Band
-                </button>
-            ))}
-        </div>
-
-        {/* Band Controls */}
-        <div className="p-2 bg-slate-900/30 rounded-lg border border-slate-800/50">
-            {renderBandControls(activeBand)}
+        <div className="w-32">
+            <SidechainControl module={module} />
         </div>
       </div>
     </ModuleShell>

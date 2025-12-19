@@ -4,6 +4,7 @@ import { audioEngine } from '@/audio/context';
 import { DynamicEQNode } from '@/audio/worklets/DynamicEQNode';
 import { ModuleShell } from '@/components/ui/ModuleShell';
 import { Knob } from '@/components/ui/Knob';
+import { SidechainControl } from './SidechainControl';
 
 interface DynamicEQUnitProps {
   module: RackModule;
@@ -117,50 +118,56 @@ export const DynamicEQUnit: React.FC<DynamicEQUnitProps> = ({ module, onRemove, 
         className="w-full h-32 bg-slate-950 rounded mb-3 border border-slate-700"
       />
 
-      <div className="flex flex-wrap justify-center items-end gap-x-4 gap-y-3 px-1">
-         <div className="flex gap-2">
-            <Knob
-                label="Freq" unit="Hz"
-                value={module.parameters.frequency} min={20} max={20000}
-                mapTo01={mapTo01Freq} mapFrom01={mapFrom01Freq}
-                onChange={(v) => onUpdate('frequency', v)}
-            />
-            <Knob
-                label="Q"
-                value={module.parameters.Q} min={0.1} max={10}
-                onChange={(v) => onUpdate('Q', v)}
-            />
-            <Knob
-                label="Gain" unit="dB"
-                value={module.parameters.gain} min={-20} max={20}
-                onChange={(v) => onUpdate('gain', v)}
-            />
-         </div>
+      <div className="flex gap-4 items-center">
+        <div className="flex flex-wrap justify-center items-end gap-x-4 gap-y-3 px-1 flex-1">
+            <div className="flex gap-2">
+                <Knob
+                    label="Freq" unit="Hz"
+                    value={module.parameters.frequency} min={20} max={20000}
+                    mapTo01={mapTo01Freq} mapFrom01={mapFrom01Freq}
+                    onChange={(v) => onUpdate('frequency', v)}
+                />
+                <Knob
+                    label="Q"
+                    value={module.parameters.Q} min={0.1} max={10}
+                    onChange={(v) => onUpdate('Q', v)}
+                />
+                <Knob
+                    label="Gain" unit="dB"
+                    value={module.parameters.gain} min={-20} max={20}
+                    onChange={(v) => onUpdate('gain', v)}
+                />
+            </div>
 
-         <div className="w-px h-10 bg-slate-700 mx-1"></div>
+            <div className="w-px h-10 bg-slate-700 mx-1"></div>
 
-         <div className="flex gap-2">
-            <Knob
-                label="Thresh" unit="dB"
-                value={module.parameters.threshold} min={-60} max={0}
-                onChange={(v) => onUpdate('threshold', v)}
-            />
-            <Knob
-                label="Ratio"
-                value={module.parameters.ratio} min={1} max={20}
-                onChange={(v) => onUpdate('ratio', v)}
-            />
-            <Knob
-                label="Attack" unit="s"
-                value={module.parameters.attack} min={0.001} max={1} step={0.001}
-                onChange={(v) => onUpdate('attack', v)}
-            />
-            <Knob
-                label="Release" unit="s"
-                value={module.parameters.release} min={0.001} max={1} step={0.001}
-                onChange={(v) => onUpdate('release', v)}
-            />
-         </div>
+            <div className="flex gap-2">
+                <Knob
+                    label="Thresh" unit="dB"
+                    value={module.parameters.threshold} min={-60} max={0}
+                    onChange={(v) => onUpdate('threshold', v)}
+                />
+                <Knob
+                    label="Ratio"
+                    value={module.parameters.ratio} min={1} max={20}
+                    onChange={(v) => onUpdate('ratio', v)}
+                />
+                <Knob
+                    label="Attack" unit="s"
+                    value={module.parameters.attack} min={0.001} max={1} step={0.001}
+                    onChange={(v) => onUpdate('attack', v)}
+                />
+                <Knob
+                    label="Release" unit="s"
+                    value={module.parameters.release} min={0.001} max={1} step={0.001}
+                    onChange={(v) => onUpdate('release', v)}
+                />
+            </div>
+        </div>
+
+        <div className="w-32 shrink-0">
+            <SidechainControl module={module} />
+        </div>
       </div>
     </ModuleShell>
   );

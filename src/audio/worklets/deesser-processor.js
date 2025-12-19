@@ -20,6 +20,7 @@ class DeEsserProcessor extends AudioWorkletProcessor {
 
     process(inputs, outputs, parameters) {
         const input = inputs[0];
+        const scInput = inputs[1];
         const output = outputs[0];
         if (!input || !output) return true;
 
@@ -45,6 +46,7 @@ class DeEsserProcessor extends AudioWorkletProcessor {
         for (let ch = 0; ch < input.length; ch++) {
             const inputChannel = input[ch];
             const outputChannel = output[ch];
+            const scCh = (scInput && scInput[ch] && scInput[ch].length > 0) ? scInput[ch] : inputChannel;
             const state = this.channelState[ch];
 
             // Update Filter Params (Bandpass for Sibilance)
@@ -54,6 +56,7 @@ class DeEsserProcessor extends AudioWorkletProcessor {
 
             for (let i = 0; i < inputChannel.length; i++) {
                 const sample = inputChannel[i];
+                const scSample = scCh[i];
 
                 if (bypass) {
                     outputChannel[i] = sample;
@@ -61,7 +64,7 @@ class DeEsserProcessor extends AudioWorkletProcessor {
                 }
 
                 // 1. Filter Sidechain
-                const sidechain = state.filter.process(sample);
+                const sidechain = state.filter.process(scSample);
 
                 // 2. Envelope Detection
                 const env = state.envelope.process(sidechain);

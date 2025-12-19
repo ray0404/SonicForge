@@ -7,9 +7,9 @@ class VCA {
         this.gr = 0; // Gain Reduction state (dB)
     }
 
-    process(sample, thresh, ratio, attack, release, makeup) {
+    process(sample, detectionSample, thresh, ratio, attack, release, makeup) {
         // 1. Level Detection
-        const absIn = Math.abs(sample);
+        const absIn = Math.abs(detectionSample);
         const envDb = 20 * Math.log10(absIn + 1e-6);
 
         // 2. Gain Calculation
@@ -76,6 +76,7 @@ class MultibandCompressorProcessor extends AudioWorkletProcessor {
 
     process(inputs, outputs, parameters) {
         const input = inputs[0];
+        const scInput = inputs[1];
         const output = outputs[0];
         if (!input || !output) return true;
 
@@ -91,6 +92,9 @@ class MultibandCompressorProcessor extends AudioWorkletProcessor {
                 this.channelState.push({
                     xover1: new LinkwitzRiley4(sampleRate, 150),
                     xover2: new LinkwitzRiley4(sampleRate, 2500),
+                    // Parallel crossovers for sidechain if active
+                    scXover1: new LinkwitzRiley4(sampleRate, 150),
+                    scXover2: new LinkwitzRiley4(sampleRate, 2500),
                     vcaLow: new VCA(sampleRate),
                     vcaMid: new VCA(sampleRate),
                     vcaHigh: new VCA(sampleRate)
@@ -126,16 +130,20 @@ class MultibandCompressorProcessor extends AudioWorkletProcessor {
         for (let ch = 0; ch < input.length; ch++) {
             const inCh = input[ch];
             const outCh = output[ch];
+            const scCh = (scInput && scInput[ch] && scInput[ch].length > 0) ? scInput[ch] : inCh;
             const state = this.channelState[ch];
 
             // Update Crossovers
             if (state.xover1.cutoffFrequency !== lowFreq) state.xover1.setCutoff(lowFreq);
             if (state.xover2.cutoffFrequency !== highFreq) state.xover2.setCutoff(highFreq);
+            if (state.scXover1.cutoffFrequency !== lowFreq) state.scXover1.setCutoff(lowFreq);
+            if (state.scXover2.cutoffFrequency !== highFreq) state.scXover2.setCutoff(highFreq);
 
             for (let i = 0; i < inCh.length; i++) {
                 const sample = inCh[i];
+                const scSample = scCh[i];
 
-                // 1. Split
+                // 1. Split Main
                 const s1 = state.xover1.process(sample);
                 const s2 = state.xover2.process(s1.high);
 
@@ -143,12 +151,20 @@ class MultibandCompressorProcessor extends AudioWorkletProcessor {
                 const bandMid = s2.low;
                 const bandHigh = s2.high;
 
-                // 2. Compress
-                const resLow = state.vcaLow.process(bandLow, tL, rL, aL, reL, gL);
-                const resMid = state.vcaMid.process(bandMid, tM, rM, aM, reM, gM);
-                const resHigh = state.vcaHigh.process(bandHigh, tH, rH, aH, reH, gH);
+                // 2. Split Sidechain
+                const scS1 = state.scXover1.process(scSample);
+                const scS2 = state.scXover2.process(scS1.high);
 
-                // 3. Sum
+                const scBandLow = scS1.low;
+                const scBandMid = scS2.low;
+                const scBandHigh = scS2.high;
+
+                // 3. Compress
+                const resLow = state.vcaLow.process(bandLow, scBandLow, tL, rL, aL, reL, gL);
+                const resMid = state.vcaMid.process(bandMid, scBandMid, tM, rM, aM, reM, gM);
+                const resHigh = state.vcaHigh.process(bandHigh, scBandHigh, tH, rH, aH, reH, gH);
+
+                // 4. Sum
                 outCh[i] = resLow.output + resMid.output + resHigh.output;
             }
         }

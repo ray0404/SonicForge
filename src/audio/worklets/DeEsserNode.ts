@@ -5,7 +5,7 @@ const AudioWorkletNodeBase = AudioWorkletNode as TAudioWorkletNodeConstructor;
 export class DeEsserNode extends AudioWorkletNodeBase<IAudioContext | IOfflineAudioContext> {
     constructor(context: IAudioContext | IOfflineAudioContext) {
         super(context, 'deesser-processor', {
-            numberOfInputs: 1,
+            numberOfInputs: 2,
             numberOfOutputs: 1,
             parameterData: {
                 frequency: 6000,

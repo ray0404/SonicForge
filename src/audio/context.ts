@@ -266,6 +266,39 @@ class AudioEngine {
 
     previousNode.connect(this.rackOutput);
     this.connectedIds = activeIds;
+
+    // Pass 2: Sidechain Routing
+    rack.forEach(module => {
+        if (!module.bypass && module.sidechain?.enabled) {
+            const destNode = this.nodeMap.get(module.id) as any; // Cast to access inputs/connect
+            if (!destNode || !destNode.parameters) return; // Basic check
+
+            // If External Sidechain
+            if (module.sidechain.mode === 'external' && module.sidechain.sourceId) {
+                const sourceNode = this.nodeMap.get(module.sidechain.sourceId);
+                // Can't SC from self or non-existent node
+                if (sourceNode && sourceNode !== destNode) {
+                    // Connect Source Output -> Dest Input 1 (Sidechain)
+                    // Note: If source is ConvolutionNode, use its output prop
+                    const sourceOut = (sourceNode instanceof ConvolutionNode) 
+                        ? sourceNode.output 
+                        : sourceNode;
+                    
+                    // We connect to the AudioWorkletNode's 2nd input (index 1)
+                    // The standardized-audio-context types might be strict, so we cast to any or native Node
+                    (sourceOut as any).connect(destNode, 0, 1);
+                }
+            }
+            // If Internal Sidechain (with Filter) - Not fully implemented yet in this pass,
+            // but placeholder logic would go here:
+            // 1. Create Biquad
+            // 2. Connect destNode.input[0] (or pre-node) -> Filter -> destNode.input[1]
+            // This is tricky because we don't have easy access to "signal before destNode".
+            // A better way for Internal SC is to handle it inside the DSP if possible, 
+            // OR wrap the node in a graph that exposes the input signal.
+            // For now, we only support External SC routing.
+        }
+    });
   }
 
   private cleanupNodeMap(rack: RackModule[]) {
