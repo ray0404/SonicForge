@@ -1,3 +1,5 @@
+import { IAudioContext, IGainNode, IConvolverNode, IOfflineAudioContext, IAudioNode, IAudioParam } from "standardized-audio-context";
+
 /**
  * A wrapper around the native ConvolverNode.
  * We use a class to maintain consistency with our other Custom Nodes,
@@ -5,14 +7,14 @@
  * For now, it's a direct wrapper that exposes a 'setBuffer' method.
  */
 export class ConvolutionNode {
-    public context: AudioContext;
-    public input: GainNode;
-    public output: GainNode;
-    private convolver: ConvolverNode;
-    private dryNode: GainNode;
-    private wetNode: GainNode;
+    public context: IAudioContext | IOfflineAudioContext;
+    public input: IGainNode<IAudioContext | IOfflineAudioContext>;
+    public output: IGainNode<IAudioContext | IOfflineAudioContext>;
+    private convolver: IConvolverNode<IAudioContext | IOfflineAudioContext>;
+    private dryNode: IGainNode<IAudioContext | IOfflineAudioContext>;
+    private wetNode: IGainNode<IAudioContext | IOfflineAudioContext>;
 
-    constructor(context: AudioContext) {
+    constructor(context: IAudioContext | IOfflineAudioContext) {
         this.context = context;
         this.input = context.createGain();
         this.output = context.createGain();
@@ -38,8 +40,8 @@ export class ConvolutionNode {
     }
 
     // Determine if this mimics the AudioNode interface enough for our Engine
-    connect(destination: AudioNode) {
-        this.output.connect(destination);
+    connect(destination: IAudioNode<IAudioContext | IOfflineAudioContext> | IAudioParam) {
+        this.output.connect(destination as any);
     }
 
     disconnect() {

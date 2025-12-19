@@ -1,7 +1,11 @@
-export class LimiterNode extends AudioWorkletNode {
+import { AudioWorkletNode, IAudioContext, IOfflineAudioContext, TAudioWorkletNodeConstructor } from "standardized-audio-context";
+
+const AudioWorkletNodeBase = AudioWorkletNode as TAudioWorkletNodeConstructor;
+
+export class LimiterNode extends AudioWorkletNodeBase<IAudioContext | IOfflineAudioContext> {
     public currentGainReduction: number = 0;
   
-    constructor(context: AudioContext) {
+    constructor(context: IAudioContext | IOfflineAudioContext) {
       super(context, 'limiter-processor', {
         numberOfInputs: 1,
         numberOfOutputs: 1,

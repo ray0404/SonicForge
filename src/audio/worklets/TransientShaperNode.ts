@@ -1,5 +1,9 @@
-export class TransientShaperNode extends AudioWorkletNode {
-    constructor(context: AudioContext) {
+import { AudioWorkletNode, IAudioContext, IOfflineAudioContext, TAudioWorkletNodeConstructor } from "standardized-audio-context";
+
+const AudioWorkletNodeBase = AudioWorkletNode as TAudioWorkletNodeConstructor;
+
+export class TransientShaperNode extends AudioWorkletNodeBase<IAudioContext | IOfflineAudioContext> {
+    constructor(context: IAudioContext | IOfflineAudioContext) {
         super(context, 'transient-processor', {
             numberOfInputs: 1,
             numberOfOutputs: 1,

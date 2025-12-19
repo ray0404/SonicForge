@@ -1,11 +1,15 @@
+import { AudioWorkletNode, IAudioContext, IOfflineAudioContext, TAudioWorkletNodeConstructor } from "standardized-audio-context";
+
+const AudioWorkletNodeBase = AudioWorkletNode as TAudioWorkletNodeConstructor;
+
 export interface SaturationOptions {
     drive?: number;
     type?: number; // 0: Tape, 1: Tube, 2: Fuzz
     outputGain?: number;
 }
   
-export class SaturationNode extends AudioWorkletNode {
-    constructor(context: AudioContext) {
+export class SaturationNode extends AudioWorkletNodeBase<IAudioContext | IOfflineAudioContext> {
+    constructor(context: IAudioContext | IOfflineAudioContext) {
         super(context, 'saturation-processor');
     }
 

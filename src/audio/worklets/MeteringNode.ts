@@ -1,8 +1,12 @@
-export class MeteringNode extends AudioWorkletNode {
+import { AudioWorkletNode, IAudioContext, IOfflineAudioContext, TAudioWorkletNodeConstructor } from "standardized-audio-context";
+
+const AudioWorkletNodeBase = AudioWorkletNode as TAudioWorkletNodeConstructor;
+
+export class MeteringNode extends AudioWorkletNodeBase<IAudioContext | IOfflineAudioContext> {
     public momentary: number = -100;
     public shortTerm: number = -100;
   
-    constructor(context: AudioContext) {
+    constructor(context: IAudioContext | IOfflineAudioContext) {
       super(context, 'lufs-processor', {
         numberOfInputs: 1,
         numberOfOutputs: 1,

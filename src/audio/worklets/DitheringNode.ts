@@ -1,9 +1,13 @@
+import { AudioWorkletNode, IAudioContext, IOfflineAudioContext, TAudioWorkletNodeConstructor } from "standardized-audio-context";
+
+const AudioWorkletNodeBase = AudioWorkletNode as TAudioWorkletNodeConstructor;
+
 export interface DitheringOptions {
     bitDepth?: number;
 }
   
-export class DitheringNode extends AudioWorkletNode {
-    constructor(context: AudioContext) {
+export class DitheringNode extends AudioWorkletNodeBase<IAudioContext | IOfflineAudioContext> {
+    constructor(context: IAudioContext | IOfflineAudioContext) {
         super(context, 'dithering-processor');
     }
 
