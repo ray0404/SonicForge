@@ -26,6 +26,7 @@ interface AudioState {
   togglePlay: () => void;
   seek: (time: number) => void;
   loadSourceFile: (file: File) => Promise<void>;
+  clearSource: () => Promise<void>;
   setMasterVolume: (val: number) => void;
   
   addModule: (type: RackModuleType) => void;
@@ -97,6 +98,22 @@ export const useAudioStore = create<AudioState>((set, get) => ({
       }
   },
 
+  clearSource: async () => {
+      try {
+          await setIDB('current_project_source', null);
+          audioEngine.pause();
+          audioEngine.sourceBuffer = null;
+          set({ 
+              sourceDuration: 0,
+              currentTime: 0,
+              isPlaying: false 
+          });
+          logger.info("Source cleared.");
+      } catch (e) {
+          logger.error("Failed to clear source", e);
+      }
+  },
+
   setMasterVolume: (val: number) => {
     set({ masterVolume: val });
     if (audioEngine.masterGain) {
@@ -112,7 +129,9 @@ export const useAudioStore = create<AudioState>((set, get) => ({
       parameters: {}
     };
 
-    if (type === 'DYNAMIC_EQ') newModule.parameters = { frequency: 1000, gain: 0, Q: 1.0, threshold: -20, ratio: 2, attack: 0.01, release: 0.1 };
+    if (type === 'DYNAMIC_EQ') {
+        newModule.parameters = { frequency: 1000, gain: 0, Q: 1.0, threshold: -20, ratio: 2, attack: 0.01, release: 0.1 };
+    }
     else if (type === 'TRANSIENT_SHAPER') newModule.parameters = { attackGain: 0, sustainGain: 0 };
     else if (type === 'LIMITER') newModule.parameters = { threshold: -0.5, ceiling: -0.1, release: 0.1, lookahead: 5 };
     else if (type === 'MIDSIDE_EQ') newModule.parameters = { midGain: 0, midFreq: 1000, sideGain: 0, sideFreq: 1000 };
@@ -127,16 +146,22 @@ export const useAudioStore = create<AudioState>((set, get) => ({
     else if (type === 'TREMOLO') newModule.parameters = { frequency: 4, depth: 0.5, spread: 0, waveform: 0 };
     else if (type === 'AUTOWAH') newModule.parameters = { baseFrequency: 100, sensitivity: 0.5, octaves: 4, Q: 2, attack: 0.01, release: 0.1, wet: 1 };
     else if (type === 'FEEDBACK_DELAY') newModule.parameters = { delayTime: 0.5, feedback: 0.3, wet: 0.5 };
-    else if (type === 'COMPRESSOR') newModule.parameters = { threshold: -24, ratio: 4, attack: 0.01, release: 0.1, knee: 5, makeupGain: 0, mode: 0 };
-    else if (type === 'DE_ESSER') newModule.parameters = { frequency: 6000, threshold: -20, ratio: 4, attack: 0.005, release: 0.05, monitor: 0, bypass: 0 };
+    else if (type === 'COMPRESSOR') {
+        newModule.parameters = { threshold: -24, ratio: 4, attack: 0.01, release: 0.1, knee: 5, makeupGain: 0, mode: 0, mix: 1 };
+    }
+    else if (type === 'DE_ESSER') {
+        newModule.parameters = { frequency: 6000, threshold: -20, ratio: 4, attack: 0.005, release: 0.05, monitor: 0, bypass: 0 };
+    }
     else if (type === 'STEREO_IMAGER') newModule.parameters = { lowFreq: 150, highFreq: 2500, widthLow: 0.0, widthMid: 1.0, widthHigh: 1.2, bypass: 0 };
-    else if (type === 'MULTIBAND_COMPRESSOR') newModule.parameters = {
-        lowFreq: 150, highFreq: 2500,
-        threshLow: -24, ratioLow: 4, attLow: 0.01, relLow: 0.1, gainLow: 0,
-        threshMid: -24, ratioMid: 4, attMid: 0.01, relMid: 0.1, gainMid: 0,
-        threshHigh: -24, ratioHigh: 4, attHigh: 0.01, relHigh: 0.1, gainHigh: 0,
-        bypass: 0
-    };
+    else if (type === 'MULTIBAND_COMPRESSOR') {
+        newModule.parameters = {
+            lowFreq: 150, highFreq: 2500,
+            threshLow: -24, ratioLow: 4, attLow: 0.01, relLow: 0.1, gainLow: 0,
+            threshMid: -24, ratioMid: 4, attMid: 0.01, relMid: 0.1, gainMid: 0,
+            threshHigh: -24, ratioHigh: 4, attHigh: 0.01, relHigh: 0.1, gainHigh: 0,
+            bypass: 0
+        };
+    }
 
     set((state) => ({ rack: [...state.rack, newModule] }));
     audioEngine.rebuildGraph(get().rack); 

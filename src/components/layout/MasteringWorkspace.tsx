@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Save, AlertTriangle, Layers, Activity } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Save, AlertTriangle, Layers, Activity, FileAudio, Trash2 } from 'lucide-react';
 import { useProjectPersistence } from '@/hooks/useProjectPersistence';
+import { useAudioStore } from '@/store/useAudioStore';
 import { EffectsRack } from '@/components/rack/EffectsRack';
 import { Transport } from '@/components/Transport';
 import { MasteringVisualizer } from '@/components/visualizers/MasteringVisualizer';
@@ -11,10 +12,22 @@ type Tab = 'rack' | 'visualizer';
 
 export const MasteringWorkspace: React.FC = () => {
   const { saveProject, isPersistedToDisk } = useProjectPersistence();
+  const { loadSourceFile, clearSource, sourceDuration } = useAudioStore();
   const [activeTab, setActiveTab] = useState<Tab>('rack');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSave = async () => {
       await saveProject();
+  };
+
+  const handleImportClick = () => {
+      fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          loadSourceFile(e.target.files[0]);
+      }
   };
 
   return (
@@ -46,6 +59,35 @@ export const MasteringWorkspace: React.FC = () => {
                      <Save size={16} className="sm:w-3 sm:h-3" />
                      <span className="hidden sm:inline">Save</span>
                  </button>
+
+                 <div className="flex items-center bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
+                    <button
+                        onClick={handleImportClick}
+                        className="p-2 sm:px-3 sm:py-1.5 hover:bg-slate-700 active:bg-slate-600 text-xs font-bold transition-all flex items-center gap-2 border-r border-slate-700"
+                        title="Import Audio"
+                    >
+                        <FileAudio size={16} className="sm:w-3 sm:h-3" />
+                        <span className="hidden sm:inline">Audio</span>
+                    </button>
+                    {sourceDuration > 0 && (
+                        <button
+                            onClick={() => clearSource()}
+                            className="p-2 hover:bg-red-900/30 text-slate-500 hover:text-red-400 transition-all"
+                            title="Clear Audio"
+                        >
+                            <Trash2 size={14} />
+                        </button>
+                    )}
+                 </div>
+
+                 <input 
+                    ref={fileInputRef}
+                    type="file"
+                    accept="audio/*"
+                    className="hidden"
+                    onChange={handleFileChange}
+                 />
+
                  <div className="h-6 w-px bg-slate-700 mx-1 hidden sm:block"></div>
                  <AddModuleMenu />
              </div>
