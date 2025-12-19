@@ -36,6 +36,10 @@ class DynamicEQProcessor extends AudioWorkletProcessor {
     const att = parameters.attack.length > 1 ? parameters.attack : parameters.attack[0];
     const rel = parameters.release.length > 1 ? parameters.release : parameters.release[0];
 
+    // Determine if params are static (k-rate) or dynamic (a-rate)
+    const isFreqStatic = typeof freq === 'number';
+    const isQStatic = typeof Q === 'number';
+
     // Initialize state for new channels
     if (this.channelState.length < input.length) {
       for (let i = this.channelState.length; i < input.length; i++) {
@@ -57,19 +61,29 @@ class DynamicEQProcessor extends AudioWorkletProcessor {
       // Update envelope params (k-rate optimized)
       state.envFollower.setParams(att, rel, sampleRate);
 
+      // Optimization: If Frequency and Q are static, update base math ONCE per block
+      if (isFreqStatic && isQStatic) {
+          state.scFilter.updateBase(freq, Q, sampleRate, 'bandpass');
+          state.scFilter.setGain(0); // SC doesn't need gain
+          
+          state.mainFilter.updateBase(freq, Q, sampleRate, 'peaking');
+      }
+
       for (let i = 0; i < inputData.length; i++) {
         const sample = inputData[i];
         
         // 1. Sidechain Path
-        // Filter to detect specific band energy
-        // We use BandPass for detection
-        state.scFilter.setParams(
-            typeof freq === 'number' ? freq : freq[i], 
-            0, 
-            typeof Q === 'number' ? Q : Q[i], 
-            sampleRate, 
-            'bandpass'
-        );
+        // If parameters are a-rate, we must update base every sample
+        if (!isFreqStatic || !isQStatic) {
+            state.scFilter.updateBase(
+                isFreqStatic ? freq : freq[i],
+                isQStatic ? Q : Q[i],
+                sampleRate,
+                'bandpass'
+            );
+            state.scFilter.setGain(0);
+        }
+
         const scSample = state.scFilter.process(sample);
         
         // Detect Envelope
@@ -90,13 +104,20 @@ class DynamicEQProcessor extends AudioWorkletProcessor {
         // Modulate gain: TargetGain = StaticGain - GainReduction
         const dynamicGain = staticGain - gainReduction;
         
-        state.mainFilter.setParams(
-             typeof freq === 'number' ? freq : freq[i],
-             dynamicGain,
-             typeof Q === 'number' ? Q : Q[i],
-             sampleRate,
-             'peaking'
-        );
+        // Update main filter
+        // If parameters are a-rate, we need to update base. 
+        // If k-rate, it was done outside loop.
+        if (!isFreqStatic || !isQStatic) {
+            state.mainFilter.updateBase(
+                isFreqStatic ? freq : freq[i],
+                isQStatic ? Q : Q[i],
+                sampleRate, 
+                'peaking'
+            );
+        }
+        
+        // ALWAYS update gain (this is the "Dynamic" part)
+        state.mainFilter.setGain(dynamicGain);
         
         outputData[i] = state.mainFilter.process(sample);
       }

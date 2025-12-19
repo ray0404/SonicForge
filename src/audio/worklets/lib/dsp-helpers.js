@@ -6,6 +6,7 @@
 export class BiquadFilter {
     constructor() {
         this.reset();
+        this.cache = { w0: 0, cosw0: 0, alpha: 0, type: 'lowpass' };
         // Default to safe values
         this.setParams(1000, 0, 1.0, 44100, 'lowpass');
     }
@@ -18,13 +19,22 @@ export class BiquadFilter {
     }
 
     setParams(frequency, gain, Q, sampleRate, type) {
-        // Basic biquad coefficient calculation
-        // Based on Audio EQ Cookbook
-        const w0 = (2 * Math.PI * frequency) / sampleRate;
-        const alpha = Math.sin(w0) / (2 * Q);
-        const A = Math.pow(10, gain / 40);
-        const cosw0 = Math.cos(w0);
+        this.updateBase(frequency, Q, sampleRate, type);
+        this.setGain(gain);
+    }
 
+    updateBase(frequency, Q, sampleRate, type) {
+        const w0 = (2 * Math.PI * frequency) / sampleRate;
+        this.cache.w0 = w0;
+        this.cache.cosw0 = Math.cos(w0);
+        this.cache.alpha = Math.sin(w0) / (2 * Q);
+        this.cache.type = type;
+    }
+
+    setGain(gain) {
+        const A = Math.pow(10, gain / 40);
+        const { cosw0, alpha, type } = this.cache;
+        
         let b0, b1, b2, a0, a1, a2;
 
         switch (type) {
@@ -69,7 +79,6 @@ export class BiquadFilter {
                 a2 = (A + 1) - (A - 1) * cosw0 - 2 * Math.sqrt(A) * alpha;
                 break;
             default:
-                // Pass through
                 b0=1; b1=0; b2=0; a0=1; a1=0; a2=0;
         }
 
@@ -85,9 +94,11 @@ export class BiquadFilter {
         const output = this.b0 * input + this.b1 * this.x1 + this.b2 * this.x2
                      - this.a1 * this.y1 - this.a2 * this.y2;
         
-        // DANGER: Denormal handling might be needed for very low numbers in JS?
-        // Usually strictly typed arrays handle this, but JS numbers are doubles.
-        // For simplicity, we assume standard behavior.
+        // Safety Check for NaN or Infinity
+        if (!Number.isFinite(output)) {
+            this.reset();
+            return 0;
+        }
 
         this.x2 = this.x1;
         this.x1 = input;

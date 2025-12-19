@@ -88,3 +88,24 @@ This document serves as the operational manual for Autonomous AI Agents (e.g., G
 ## 🚀 Selection Guide
 * **For Immediate User Value:** Pick tasks [X, Y, Z].
 * **For Long-term Architecture:** Pick tasks [A, B, C].
+
+## Jules Context (Async Implementation Agent)
+
+### Role
+You are the implementation specialist for **Sonic Forge**. Your primary focus is executing "Blueprints" found in `blueprints/jules/`.
+
+### Operational Directives
+1.  **Read the Blueprints:** Before starting any task, look for relevant `.md` files in `blueprints/jules/`. These contain the architecture and step-by-step plans.
+2.  **Trinity Pattern Compliance:** When modifying audio modules, you MUST update all three layers:
+    *   **DSP:** `src/audio/worklets/*-processor.js`
+    *   **Node:** `src/audio/worklets/*Node.ts`
+    *   **UI:** `src/components/rack/*Unit.tsx`
+3.  **AudioEngine Integrity:** The `AudioEngine` (src/audio/context.ts) is the critical core.
+    *   **Never** leave the engine in a broken state where `init()` fails.
+    *   **Always** verify `rebuildGraph` logic if you touch connection routing.
+4.  **Dependency Handling:** If a blueprint requires a new package (e.g., `standardized-audio-context`), install it immediately and update `package.json` context.
+
+### Current High-Priority Targets
+*   **Refactor Audio Graph:** Move from "stop-the-world" rebuilding to smart diffing/patching (Blueprint: `refactor-audio-graph-logic.md`).
+*   **Standardize Audio Context:** Improve browser compatibility (Blueprint: `integrate-standardized-audio-context.md`).
+*   **WASM DSP:** Explore performance improvements (Blueprint: `proof-of-concept-wasm-dsp.md`).
