@@ -28,7 +28,7 @@ import ditheringUrl from './worklets/dithering-processor.js?worker&url';
  * Singleton AudioContext Manager.
  * Handles the lifecycle of the AudioContext, loading Worklets, and routing.
  */
-class AudioEngine {
+export class AudioEngine {
   public context: AudioContext | null = null;
   public masterGain: GainNode | null = null;
   public analyser: AnalyserNode | null = null;
@@ -200,66 +200,249 @@ class AudioEngine {
       }
   }
 
+  // Track the IDs of modules currently connected in the signal chain (excluding bypassed)
+  private connectedIds: string[] = [];
+
   /**
    * Rebuilds the audio graph based on the provided rack modules.
-   * Handles hot-swapping and reordering of nodes.
+   * uses intelligent diffing to minimize audio dropouts.
    */
   rebuildGraph(rack: RackModule[]) {
     if (!this.context || !this.rackInput || !this.rackOutput) return;
-    
-    // 1. Disconnect everything to start fresh routing
-    this.rackInput.disconnect();
-    
-    // Disconnect all existing module nodes
-    this.nodeMap.forEach(node => node.disconnect());
 
-    // 2. Cleanup: Remove nodes that are no longer in the rack
-    const currentIds = new Set(rack.map(m => m.id));
-    for (const [id] of this.nodeMap) {
-        if (!currentIds.has(id)) {
-            this.nodeMap.delete(id);
+    // 1. Identify the desired signal chain (exclude bypassed modules)
+    const nextActiveModules = rack.filter(m => !m.bypass);
+    const nextIds = nextActiveModules.map(m => m.id);
+
+    // 2. Check for trivial cases or complex changes requiring full rebuild
+    // If we have no previous state or complex changes, fall back to full rebuild.
+    // Simple heuristic: If difference in length > 1, or multiple mismatches.
+    
+    // Let's identify the first mismatch
+    let firstMismatchIndex = -1;
+    const len = Math.max(this.connectedIds.length, nextIds.length);
+    for (let i = 0; i < len; i++) {
+        if (this.connectedIds[i] !== nextIds[i]) {
+            firstMismatchIndex = i;
+            break;
         }
     }
 
+    // If no mismatch, just update params (handled by store usually, but we ensure nodes exist)
+    if (firstMismatchIndex === -1) {
+        // Chains are identical.
+        // Ensure all nodes in rack (including bypassed ones) are instantiated/updated
+        this.syncParams(rack);
+        this.cleanupNodeMap(rack);
+        return;
+    }
+
+    // Analyze the change
+    const prevRemainder = this.connectedIds.slice(firstMismatchIndex);
+    const nextRemainder = nextIds.slice(firstMismatchIndex);
+
+    // Case: Insert (One new item)
+    // prev: [A, B], next: [A, NEW, B]
+    // mismatch at 1. prevRemainder: [B], nextRemainder: [NEW, B]
+    if (prevRemainder.length === nextRemainder.length - 1 &&
+        prevRemainder.every((id, i) => id === nextRemainder[i+1])) {
+
+        const newNodeId = nextIds[firstMismatchIndex];
+        const module = nextActiveModules.find(m => m.id === newNodeId);
+        if (module) {
+             this.insertNode(module, firstMismatchIndex, nextActiveModules);
+             this.syncParams(rack); // Ensure other params are up to date
+             this.cleanupNodeMap(rack);
+             this.connectedIds = nextIds;
+             return;
+        }
+    }
+
+    // Case: Remove (One item gone)
+    // prev: [A, OLD, B], next: [A, B]
+    // mismatch at 1. prevRemainder: [OLD, B], nextRemainder: [B]
+    if (nextRemainder.length === prevRemainder.length - 1 &&
+        nextRemainder.every((id, i) => id === prevRemainder[i+1])) {
+
+        this.removeNode(firstMismatchIndex, this.connectedIds);
+        this.syncParams(rack); // Ensure other params are up to date
+        this.cleanupNodeMap(rack);
+        this.connectedIds = nextIds;
+        return;
+    }
+
+    // Fallback to full rebuild for anything else (Swap, Move > 1 distance, Multiple adds/removes)
+    this.fullRebuildGraph(rack);
+  }
+
+  /**
+   * Standard "Stop the World" rebuild. Reliable but causes dropouts.
+   */
+  fullRebuildGraph(rack: RackModule[]) {
+    if (!this.context || !this.rackInput || !this.rackOutput) return;
+
+    // 1. Disconnect everything
+    this.rackInput.disconnect();
+    this.nodeMap.forEach(node => node.disconnect());
+
+    // 2. Cleanup
+    this.cleanupNodeMap(rack);
+
     // 3. Build the Chain
     let previousNode: AudioNode = this.rackInput;
+    const activeIds: string[] = [];
 
     rack.forEach(module => {
-        let node: AudioNode | ConvolutionNode | undefined | null = this.nodeMap.get(module.id);
+        let node = this.getOrCreateNode(module);
         
-        if (!node) {
-            // Instantiate new node if missing
-            node = this.createModuleNode(module);
-            if (node) {
-                this.nodeMap.set(module.id, node);
-            }
-        } else {
-             this.updateNodeParams(node, module);
-        }
+        // Update params just in case
+        this.updateNodeParams(node, module);
 
-        if (node) {
-            if (!module.bypass) {
-                // Handle Custom Node Wrappers that aren't native AudioNodes
-                if (node instanceof ConvolutionNode) {
-                    previousNode.connect(node.input);
-                    previousNode = node.output;
-                } else {
-                    previousNode.connect(node as AudioNode);
-                    previousNode = node as AudioNode;
-                }
-            }
+        if (!module.bypass) {
+            this.connectNodes(previousNode, node);
+            previousNode = (node instanceof ConvolutionNode) ? node.output : node;
+            activeIds.push(module.id);
         }
     });
 
     // 4. Connect end of chain to RackOutput
     previousNode.connect(this.rackOutput);
     
-    // Ensure parallel analysis paths are alive (sometimes browser GC acts up if nodes disconnected?)
-    // But rackOutput never disconnected from them, only rackInput disconnected from rack.
-    // Actually, we disconnected rackInput. 
-    // And "Disconnect all existing module nodes".
-    // rackOutput itself was NOT disconnected from its destinations.
-    // So Analyser/Master connections persist.
+    this.connectedIds = activeIds;
+  }
+
+  /**
+   * Helper to insert a node into the chain at specific index
+   */
+  private insertNode(module: RackModule, index: number, activeModules: RackModule[]) {
+      if (!this.rackInput || !this.rackOutput) return;
+
+      const node = this.getOrCreateNode(module);
+      this.updateNodeParams(node, module);
+
+      // Find Previous Node
+      let prevNode: AudioNode = this.rackInput;
+      if (index > 0) {
+          const prevId = activeModules[index - 1].id;
+          const prevModuleNode = this.nodeMap.get(prevId);
+          if (prevModuleNode) {
+              prevNode = (prevModuleNode instanceof ConvolutionNode) ? prevModuleNode.output : prevModuleNode;
+          }
+      }
+
+      // Find Next Node (currently connected to prevNode)
+      let nextNode: AudioNode | AudioParam = this.rackOutput;
+      if (index < this.connectedIds.length) {
+          const nextId = this.connectedIds[index];
+          const nextModuleNode = this.nodeMap.get(nextId);
+          if (nextModuleNode) {
+              nextNode = (nextModuleNode instanceof ConvolutionNode) ? nextModuleNode.input : nextModuleNode;
+          }
+      }
+
+      // Perform Patch
+      // 1. Disconnect Prev -> Next
+      try {
+          prevNode.disconnect(nextNode as AudioNode);
+      } catch (e) {
+          logger.warn("Failed to disconnect specific node", e);
+      }
+
+      // 2. Connect Prev -> New -> Next
+      this.connectNodes(prevNode, node);
+
+      const newNodeOut = (node instanceof ConvolutionNode) ? node.output : node;
+      if (nextNode instanceof AudioNode || (nextNode as any) instanceof AudioParam) {
+           newNodeOut.connect(nextNode as AudioNode);
+      }
+  }
+
+  /**
+   * Helper to remove a node from the chain at specific index
+   */
+  private removeNode(index: number, oldConnectedIds: string[]) {
+      if (!this.rackInput || !this.rackOutput) return;
+
+      const idToRemove = oldConnectedIds[index];
+      const nodeToRemove = this.nodeMap.get(idToRemove);
+
+      if (!nodeToRemove) return;
+
+      // Find Prev Node
+      let prevNode: AudioNode = this.rackInput;
+      if (index > 0) {
+          const prevId = oldConnectedIds[index - 1];
+          const prevModuleNode = this.nodeMap.get(prevId);
+          if (prevModuleNode) {
+              prevNode = (prevModuleNode instanceof ConvolutionNode) ? prevModuleNode.output : prevModuleNode;
+          }
+      }
+
+      // Find Next Node
+      let nextNode: AudioNode | AudioParam = this.rackOutput;
+      if (index + 1 < oldConnectedIds.length) {
+          const nextId = oldConnectedIds[index + 1];
+          const nextModuleNode = this.nodeMap.get(nextId);
+          if (nextModuleNode) {
+               nextNode = (nextModuleNode instanceof ConvolutionNode) ? nextModuleNode.input : nextModuleNode;
+          }
+      }
+
+      // Perform Patch
+      // 1. Disconnect Prev -> NodeToRemove
+      const nodeToRemoveIn = (nodeToRemove instanceof ConvolutionNode) ? nodeToRemove.input : nodeToRemove;
+      try {
+          prevNode.disconnect(nodeToRemoveIn as AudioNode);
+      } catch (e) {}
+
+      // 2. Disconnect NodeToRemove -> Next
+      try {
+          nodeToRemove.disconnect();
+      } catch (e) {}
+
+      // 3. Connect Prev -> Next
+      if (nextNode instanceof AudioNode || (nextNode as any) instanceof AudioParam) {
+           prevNode.connect(nextNode as AudioNode);
+      }
+  }
+
+  private cleanupNodeMap(rack: RackModule[]) {
+      const currentIds = new Set(rack.map(m => m.id));
+      for (const [id] of this.nodeMap) {
+        if (!currentIds.has(id)) {
+            this.nodeMap.delete(id);
+        }
+    }
+  }
+
+  private syncParams(rack: RackModule[]) {
+      rack.forEach(module => {
+          const node = this.nodeMap.get(module.id);
+          if (node) {
+              this.updateNodeParams(node, module);
+          }
+      });
+  }
+
+  private getOrCreateNode(module: RackModule): AudioNode | ConvolutionNode {
+      let node = this.nodeMap.get(module.id);
+      if (!node) {
+          node = this.createModuleNode(module);
+          if (node) {
+            this.nodeMap.set(module.id, node);
+          } else {
+             return this.context!.createGain();
+          }
+      }
+      return node!;
+  }
+
+  private connectNodes(source: AudioNode, dest: AudioNode | ConvolutionNode) {
+      if (dest instanceof ConvolutionNode) {
+          source.connect(dest.input);
+      } else {
+          source.connect(dest);
+      }
   }
 
   /**
