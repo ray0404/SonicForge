@@ -10,16 +10,11 @@ export const MasteringVisualizer: React.FC = () => {
     
     // Setup Analyser
     const analyser = audioEngine.analyser;
-    // We need a separate node for Goniometer (L/R access) or just use a ScriptProcessor/Worklet
-    // For visualizer, we can use a Splitter connected to the output.
-    // Ideally, AudioEngine should expose this.
-    // For now, let's just do Spectrum (Mono sum).
-    // To do goniometer properly without a worklet, we need a ChannelSplitterNode and two Analysers.
-    // Let's modify AudioEngine later to expose L/R analysers if we want high precision.
-    // For now, Spectrum is easy.
+    const analyserL = audioEngine.analyserL;
+    const analyserR = audioEngine.analyserR;
     
     const render = () => {
-      if (!analyser) {
+      if (!analyser || !analyserL || !analyserR) {
           animationId = requestAnimationFrame(render);
           return;
       }
@@ -58,28 +53,43 @@ export const MasteringVisualizer: React.FC = () => {
           ctx.stroke();
       }
 
-      // Goniometer (Placeholder / Fake using Time Domain for now)
-      // Real goniometer requires L/R phase comparison.
-      // We'll draw a "Waveform" in the gonio box for now as a placeholder for Stereo width
-      const waveData = new Uint8Array(analyser.frequencyBinCount);
-      analyser.getByteTimeDomainData(waveData);
+      // Goniometer (Real)
+      const dataL = new Float32Array(analyserL.frequencyBinCount);
+      const dataR = new Float32Array(analyserR.frequencyBinCount);
+      analyserL.getFloatTimeDomainData(dataL);
+      analyserR.getFloatTimeDomainData(dataR);
       
       const gCanvas = gonioRef.current;
       const gCtx = gCanvas?.getContext('2d');
       if (gCanvas && gCtx) {
-          gCtx.fillStyle = '#0f172a';
+          // Fade effect
+          gCtx.fillStyle = 'rgba(15, 23, 42, 0.2)'; // slow fade
           gCtx.fillRect(0, 0, gCanvas.width, gCanvas.height);
           
-          gCtx.strokeStyle = '#10b981'; // Green
-          gCtx.beginPath();
-          for (let i = 0; i < waveData.length; i++) {
-              const v = waveData[i] / 128.0;
-              const y = v * gCanvas.height / 2;
-              const x = (i / waveData.length) * gCanvas.width;
-              if (i === 0) gCtx.moveTo(x, y);
-              else gCtx.lineTo(x, y);
+          gCtx.fillStyle = '#10b981'; // Green dot
+
+          const w = gCanvas.width;
+          const h = gCanvas.height;
+          const cx = w / 2;
+          const cy = h / 2;
+
+          // Downsample to improve performance and look
+          // Using 4096 points might be too dense, skip factor 4
+          for (let i = 0; i < dataL.length; i += 4) {
+              const L = dataL[i];
+              const R = dataR[i];
+
+              // Rotate -45 degrees:
+              // Side = L - R (X axis)
+              // Mid = L + R (Y axis)
+              const side = (L - R) * 0.707; // Math.SQRT1_2
+              const mid = (L + R) * 0.707;
+
+              const x = cx + side * (w * 0.8);
+              const y = cy - mid * (h * 0.8); // Invert Y for canvas
+
+              gCtx.fillRect(x, y, 1, 1);
           }
-          gCtx.stroke();
       }
 
       animationId = requestAnimationFrame(render);

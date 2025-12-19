@@ -26,6 +26,9 @@ class AudioEngine {
   public context: AudioContext | null = null;
   public masterGain: GainNode | null = null;
   public analyser: AnalyserNode | null = null;
+  public analyserL: AnalyserNode | null = null;
+  public analyserR: AnalyserNode | null = null;
+  public splitter: ChannelSplitterNode | null = null;
   
   // Rack Routing
   public rackInput: GainNode | null = null;
@@ -74,14 +77,29 @@ class AudioEngine {
       this.analyser = this.context.createAnalyser();
       this.analyser.fftSize = 2048;
 
+      this.analyserL = this.context.createAnalyser();
+      this.analyserL.fftSize = 2048;
+      this.analyserR = this.context.createAnalyser();
+      this.analyserR.fftSize = 2048;
+
+      this.splitter = this.context.createChannelSplitter(2);
+
       this.rackInput = this.context.createGain();
       this.rackOutput = this.context.createGain();
 
       // 3. Routing: RackInput -> [Rack Modules] -> RackOutput -> Analyser -> Master -> Destination
       // Initially, connect input directly to output (empty rack)
       this.rackInput.connect(this.rackOutput);
+
+      // Mono/Sum Analyser
       this.rackOutput.connect(this.analyser);
       this.analyser.connect(this.masterGain);
+
+      // Stereo Analysers
+      this.rackOutput.connect(this.splitter);
+      this.splitter.connect(this.analyserL, 0);
+      this.splitter.connect(this.analyserR, 1);
+
       this.masterGain.connect(this.context.destination);
 
       this.isInitialized = true;
