@@ -1,66 +1,47 @@
-# Context: Sonic Forge
+# Sonic Forge: Instructional Context
 
-## 1. Project Overview
-**Sonic Forge** is a high-performance, local-first web audio application designed for audio mastering and processing. It leverages the Web Audio API (AudioWorklets) for low-latency DSP and React for a responsive, modular UI.
+Sonic Forge is a high-performance, local-first Web Audio application designed for professional-grade audio mastering and processing. It leverages the Web Audio API's **AudioWorklets** for low-latency DSP and **React** for a modular, responsive UI.
 
-**Core Philosophy:**
-- **Local-First:** All processing happens in the browser. Zero latency, full privacy.
-- **Modular Rack Architecture:** Effects are hot-swappable nodes in a flexible signal chain.
-- **"The Trinity" Pattern:** Every audio module consists of three distinct parts (DSP, Node, UI).
-- **Offline Capable:** Full PWA support with IndexedDB persistence for projects and assets.
+## 🚀 Project Overview
 
-## 2. Technical Stack
-| Layer | Technology | Key Usage |
-| :--- | :--- | :--- |
-| **Frontend** | React 18, TypeScript 5 | Component-based UI, Strict typing. |
-| **Build Tool** | Vite | Fast HMR, optimized production builds. |
-| **Styling** | Tailwind CSS | Utility-first styling, consistent design system. |
-| **State** | Zustand | Global store for Rack state, Playback, and Assets. |
-| **Audio** | standardized-audio-context | Cross-browser Web Audio API wrapper. |
-| **Persistence** | IndexedDB (idb-keyval) | Storing large audio blobs and session state. |
-| **Testing** | Vitest | Unit testing for Logic and DSP. |
+*   **Core Technology:** React 18, Vite, TypeScript, Zustand, Tailwind CSS.
+*   **Audio Engine:** Built on `standardized-audio-context` to ensure cross-browser stability. Signal processing runs on a dedicated high-priority audio thread.
+*   **Architecture Pattern:** **"The Trinity Pattern"**. Every audio module must consist of three distinct layers:
+    1.  **DSP Layer (Processor):** Pure JS logic running in an `AudioWorkletProcessor` (`src/audio/worklets/*-processor.js`).
+    2.  **Node Layer (Interface):** TS class extending `AudioWorkletNode` or `IAudioNode` (`src/audio/worklets/*Node.ts`).
+    3.  **UI Layer (Component):** React component for control and visualization (`src/components/rack/*Unit.tsx`).
 
-## 3. The "Trinity" Architecture Pattern
-All audio effects **MUST** follow this strict structure to ensure separation of concerns:
+## 🛠️ Key Commands
 
-1.  **The Processor (DSP):**
-    *   Location: `src/audio/worklets/[name]-processor.js`
-    *   Role: Runs on the Audio Thread. Pure JS math. No DOM access.
-    *   Key Class: Extends `AudioWorkletProcessor`.
-2.  **The Node (Interface):**
-    *   Location: `src/audio/worklets/[Name]Node.ts`
-    *   Role: Runs on the Main Thread. Bridges React and the Audio Processor.
-    *   Key Class: Extends `AudioWorkletNode`. Handles `parameters`.
-3.  **The Component (UI):**
-    *   Location: `src/components/rack/[Name]Unit.tsx`
-    *   Role: React component. Visualizes state and controls the Node.
-    *   Key Interactions: Reads from `useAudioStore`, writes to `node.parameters`.
+*   **Development:** `npm run dev` (Starts Vite server on port 3000).
+*   **Build:** `npm run build` (Compiles TS and bundles via Vite).
+*   **Test:** `npm run test` (Runs Vitest suite for DSP and UI components).
+*   **Lint:** `npm run lint` (Executes ESLint with strict rules).
 
-## 4. Key Directory Structure
-```
-src/
-├── audio/
-│   ├── context.ts       # Singleton AudioContext wrapper (AudioEngine)
-│   └── worklets/        # DSP Processors and Node definitions
-├── components/
-│   ├── rack/            # Effect Unit UI components
-│   ├── transport/       # Playback controls
-│   └── visualizers/     # Canvas-based audio analysis tools (Spectrum, Goniometer)
-├── store/
-│   └── useAudioStore.ts # The "Brain" - Zustand store managing the app state
-└── hooks/
-    └── useProjectPersistence.ts # Autosave and Project management logic
-```
+## 📐 Development Conventions
 
-## 5. Coding Conventions
-- **State Management:** Store *descriptions* of the graph (IDs, parameters) in Zustand. Do not store complex audio objects.
-- **AudioEngine Access:** Use `audioEngine.getModuleNode(id)` to retrieve a node for real-time state reading (e.g., meters). Never access `nodeMap` directly.
-- **Performance:** Use `requestAnimationFrame` for visualizers. Decouple UI rendering from audio processing.
-- **Types:** Strict `noImplicitAny`. All AudioNodes must use `IAudioNode` and related interfaces from `standardized-audio-context`.
-- **Testing:** Unit test all pure functions and store logic. Ensure mocks in `src/test/setup.ts` are updated for new audio features.
+### 1. Adding New Effects
+To add a new effect, strictly follow the Trinity Pattern:
+*   Define the algorithm in a `*-processor.js` file.
+*   Create a TS Node wrapper that handles parameter mapping and communication.
+*   Register the new module in `src/audio/context.ts` (`createModuleNode` and `updateModuleParam`).
+*   Define initial parameters in `src/store/useAudioStore.ts`.
+*   Create the UI Unit and add it to the `EffectsRack.tsx` switch.
 
-## 6. AI Agent Instructions
-- **Graph Integrity:** `AudioEngine.rebuildGraph` uses **diff-based patching**. It optimizes for single-node insertions and removals to prevent dropouts. For complex changes, it falls back to a full rebuild. Do not break the diffing logic.
-- **Stereo Analysis:** The engine provides `analyserL` and `analyserR` nodes via a `ChannelSplitter`. Use these for stereo-specific visualizers or processing logic.
-- **Safe Refactoring:** When changing `src/audio/`, verify that `renderOffline` (used for WAV export) still has parity with the real-time path.
-- **Accessibility:** Maintain ARIA labels and semantic markup in UI components, especially in `Transport.tsx`.
+### 2. Audio Graph Management
+The `AudioEngine` (`src/audio/context.ts`) uses a **diff-based patching** system (`rebuildGraph`). It attempts to perform surgical connections/disconnections to avoid audio dropouts when reordering or toggling modules. 
+
+### 3. State Management
+*   **Zustand (`useAudioStore`):** Central source of truth for the Rack configuration, assets, and playback state.
+*   **Sidechain Routing:** Supports advanced routing where modules (like Compressor or Dynamic EQ) can accept a secondary input for gain detection.
+
+### 4. Persistence
+User sessions and assets (audio files, Impulse Responses) are persisted locally via `IndexedDB` (`idb-keyval`).
+
+## 🔍 Important Directories
+
+*   `src/audio/worklets/`: DSP Processors and Node wrappers.
+*   `src/audio/worklets/lib/`: Shared DSP helpers (filters, crossovers, etc.).
+*   `src/components/rack/`: Modular UI units for the effects rack.
+*   `src/store/`: Zustand store definitions.
+*   `blueprints/`: Detailed technical specifications and implementation plans.
