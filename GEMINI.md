@@ -16,7 +16,7 @@
 | **Build Tool** | Vite | Fast HMR, optimized production builds. |
 | **Styling** | Tailwind CSS | Utility-first styling, consistent design system. |
 | **State** | Zustand | Global store for Rack state, Playback, and Assets. |
-| **Audio** | Web Audio API | `AudioContext`, `AudioWorklet`, `OfflineAudioContext`. |
+| **Audio** | standardized-audio-context | Cross-browser Web Audio API wrapper. |
 | **Persistence** | IndexedDB (idb-keyval) | Storing large audio blobs and session state. |
 | **Testing** | Vitest | Unit testing for Logic and DSP. |
 
@@ -40,12 +40,12 @@ All audio effects **MUST** follow this strict structure to ensure separation of 
 ```
 src/
 ├── audio/
-│   ├── context.ts       # Singleton AudioContext wrapper
-│   └── worklets/        # DSP Processors and Node definitions (The First Two of the Trinity)
+│   ├── context.ts       # Singleton AudioContext wrapper (AudioEngine)
+│   └── worklets/        # DSP Processors and Node definitions
 ├── components/
-│   ├── rack/            # Effect Unit UI components (The Third of the Trinity)
+│   ├── rack/            # Effect Unit UI components
 │   ├── transport/       # Playback controls
-│   └── visualizers/     # Canvas-based audio analysis tools
+│   └── visualizers/     # Canvas-based audio analysis tools (Spectrum, Goniometer)
 ├── store/
 │   └── useAudioStore.ts # The "Brain" - Zustand store managing the app state
 └── hooks/
@@ -53,12 +53,14 @@ src/
 ```
 
 ## 5. Coding Conventions
-- **State Management:** Do not store complex audio objects (Nodes) in Zustand if possible. Store *descriptions* of the graph (IDs, parameter values) and reconstruct the graph from that state.
-- **Performance:** Avoid React re-renders during audio playback loops. Use `requestAnimationFrame` for visualizers, decoupled from React state updates.
-- **Types:** strict `noImplicitAny`. All AudioNodes must have defined parameter interfaces.
-- **Testing:** Unit test pure functions and store logic.
+- **State Management:** Store *descriptions* of the graph (IDs, parameters) in Zustand. Do not store complex audio objects.
+- **AudioEngine Access:** Use `audioEngine.getModuleNode(id)` to retrieve a node for real-time state reading (e.g., meters). Never access `nodeMap` directly.
+- **Performance:** Use `requestAnimationFrame` for visualizers. Decouple UI rendering from audio processing.
+- **Types:** Strict `noImplicitAny`. All AudioNodes must use `IAudioNode` and related interfaces from `standardized-audio-context`.
+- **Testing:** Unit test all pure functions and store logic. Ensure mocks in `src/test/setup.ts` are updated for new audio features.
 
 ## 6. AI Agent Instructions
-- **Context is King:** Always read `src/audio/context.ts` and `src/store/useAudioStore.ts` before modifying the signal flow.
-- **Respect the Blueprint:** If a `blueprints/` file exists for a feature, follow it.
-- **Safe Refactoring:** When changing `src/audio/`, ensure you are not breaking the `OfflineAudioContext` rendering path (used for export).
+- **Graph Integrity:** `AudioEngine.rebuildGraph` uses **diff-based patching**. It optimizes for single-node insertions and removals to prevent dropouts. For complex changes, it falls back to a full rebuild. Do not break the diffing logic.
+- **Stereo Analysis:** The engine provides `analyserL` and `analyserR` nodes via a `ChannelSplitter`. Use these for stereo-specific visualizers or processing logic.
+- **Safe Refactoring:** When changing `src/audio/`, verify that `renderOffline` (used for WAV export) still has parity with the real-time path.
+- **Accessibility:** Maintain ARIA labels and semantic markup in UI components, especially in `Transport.tsx`.

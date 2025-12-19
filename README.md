@@ -7,13 +7,13 @@
 
 ## 🚀 Features
 
-*   **Modular Effects Rack:** Drag-and-drop style architecture (under the hood) supporting arbitrary chains of effects.
-*   **Audio Worklet Engine:** All signal processing runs on a dedicated high-priority audio thread, ensuring glitch-free playback.
-*   **Asset Management:** Drag-and-drop support for audio files (WAV/MP3), persisted locally via `IndexedDB`.
-*   **Transport & Playback:** Load reference tracks, seek, play/pause, and visualize playback progress.
+*   **Modular Effects Rack:** High-performance architecture with **diff-based graph patching**, ensuring glitch-free module reordering and hot-swapping.
+*   **Audio Worklet Engine:** All signal processing runs on a dedicated high-priority audio thread, leveraged via `standardized-audio-context` for cross-browser stability.
+*   **Asset Management:** Drag-and-drop support for audio files (WAV/MP3) and Impulse Responses (IRs), persisted locally via `IndexedDB`.
+*   **Transport & Playback:** Accessible controls with ARIA support, load reference tracks, seek, and play/pause.
 *   **Analysis Suite:**
     *   **Spectrum Analyzer:** Logarithmic frequency visualization (20Hz - 20kHz).
-    *   **Goniometer:** Real-time stereo field visualization (Lissajous figure).
+    *   **Goniometer:** Real-time stereo field visualization (Lissajous figure) via dedicated L/R analysers.
     *   **Loudness Meter:** EBU R128 compliant LUFS metering (Momentary & Short-term).
 *   **Included Modules:**
     *   **Dynamic EQ:** 5-band equalizer with sidechain compression.
@@ -21,6 +21,8 @@
     *   **Lookahead Limiter:** Mastering-grade limiter with lookahead.
     *   **Mid/Side EQ:** Independent processing for Mid and Side channels.
     *   **Cab Sim / IR Loader:** Convolution engine for Impulse Responses.
+    *   **Analog Saturation:** Harmonic distortion and warmth.
+    *   **TPDF Dithering:** High-quality bit-depth reduction.
 *   **Offline Export:** Render your processed track to a high-quality WAV file directly in the browser.
 *   **Local-First & Offline:** Sessions and assets are saved automatically. Works without an internet connection (PWA).
 
@@ -30,16 +32,15 @@ Sonic Forge enforces a strict separation of concerns, often referred to as **"Th
 
 1.  **DSP Layer (`src/audio/worklets/`):** 
     *   The "Brain". Pure JavaScript processing logic that runs on the Audio Thread. 
-    *   Contains the raw mathematics for filters, dynamics, and saturation.
 2.  **Node Layer (`src/audio/worklets/`):** 
     *   The "Bridge". TypeScript classes extending `AudioWorkletNode`. 
-    *   Manages parameter mapping and communication between the Main Thread and the Audio Thread.
+    *   Manages parameter mapping using `standardized-audio-context` interfaces.
 3.  **UI Layer (`src/components/`):** 
     *   The "Face". React components for visualization and control.
-    *   Interacts with the `AudioEngine` and `Zustand` store, never directly with the DSP.
+    *   Interacts with the `AudioEngine` via public methods (e.g., `getModuleNode`) and `Zustand` store.
 
 **Supporting Infrastructure:**
-*   **Audio Engine (`src/audio/context.ts`):** Singleton managing the `AudioContext` (realtime) and `OfflineAudioContext` (export).
+*   **Audio Engine (`src/audio/context.ts`):** Singleton managing the audio graph, intelligent patching, and offline rendering.
 *   **Application State (`src/store/`):** `Zustand` store managing rack configuration, assets, and playback state.
 
 ## 📦 Getting Started
@@ -62,21 +63,21 @@ npm install
 ### Development
 
 ```bash
-# Start the development server (accessible via 0.0.0.0)
+# Start the development server
 npm run dev
 ```
 
 ### Testing
 
 ```bash
-# Run the test suite (Unit + Integration)
+# Run the test suite (Unit + Integration + UI)
 npm run test
 ```
 
 ### Building for Production
 
 ```bash
-# compile TypeScript and bundle with Vite
+# Compile TypeScript and bundle with Vite
 npm run build
 ```
 
@@ -86,7 +87,10 @@ Sonic Forge is designed to be extensible. To add a new effect, follow the **Trin
 
 1.  **DSP:** Write your processor in `src/audio/worklets/my-effect-processor.js`.
 2.  **Node:** Create a `MyEffectNode.ts` wrapper.
-3.  **Register:** Add the module to `AudioEngine` (init, factory, offline render) and `useAudioStore`.
+3.  **Register:** 
+    *   Add to `AudioEngine.createModuleNode()` and `updateModuleParam()`.
+    *   Register in `AudioEngine.renderOffline()` for export support.
+    *   Define default parameters in `useAudioStore.ts`.
 4.  **UI:** Create a component in `src/components/rack/` and add it to `EffectsRack.tsx`.
 
 ## 📄 License
