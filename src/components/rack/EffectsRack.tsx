@@ -55,7 +55,11 @@ function SortableItem({ id, children }: { id: string, children: (dragHandleProps
 }
 
 export const EffectsRack: React.FC = () => {
-  const { rack, removeModule, updateModuleParam, toggleModuleBypass, reorderRack } = useAudioStore();
+  const rack = useAudioStore((state) => state.rack);
+  const removeModule = useAudioStore((state) => state.removeModule);
+  const updateModuleParam = useAudioStore((state) => state.updateModuleParam);
+  const toggleModuleBypass = useAudioStore((state) => state.toggleModuleBypass);
+  const reorderRack = useAudioStore((state) => state.reorderRack);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
