@@ -120,9 +120,11 @@ export const Transport: React.FC = () => {
       {/* File Loader Button (Visible if no source, or distinct button) */}
       {!hasSource && (
           <div className="absolute inset-0 bg-slate-900/95 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-             <div 
+             <button
+                type="button"
+                aria-label="Load Audio File"
                 onClick={() => fileInputRef.current?.click()}
-                className="flex flex-col items-center justify-center gap-4 w-full h-full max-h-48 border-2 border-dashed border-slate-600 rounded-2xl hover:border-blue-500 hover:bg-slate-800/50 transition-all cursor-pointer group"
+                className="flex flex-col items-center justify-center gap-4 w-full h-full max-h-48 border-2 border-dashed border-slate-600 rounded-2xl hover:border-blue-500 hover:bg-slate-800/50 transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
              >
                  <div className="p-4 bg-slate-800 rounded-full group-hover:scale-110 transition-transform shadow-xl">
                     <FileAudio size={32} className="text-blue-400" />
@@ -138,12 +140,14 @@ export const Transport: React.FC = () => {
                     className="hidden" 
                     onChange={(e) => e.target.files && loadSourceFile(e.target.files[0])}
                   />
-             </div>
+             </button>
           </div>
       )}
 
       {/* Play/Pause */}
       <button 
+          type="button"
+          aria-label={isPlaying ? 'Pause' : 'Play'}
           onClick={togglePlay}
           disabled={!hasSource}
           className={clsx(
@@ -175,6 +179,7 @@ export const Transport: React.FC = () => {
              </div>
              <input 
                   type="range"
+                  aria-label="Seek"
                   min={0}
                   max={sourceDuration || 100}
                   step={0.01}
@@ -188,6 +193,8 @@ export const Transport: React.FC = () => {
 
       {/* Export / Menu */}
       <button 
+        type="button"
+        aria-label="Export WAV"
         className="shrink-0 p-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition-colors disabled:opacity-50"
         disabled={!hasSource || isExporting}
         onClick={handleExport}
