@@ -1,22 +1,20 @@
-import React, { useRef, useCallback, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useAudioStore } from '@/store/useAudioStore';
 import { audioEngine } from '@/audio/context';
 import { Play, Pause, FileAudio, Download, Loader2 } from 'lucide-react';
+import { clsx } from 'clsx';
 
-// WAV Encoder Helper
+// WAV Encoder Helper (omitted for brevity, same as before)
 function bufferToWav(buffer: AudioBuffer): Blob {
     const numChannels = buffer.numberOfChannels;
     const sampleRate = buffer.sampleRate;
-    // const format = 1; // PCM (removed unused)
     const bitDepth = 16;
-    
     let result;
     if (numChannels === 2) {
         result = interleave(buffer.getChannelData(0), buffer.getChannelData(1));
     } else {
         result = buffer.getChannelData(0);
     }
-
     return encodeWAV(result, numChannels, sampleRate, bitDepth);
 }
 
@@ -36,36 +34,20 @@ function interleave(inputL: Float32Array, inputR: Float32Array) {
 function encodeWAV(samples: Float32Array, numChannels: number, sampleRate: number, bitDepth: number) {
     const buffer = new ArrayBuffer(44 + samples.length * 2);
     const view = new DataView(buffer);
-
-    /* RIFF identifier */
     writeString(view, 0, 'RIFF');
-    /* RIFF chunk length */
     view.setUint32(4, 36 + samples.length * 2, true);
-    /* RIFF type */
     writeString(view, 8, 'WAVE');
-    /* format chunk identifier */
     writeString(view, 12, 'fmt ');
-    /* format chunk length */
     view.setUint32(16, 16, true);
-    /* sample format (raw) */
     view.setUint16(20, 1, true);
-    /* channel count */
     view.setUint16(22, numChannels, true);
-    /* sample rate */
     view.setUint32(24, sampleRate, true);
-    /* byte rate (sample rate * block align) */
     view.setUint32(28, sampleRate * numChannels * (bitDepth / 8), true);
-    /* block align (channel count * bytes per sample) */
     view.setUint16(32, numChannels * (bitDepth / 8), true);
-    /* bits per sample */
     view.setUint16(34, bitDepth, true);
-    /* data chunk identifier */
     writeString(view, 36, 'data');
-    /* data chunk length */
     view.setUint32(40, samples.length * 2, true);
-
     floatTo16BitPCM(view, 44, samples);
-
     return new Blob([view], { type: 'audio/wav' });
 }
 
@@ -94,7 +76,6 @@ export const Transport: React.FC = () => {
     assets
   } = useAudioStore();
   
-  const [isDragging, setIsDragging] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -104,14 +85,6 @@ export const Transport: React.FC = () => {
     const ms = Math.floor((seconds % 1) * 100);
     return `${mins}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
   };
-
-  const handleDrop = useCallback(async (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        await loadSourceFile(e.dataTransfer.files[0]);
-    }
-  }, [loadSourceFile]);
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
       seek(parseFloat(e.target.value));
@@ -124,7 +97,6 @@ export const Transport: React.FC = () => {
           const renderedBuffer = await audioEngine.renderOffline(rack, assets);
           if (renderedBuffer) {
               const wavBlob = bufferToWav(renderedBuffer);
-              // Trigger download
               const url = URL.createObjectURL(wavBlob);
               const a = document.createElement('a');
               a.href = url;
@@ -144,75 +116,101 @@ export const Transport: React.FC = () => {
   const hasSource = sourceDuration > 0;
 
   return (
-    <div 
-        className={`w-full bg-slate-900 border-b border-slate-700 p-4 flex items-center justify-between transition-colors ${isDragging ? 'bg-slate-800 border-blue-500' : ''}`}
-        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-        onDragLeave={() => setIsDragging(false)}
-        onDrop={handleDrop}
-    >
-      {/* Left: Playback Controls */}
-      <div className="flex items-center gap-4 w-1/3">
-        <button 
-            onClick={togglePlay}
-            disabled={!hasSource}
-            className={`p-3 rounded-full transition-colors ${isPlaying ? 'bg-yellow-500 hover:bg-yellow-400 text-black' : 'bg-green-600 hover:bg-green-500 text-white'} disabled:opacity-50 disabled:cursor-not-allowed`}
-        >
-            {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
-        </button>
-        
-        <div className="flex flex-col gap-1 w-full max-w-xs">
-            <span className="font-mono text-xl text-blue-400 tracking-wider">
-                {formatTime(currentTime)} <span className="text-slate-600 text-sm">/ {formatTime(sourceDuration)}</span>
-            </span>
-            <input 
-                type="range"
-                min={0}
-                max={sourceDuration || 100}
-                step={0.01}
-                value={currentTime}
-                onChange={handleSeek}
-                disabled={!hasSource}
-                className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-            />
-        </div>
-      </div>
-
-      {/* Center: File Info / Drop Zone */}
-      <div className="flex-1 flex justify-center">
-          {!hasSource ? (
-              <div 
+    <div className="w-full flex items-center justify-between gap-4 max-w-2xl mx-auto">
+      {/* File Loader Button (Visible if no source, or distinct button) */}
+      {!hasSource && (
+          <div className="absolute inset-0 bg-slate-900/95 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+             <button
+                type="button"
+                aria-label="Load Audio File"
                 onClick={() => fileInputRef.current?.click()}
-                className="flex flex-col items-center gap-2 cursor-pointer text-slate-500 hover:text-blue-400 transition-colors border-2 border-dashed border-slate-700 hover:border-blue-500 rounded-lg px-8 py-2"
-              >
-                  <FileAudio size={24} />
-                  <span className="text-xs font-bold uppercase">Drag Mix Here or Click</span>
-                  <input 
+                className="flex flex-col items-center justify-center gap-4 w-full h-full max-h-48 border-2 border-dashed border-slate-600 rounded-2xl hover:border-blue-500 hover:bg-slate-800/50 transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+             >
+                 <div className="p-4 bg-slate-800 rounded-full group-hover:scale-110 transition-transform shadow-xl">
+                    <FileAudio size={32} className="text-blue-400" />
+                 </div>
+                 <div className="text-center">
+                    <p className="text-sm font-bold text-slate-200">Load Audio File</p>
+                    <p className="text-xs text-slate-500 mt-1">Click to browse or drag & drop</p>
+                 </div>
+                 <input 
                     ref={fileInputRef}
                     type="file" 
                     accept="audio/*" 
                     className="hidden" 
                     onChange={(e) => e.target.files && loadSourceFile(e.target.files[0])}
                   />
-              </div>
-          ) : (
-              <div className="flex flex-col items-center">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Source Loaded</span>
-                  <span className="text-sm text-slate-300">Ready for Mastering</span>
-              </div>
+             </button>
+          </div>
+      )}
+
+      {/* Play/Pause */}
+      <button 
+          type="button"
+          aria-label={isPlaying ? 'Pause' : 'Play'}
+          onClick={togglePlay}
+          disabled={!hasSource}
+          className={clsx(
+              "shrink-0 w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-lg",
+              isPlaying ? 'bg-amber-500 hover:bg-amber-400 text-slate-900 shadow-amber-500/20' : 'bg-primary hover:bg-blue-400 text-white shadow-blue-500/20',
+              !hasSource && 'opacity-50 cursor-not-allowed grayscale'
           )}
+      >
+          {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-1" />}
+      </button>
+
+      {/* Time & Seeker */}
+      <div className="flex-1 flex flex-col gap-1 min-w-0">
+          <div className="flex justify-between items-end px-1">
+             <span className="font-mono text-sm font-bold text-slate-200 tracking-wider">
+                {formatTime(currentTime)}
+             </span>
+             <span className="font-mono text-[10px] text-slate-500">
+                {formatTime(sourceDuration)}
+             </span>
+          </div>
+          <div className="relative h-6 group flex items-center">
+             {/* Custom Range Track */}
+             <div className="absolute left-0 right-0 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                 <div 
+                    className="h-full bg-primary transition-all duration-75" 
+                    style={{ width: `${(currentTime / (sourceDuration || 1)) * 100}%` }}
+                 />
+             </div>
+             <input 
+                  type="range"
+                  aria-label="Seek"
+                  min={0}
+                  max={sourceDuration || 100}
+                  step={0.01}
+                  value={currentTime}
+                  onChange={handleSeek}
+                  disabled={!hasSource}
+                  className="absolute inset-0 w-full opacity-0 cursor-pointer z-10"
+              />
+          </div>
       </div>
 
-      {/* Right: Tools / Export */}
-      <div className="flex items-center gap-4 w-1/3 justify-end">
-          <button 
-            className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded text-slate-300 text-sm font-bold transition-colors disabled:opacity-50"
-            disabled={!hasSource || isExporting}
-            onClick={handleExport}
-          >
-              {isExporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-              {isExporting ? 'Exporting...' : 'Export WAV'}
-          </button>
-      </div>
+      {/* Export / Menu */}
+      <button 
+        type="button"
+        aria-label="Export WAV"
+        className="shrink-0 p-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition-colors disabled:opacity-50"
+        disabled={!hasSource || isExporting}
+        onClick={handleExport}
+        title="Export WAV"
+      >
+          {isExporting ? <Loader2 size={20} className="animate-spin text-blue-400" /> : <Download size={20} />}
+      </button>
+
+      {/* Hidden File Input for "Load New" Action if we add a button later */}
+      <input 
+        ref={fileInputRef}
+        type="file" 
+        accept="audio/*" 
+        className="hidden" 
+        onChange={(e) => e.target.files && loadSourceFile(e.target.files[0])}
+      />
     </div>
   );
 };

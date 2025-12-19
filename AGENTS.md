@@ -1,44 +1,65 @@
 # AI Agent Directives: Sonic Forge
 
-This document outlines the rules and patterns for AI agents modifying the Sonic Forge codebase.
+This document serves as the operational manual for Autonomous AI Agents (e.g., Google Jules) working on the Sonic Forge repository.
 
-## 1. Architectural Integrity
-*   **The Trinity Pattern:** Every audio effect requires three distinct parts:
-    1.  **DSP (Worklet):** Raw JS in `src/audio/worklets/`. Must rely on `dsp-helpers.js` for math.
-    2.  **Interface (Node):** TypeScript class extending `AudioWorkletNode` (or Native Node wrapper). Exposes typed parameters.
-    3.  **Control (UI/Store):** A Zustand module type definition and a React component.
-*   **Unidirectional Data Flow:**
-    *   `UI` -> `Zustand Store` -> `AudioEngine` -> `AudioNode` -> `AudioWorklet`.
-    *   *Never* modify AudioNodes directly from React components.
+## 1. Core Directives
 
-## 2. DSP Implementation Guidelines
-*   **No WASM (Yet):** Stick to pure JavaScript classes in `dsp-helpers.js`.
-*   **Parameter Smoothing:** All `AudioParam` updates should use `setTargetAtTime` (k-rate) or `setValueAtTime` (immediate).
-*   **Memory Safety:** Do not create objects inside the `process()` loop. Pre-allocate arrays in the constructor.
-*   **Offline Compatibility:** All Worklets and Nodes must be capable of running in an `OfflineAudioContext`.
+### Directive Alpha: "Do No Harm"
+*   **Constraint:** Do not modify the core logic of `src/audio/context.ts` or `src/store/useAudioStore.ts` unless implementing a high-level feature requested by the user.
+*   **Audio Graph:** Respect the **Diff-based Patching** in `rebuildGraph`. It optimizes for single-node changes. Avoid triggering `fullRebuildGraph` for trivial param updates or single bypass toggles.
 
-## 3. Testing Strategy
-*   **Unit Tests:** Test DSP math in `dsp-helpers.test.js`.
-*   **Integration Tests:** Test the *Store* (`useAudioStore.test.ts`) to verify rack state updates.
-*   **UI Tests:** Test `EffectsRack.tsx` to verify module rendering. *Mock `AudioContext` and `AnalyserNode` methods* to prevent Canvas/Web Audio crashes in JSDOM.
+### Directive Beta: "Static Parity"
+*   **Validation:** You MUST rely on:
+    1.  `npm run build` (tsc) to verify type safety across `standardized-audio-context` interfaces.
+    2.  `npm run test` to ensure zero regressions in DSP math and Rack logic.
 
-## 4. How to Add a New Effect (Checklist)
-1.  [ ] **DSP:** Create `src/audio/worklets/my-effect-processor.js`. Register it.
-2.  [ ] **Node:** Create `src/audio/worklets/MyEffectNode.ts`.
+## 2. Architectural Integrity
+*   **The Trinity Pattern:** Every audio effect requires three parts:
+    1.  **DSP (Worklet):** JS in `src/audio/worklets/`.
+    2.  **Interface (Node):** TS class extending `AudioWorkletNode` using `standardized-audio-context` types.
+    3.  **Control (UI/Store):** A Zustand module definition and a React component.
+*   **Encapsulation:** Always use `audioEngine.getModuleNode(id)` to read state from an active node in the UI.
+
+## 3. DSP Implementation Guidelines
+*   **Smoothing:** Use `setTargetAtTime` for parameter changes.
+*   **Memory:** Pre-allocate buffers. No allocations in `process()`.
+*   **Offline:** Verify every node works in `OfflineAudioContext` for WAV export.
+
+## 4. Testing Strategy
+*   **Mocks:** Update `src/test/setup.ts` when adding new global Web Audio mocks.
+*   **Coverage:** Every new DSP utility MUST have a corresponding `.test.js` or `.test.ts` file.
+
+## 5. How to Add a New Effect (Checklist)
+1.  [ ] **DSP:** Create `src/audio/worklets/my-processor.js`.
+2.  [ ] **Node:** Create `src/audio/worklets/MyNode.ts`.
 3.  [ ] **Engine:**
-    *   Import worklet URL in `src/audio/context.ts`.
-    *   Add to `init()` (Realtime Context).
-    *   Add case in `createModuleNode()` (Factory).
-    *   Add case in `updateModuleParam()` (Realtime Update).
-    *   **Crucial:** Add to `renderOffline()` (Offline Export Logic) - verify parameters and worklet loading.
-4.  [ ] **Store:**
-    *   Add type to `RackModuleType`.
-    *   Add default parameters in `addModule()`.
-5.  [ ] **UI:**
-    *   Create component in `src/components/rack/`.
-    *   Add button and rendering logic in `EffectsRack.tsx`.
+    *   Add to `init()` (Realtime URLs).
+    *   Add to `createModuleNode()` (Realtime Factory).
+    *   Add to `updateModuleParam()` (Realtime Update).
+    *   Add to `renderOffline()` (Offline Factory).
+    *   **New:** Verify `getModuleNode` support if the UI needs to read back data.
+4.  [ ] **Store:** Update `RackModuleType` and `addModule`.
+5.  [ ] **UI:** Create `src/components/rack/MyUnit.tsx` and add to `EffectsRack.tsx`.
 
-## 5. Common Pitfalls
-*   **Source Management:** Always check `useAudioStore.getState().assets` for blobs (IRs) or `sourceBuffer` for the main track.
-*   **Offline Context:** `OfflineAudioContext` is separate from `AudioContext`. You must `addModule()` to *both* and recreate nodes for *both*.
-*   **Type Safety:** Use `RackModuleType` union to ensure exhaustive checks in factories.
+## 6. Current High-Priority Targets
+*   **Loudness Penalty UI:** Integrate the `calculateLoudnessPenalty` utility from `src/utils/loudness-penalty.ts` into the `MeteringUnit` or export summary.
+*   **WASM DSP:** Implementation of performance-critical filters in Rust/C++ (Blueprint: `proof-of-concept-wasm-dsp.md`).
+*   **Advanced Visualizers:** Implementation of a phase correlation meter using the new L/R analysers.
+
+---
+
+# 🤖 Jules Asynchronous Blueprint: [Blueprint Name]
+
+**Context:** Sonic Forge
+**Asynchronous Intent:** [Goal, e.g., "Add Phase Meter"]
+
+## 🔒 Workflow Constraints
+1.  **Decoupled:** Use existing `AudioEngine` hooks and methods.
+2.  **Additive:** Do not rewrite existing effects.
+
+## 🚀 Jules Context (Async Implementation Agent)
+
+### Operational Directives
+1.  **AudioEngine Integrity:** `AudioEngine` is the critical core. Never leave it in a state where `init()` fails.
+2.  **Diff-Patching:** Ensure any routing changes are compatible with the `insertNode` / `removeNode` logic in `rebuildGraph`.
+3.  **Dependency Handling:** Prefer `standardized-audio-context` interfaces for all new node types.

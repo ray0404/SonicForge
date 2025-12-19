@@ -1,9 +1,12 @@
 import { logger } from "@/utils/logger";
+import { AudioWorkletNode, IAudioContext, IOfflineAudioContext, TAudioWorkletNodeConstructor } from "standardized-audio-context";
 
-export class DynamicEQNode extends AudioWorkletNode {
+const AudioWorkletNodeBase = AudioWorkletNode as TAudioWorkletNodeConstructor;
+
+export class DynamicEQNode extends AudioWorkletNodeBase<IAudioContext | IOfflineAudioContext> {
   public currentGainReduction: number = 0;
 
-  constructor(context: AudioContext) {
+  constructor(context: IAudioContext | IOfflineAudioContext) {
     super(context, 'dynamic-eq-processor', {
       numberOfInputs: 1,
       numberOfOutputs: 1,
