@@ -34,6 +34,9 @@ import { TremoloUnit } from './TremoloUnit';
 import { AutoWahUnit } from './AutoWahUnit';
 import { FeedbackDelayUnit } from './FeedbackDelayUnit';
 import { CompressorUnit } from './CompressorUnit';
+import { DeEsserUnit } from './DeEsserUnit';
+import { StereoImagerUnit } from './StereoImagerUnit';
+import { MultibandCompressorUnit } from './MultibandCompressorUnit';
 
 
 function SortableItem({ id, children }: { id: string, children: (dragHandleProps: any) => React.ReactNode }) {
@@ -127,6 +130,9 @@ export const EffectsRack: React.FC = () => {
                                     case 'AUTOWAH': return <AutoWahUnit {...commonProps} onUpdate={onUpdate} />;
                                     case 'FEEDBACK_DELAY': return <FeedbackDelayUnit {...commonProps} onUpdate={onUpdate} />;
                                     case 'COMPRESSOR': return <CompressorUnit {...commonProps} onUpdate={onUpdate} />;
+                                    case 'DE_ESSER': return <DeEsserUnit {...commonProps} onUpdate={onUpdate} />;
+                                    case 'STEREO_IMAGER': return <StereoImagerUnit {...commonProps} onUpdate={onUpdate} />;
+                                    case 'MULTIBAND_COMPRESSOR': return <MultibandCompressorUnit {...commonProps} onUpdate={onUpdate} />;
                                     default:
                                         return <div className="p-4 bg-red-900/50 text-red-200 rounded">Unknown Module: {module.type}</div>;
                                 }

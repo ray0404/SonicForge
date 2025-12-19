@@ -4,7 +4,7 @@ import { audioEngine } from '@/audio/context';
 import { logger } from '@/utils/logger';
 import { get as getIDB, set as setIDB } from 'idb-keyval';
 
-export type RackModuleType = 'DYNAMIC_EQ' | 'TRANSIENT_SHAPER' | 'LIMITER' | 'MIDSIDE_EQ' | 'CAB_SIM' | 'LOUDNESS_METER' | 'SATURATION' | 'DITHERING' | 'PARAMETRIC_EQ' | 'DISTORTION' | 'BITCRUSHER' | 'CHORUS' | 'PHASER' | 'TREMOLO' | 'AUTOWAH' | 'FEEDBACK_DELAY' | 'COMPRESSOR';
+export type RackModuleType = 'DYNAMIC_EQ' | 'TRANSIENT_SHAPER' | 'LIMITER' | 'MIDSIDE_EQ' | 'CAB_SIM' | 'LOUDNESS_METER' | 'SATURATION' | 'DITHERING' | 'PARAMETRIC_EQ' | 'DISTORTION' | 'BITCRUSHER' | 'CHORUS' | 'PHASER' | 'TREMOLO' | 'AUTOWAH' | 'FEEDBACK_DELAY' | 'COMPRESSOR' | 'DE_ESSER' | 'STEREO_IMAGER' | 'MULTIBAND_COMPRESSOR';
 
 export interface RackModule {
   id: string;
@@ -128,6 +128,15 @@ export const useAudioStore = create<AudioState>((set, get) => ({
     else if (type === 'AUTOWAH') newModule.parameters = { baseFrequency: 100, sensitivity: 0.5, octaves: 4, Q: 2, attack: 0.01, release: 0.1, wet: 1 };
     else if (type === 'FEEDBACK_DELAY') newModule.parameters = { delayTime: 0.5, feedback: 0.3, wet: 0.5 };
     else if (type === 'COMPRESSOR') newModule.parameters = { threshold: -24, ratio: 4, attack: 0.01, release: 0.1, knee: 5, makeupGain: 0, mode: 0 };
+    else if (type === 'DE_ESSER') newModule.parameters = { frequency: 6000, threshold: -20, ratio: 4, attack: 0.005, release: 0.05, monitor: 0, bypass: 0 };
+    else if (type === 'STEREO_IMAGER') newModule.parameters = { lowFreq: 150, highFreq: 2500, widthLow: 0.0, widthMid: 1.0, widthHigh: 1.2, bypass: 0 };
+    else if (type === 'MULTIBAND_COMPRESSOR') newModule.parameters = {
+        lowFreq: 150, highFreq: 2500,
+        threshLow: -24, ratioLow: 4, attLow: 0.01, relLow: 0.1, gainLow: 0,
+        threshMid: -24, ratioMid: 4, attMid: 0.01, relMid: 0.1, gainMid: 0,
+        threshHigh: -24, ratioHigh: 4, attHigh: 0.01, relHigh: 0.1, gainHigh: 0,
+        bypass: 0
+    };
 
     set((state) => ({ rack: [...state.rack, newModule] }));
     audioEngine.rebuildGraph(get().rack); 

@@ -17,6 +17,9 @@ import { TremoloNode } from "./worklets/TremoloNode";
 import { AutoWahNode } from "./worklets/AutoWahNode";
 import { FeedbackDelayNode } from "./worklets/FeedbackDelayNode";
 import { CompressorNode } from "./worklets/CompressorNode";
+import { DeEsserNode } from "./worklets/DeEsserNode";
+import { StereoImagerNode } from "./worklets/StereoImagerNode";
+import { MultibandCompressorNode } from "./worklets/MultibandCompressorNode";
 
 import {
     AudioContext,
@@ -61,6 +64,12 @@ import autowahUrl from './worklets/autowah-processor.js?worker&url';
 import feedbackDelayUrl from './worklets/feedback-delay-processor.js?worker&url';
 // @ts-ignore
 import compressorUrl from './worklets/compressor-processor.js?worker&url';
+// @ts-ignore
+import deesserUrl from './worklets/deesser-processor.js?worker&url';
+// @ts-ignore
+import stereoImagerUrl from './worklets/stereo-imager-processor.js?worker&url';
+// @ts-ignore
+import multibandCompressorUrl from './worklets/multiband-compressor-processor.js?worker&url';
 
 class AudioEngine {
   public context: IAudioContext | null = null;
@@ -111,7 +120,10 @@ class AudioEngine {
                 this.context.audioWorklet.addModule(tremoloUrl),
                 this.context.audioWorklet.addModule(autowahUrl),
                 this.context.audioWorklet.addModule(feedbackDelayUrl),
-                this.context.audioWorklet.addModule(compressorUrl)
+                this.context.audioWorklet.addModule(compressorUrl),
+                this.context.audioWorklet.addModule(deesserUrl),
+                this.context.audioWorklet.addModule(stereoImagerUrl),
+                this.context.audioWorklet.addModule(multibandCompressorUrl)
             ]);
             logger.info("AudioWorklet modules loaded successfully.");
           } catch (err) {
@@ -316,6 +328,9 @@ class AudioEngine {
             case 'AUTOWAH': node = new AutoWahNode(context); break;
             case 'FEEDBACK_DELAY': node = new FeedbackDelayNode(context); break;
             case 'COMPRESSOR': node = new CompressorNode(context); break;
+            case 'DE_ESSER': node = new DeEsserNode(context); break;
+            case 'STEREO_IMAGER': node = new StereoImagerNode(context); break;
+            case 'MULTIBAND_COMPRESSOR': node = new MultibandCompressorNode(context); break;
             default: return null;
         }
         
@@ -394,7 +409,10 @@ class AudioEngine {
                 offlineCtx.audioWorklet.addModule(tremoloUrl),
                 offlineCtx.audioWorklet.addModule(autowahUrl),
                 offlineCtx.audioWorklet.addModule(feedbackDelayUrl),
-                offlineCtx.audioWorklet.addModule(compressorUrl)
+                offlineCtx.audioWorklet.addModule(compressorUrl),
+                offlineCtx.audioWorklet.addModule(deesserUrl),
+                offlineCtx.audioWorklet.addModule(stereoImagerUrl),
+                offlineCtx.audioWorklet.addModule(multibandCompressorUrl)
             ]);
         }
       } catch (err) {

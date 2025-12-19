@@ -26,6 +26,8 @@ export const AddModuleMenu: React.FC = () => {
   const categories = {
       'Dynamics': [
           { label: 'Compressor', type: 'COMPRESSOR' },
+          { label: 'Multiband Comp', type: 'MULTIBAND_COMPRESSOR' },
+          { label: 'De-Esser', type: 'DE_ESSER' },
           { label: 'Limiter', type: 'LIMITER' },
           { label: 'Transient Shaper', type: 'TRANSIENT_SHAPER' },
       ],
@@ -46,6 +48,7 @@ export const AddModuleMenu: React.FC = () => {
           { label: 'AutoWah', type: 'AUTOWAH' },
       ],
       'Spatial': [
+          { label: 'Multiband Imager', type: 'STEREO_IMAGER' },
           { label: 'Feedback Delay', type: 'FEEDBACK_DELAY' },
           { label: 'Cabinet Sim', type: 'CAB_SIM' },
       ],
