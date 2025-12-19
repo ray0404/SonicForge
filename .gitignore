@@ -121,3 +121,8 @@ dist
 # Blueprints
 blueprints/
 .gemini/
+
+# AI Instruction and Metadata
+AGENTS.md
+GEMINI.md
+.Jules/
