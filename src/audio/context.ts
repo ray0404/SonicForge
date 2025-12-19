@@ -202,7 +202,7 @@ class AudioEngine {
         
         if (!node) {
             // Instantiate new node if missing
-            node = this.createModuleNode(module);
+            node = this.createModuleNode(module, this.context!);
             if (node) {
                 this.nodeMap.set(module.id, node);
             }
@@ -231,43 +231,47 @@ class AudioEngine {
   /**
    * Factory method to create AudioNodes for modules.
    */
-  private createModuleNode(module: RackModule): AudioNode | ConvolutionNode | null {
-      if (!this.context) return null;
+  private createModuleNode(module: RackModule, context: BaseAudioContext, assets?: Record<string, AudioBuffer>): AudioNode | ConvolutionNode | null {
+      // Cast BaseAudioContext to AudioContext for nodes that require it
+      // Note: Custom nodes (DynamicEQNode etc.) inherit from AudioWorkletNode which expects AudioContext
+      // However, OfflineAudioContext is compatible with most operations.
+      // We assume custom node constructors can handle BaseAudioContext or we cast it.
+      const ctx = context as AudioContext;
 
       try {
         switch (module.type) {
             case 'DYNAMIC_EQ':
-                const deqNode = new DynamicEQNode(this.context);
-                this.updateNodeParams(deqNode, module);
+                const deqNode = new DynamicEQNode(ctx);
+                this.updateNodeParams(deqNode, module, assets);
                 return deqNode;
             case 'TRANSIENT_SHAPER':
-                 const tsNode = new TransientShaperNode(this.context);
-                 this.updateNodeParams(tsNode, module);
+                 const tsNode = new TransientShaperNode(ctx);
+                 this.updateNodeParams(tsNode, module, assets);
                  return tsNode;
             case 'LIMITER':
-                 const limiterNode = new LimiterNode(this.context);
-                 this.updateNodeParams(limiterNode, module);
+                 const limiterNode = new LimiterNode(ctx);
+                 this.updateNodeParams(limiterNode, module, assets);
                  return limiterNode;
             case 'MIDSIDE_EQ':
-                 const msNode = new MidSideEQNode(this.context);
-                 this.updateNodeParams(msNode, module);
+                 const msNode = new MidSideEQNode(ctx);
+                 this.updateNodeParams(msNode, module, assets);
                  return msNode;
             case 'CAB_SIM':
-                const cabNode = new ConvolutionNode(this.context);
-                this.updateNodeParams(cabNode, module);
+                const cabNode = new ConvolutionNode(ctx);
+                this.updateNodeParams(cabNode, module, assets);
                 return cabNode;
             case 'LOUDNESS_METER':
-                return new MeteringNode(this.context);
+                return new MeteringNode(ctx);
             default:
                 return null;
         }
       } catch (e) {
           logger.error(`Failed to create node for ${module.type}`, e);
-          return this.context.createGain(); // Fallback
+          return ctx.createGain(); // Fallback
       }
   }
 
-  private updateNodeParams(node: AudioNode | ConvolutionNode, module: RackModule) {
+  private updateNodeParams(node: AudioNode | ConvolutionNode, module: RackModule, assets?: Record<string, AudioBuffer>) {
       if (module.type === 'DYNAMIC_EQ' && node instanceof DynamicEQNode) {
           Object.entries(module.parameters).forEach(([key, value]) => {
               node.setParam(key, value);
@@ -289,12 +293,8 @@ class AudioEngine {
               node.setMix(module.parameters.mix);
           }
           if (module.parameters.irAssetId) {
-              // Access store via direct import or pass it in? 
-              // Circular dependency risk if we import store here. 
-              // Better to access via module params or separate asset registry.
-              // We updated store to hold assets.
-              const assets = useAudioStore.getState().assets;
-              const buffer = assets[module.parameters.irAssetId];
+              const availableAssets = assets || useAudioStore.getState().assets;
+              const buffer = availableAssets[module.parameters.irAssetId];
               if (buffer) {
                   node.setBuffer(buffer);
               }
@@ -359,51 +359,13 @@ class AudioEngine {
       const source = offlineCtx.createBufferSource();
       source.buffer = this.sourceBuffer;
 
-      // Create nodes manually since 'createModuleNode' uses 'this.context' (the realtime one).
-      // We need a helper or just duplicate logic here for safety.
-      // Ideally 'createModuleNode' takes a context arg.
-      // Let's refactor createModuleNode to be static or take context.
-      // For now, we'll inline the graph building for the offline export to be explicit.
-      
       let previousNode: AudioNode = source;
-
-      // Map module IDs to new Offline nodes
-      const offlineNodeMap = new Map<string, AudioNode | ConvolutionNode>();
 
       for (const module of rack) {
           if (module.bypass) continue;
+          if (module.type === 'LOUDNESS_METER') continue; // Skip meters for offline
 
-          let node: AudioNode | ConvolutionNode | null = null;
-
-          if (module.type === 'DYNAMIC_EQ') {
-              const n = new DynamicEQNode(offlineCtx as unknown as AudioContext); // Cast for TS
-              Object.entries(module.parameters).forEach(([k, v]) => n.setParam(k, v));
-              node = n;
-          } else if (module.type === 'TRANSIENT_SHAPER') {
-              const n = new TransientShaperNode(offlineCtx as unknown as AudioContext);
-              Object.entries(module.parameters).forEach(([k, v]) => n.setParam(k as any, v));
-              node = n;
-          } else if (module.type === 'LIMITER') {
-              const n = new LimiterNode(offlineCtx as unknown as AudioContext);
-              Object.entries(module.parameters).forEach(([k, v]) => n.setParam(k as any, v));
-              node = n;
-          } else if (module.type === 'MIDSIDE_EQ') {
-              const n = new MidSideEQNode(offlineCtx as unknown as AudioContext);
-              Object.entries(module.parameters).forEach(([k, v]) => n.setParam(k as any, v));
-              node = n;
-          } else if (module.type === 'CAB_SIM') {
-              const n = new ConvolutionNode(offlineCtx as unknown as AudioContext);
-              if (module.parameters.mix !== undefined) n.setMix(module.parameters.mix);
-              
-              if (module.parameters.irAssetId) {
-                  const buffer = assets[module.parameters.irAssetId];
-                  if (buffer) {
-                      n.setBuffer(buffer);
-                  }
-              }
-              node = n;
-          }
-          // Skip Metering for offline
+          const node = this.createModuleNode(module, offlineCtx, assets);
 
           if (node) {
               if (node instanceof ConvolutionNode) {
@@ -413,7 +375,6 @@ class AudioEngine {
                   previousNode.connect(node as AudioNode);
                   previousNode = node as AudioNode;
               }
-              offlineNodeMap.set(module.id, node);
           }
       }
 
