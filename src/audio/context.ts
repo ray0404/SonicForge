@@ -544,6 +544,10 @@ class AudioEngine {
       }
   }
 
+  public getModuleNode(id: string): IAudioNode<IAudioContext | IOfflineAudioContext> | ConvolutionNode | undefined {
+      return this.nodeMap.get(id);
+  }
+
   /**
    * Updates a single parameter on a specific module node.
    */

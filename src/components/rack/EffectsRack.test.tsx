@@ -13,6 +13,7 @@ vi.mock('@/audio/context', () => ({
     },
     rebuildGraph: vi.fn(),
     updateModuleParam: vi.fn(),
+    getModuleNode: vi.fn(),
     loadSource: vi.fn().mockResolvedValue({ duration: 100 }), // Mock source loading
     renderOffline: vi.fn(),
     nodeMap: new Map() // Mock nodeMap for visualizers

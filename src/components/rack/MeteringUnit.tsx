@@ -18,8 +18,7 @@ const MeterDisplay = ({ nodeId }: { nodeId: string }) => {
 
     useEffect(() => {
         const update = () => {
-            // @ts-ignore
-            const node = audioEngine.nodeMap.get(nodeId) as MeteringNode | undefined;
+            const node = audioEngine.getModuleNode(nodeId) as MeteringNode | undefined;
             if (node) {
                 setStats({ m: node.momentary, s: node.shortTerm });
             }
