@@ -3,7 +3,7 @@ import { Plus } from 'lucide-react';
 import { useAudioStore, RackModuleType } from '@/store/useAudioStore';
 
 export const AddModuleMenu: React.FC = () => {
-  const { addModule } = useAudioStore();
+  const addModule = useAudioStore((state) => state.addModule);
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 

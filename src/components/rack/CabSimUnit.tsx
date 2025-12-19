@@ -13,7 +13,8 @@ interface CabSimUnitProps {
 }
 
 export const CabSimUnit: React.FC<CabSimUnitProps> = ({ module, onRemove, onBypass, onUpdate, dragHandleProps }) => {
-  const { loadAsset, assets } = useAudioStore();
+  const loadAsset = useAudioStore((state) => state.loadAsset);
+  const assets = useAudioStore((state) => state.assets);
   const [isDragging, setIsDragging] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
