@@ -4,7 +4,8 @@ class TransientProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
       { name: 'attackGain', defaultValue: 0, minValue: -24, maxValue: 24 },
-      { name: 'sustainGain', defaultValue: 0, minValue: -24, maxValue: 24 }
+      { name: 'sustainGain', defaultValue: 0, minValue: -24, maxValue: 24 },
+      { name: 'mix', defaultValue: 1.0, minValue: 0, maxValue: 1 }
     ];
   }
 
@@ -24,6 +25,8 @@ class TransientProcessor extends AudioWorkletProcessor {
     // Get parameters (supporting a-rate or k-rate, defaulting to index 0)
     const attackGain = parameters.attackGain.length > 1 ? parameters.attackGain : parameters.attackGain[0];
     const sustainGain = parameters.sustainGain.length > 1 ? parameters.sustainGain : parameters.sustainGain[0];
+    const mixP = parameters.mix;
+    const mix = mixP.length > 1 ? mixP[0] : mixP[0]; // Simple access for now
 
     // Initialize state for new channels
     if (this.channelState.length < input.length) {
@@ -85,7 +88,7 @@ class TransientProcessor extends AudioWorkletProcessor {
         // Convert dB to linear: 10^(db/20)
         const linearGain = Math.pow(10, gainDb / 20);
         
-        outputData[i] = sample * linearGain;
+        outputData[i] = sample * (1 - mix) + (sample * linearGain) * mix;
       }
     }
 

@@ -33,6 +33,12 @@ export const TransientShaperUnit: React.FC<TransientShaperUnitProps> = ({ module
             value={module.parameters.sustainGain} min={-24} max={24}
             onChange={(v) => onUpdate('sustainGain', v)}
          />
+         <div className="w-px h-12 bg-slate-700"></div>
+         <Knob
+            label="Mix"
+            value={module.parameters.mix ?? 1} min={0} max={1}
+            onChange={(v) => onUpdate('mix', v)}
+         />
       </div>
     </ModuleShell>
   );

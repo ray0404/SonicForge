@@ -4,13 +4,13 @@ import { audioEngine } from '@/audio/context';
 import { logger } from '@/utils/logger';
 import { get as getIDB, set as setIDB } from 'idb-keyval';
 
-export type RackModuleType = 'DYNAMIC_EQ' | 'TRANSIENT_SHAPER' | 'LIMITER' | 'MIDSIDE_EQ' | 'CAB_SIM' | 'LOUDNESS_METER' | 'SATURATION' | 'DITHERING';
+export type RackModuleType = 'DYNAMIC_EQ' | 'TRANSIENT_SHAPER' | 'LIMITER' | 'MIDSIDE_EQ' | 'CAB_SIM' | 'LOUDNESS_METER' | 'SATURATION' | 'DITHERING' | 'PARAMETRIC_EQ' | 'DISTORTION' | 'BITCRUSHER' | 'CHORUS' | 'PHASER' | 'TREMOLO' | 'AUTOWAH' | 'FEEDBACK_DELAY' | 'COMPRESSOR';
 
 export interface RackModule {
   id: string;
   type: RackModuleType;
   bypass: boolean;
-  parameters: Record<string, any>; // Changed from number to any to support string IDs
+  parameters: Record<string, any>;
 }
 
 interface AudioState {
@@ -18,7 +18,7 @@ interface AudioState {
   isPlaying: boolean;
   sourceDuration: number;
   currentTime: number;
-  masterVolume: number; // 0.0 to 1.0
+  masterVolume: number;
   rack: RackModule[];
   assets: Record<string, AudioBuffer>;
 
@@ -53,10 +53,8 @@ export const useAudioStore = create<AudioState>((set, get) => ({
     try {
       await audioEngine.init();
       set({ isInitialized: true });
-      // Attempt to load previous session
       get().loadProject();
       
-      // Playback loop for UI updates
       setInterval(() => {
           if (audioEngine.isPlaying && audioEngine.context) {
               const elapsed = audioEngine.context.currentTime - audioEngine.startTime;
@@ -86,17 +84,14 @@ export const useAudioStore = create<AudioState>((set, get) => ({
 
   loadSourceFile: async (file: File) => {
       try {
-          // 1. Save File to IDB for persistence
           await setIDB('current_project_source', file);
-
-          // 2. Decode
           const buffer = await audioEngine.loadSource(file);
           set({ 
               sourceDuration: buffer.duration,
               currentTime: 0,
-              isPlaying: false // Stop previous playback
+              isPlaying: false 
           });
-          logger.info("Source file loaded and saved to IDB.");
+          logger.info("Source file loaded.");
       } catch (e) {
           logger.error("Failed to load source file", e);
       }
@@ -117,23 +112,22 @@ export const useAudioStore = create<AudioState>((set, get) => ({
       parameters: {}
     };
 
-    if (type === 'DYNAMIC_EQ') {
-      newModule.parameters = { frequency: 1000, gain: 0, Q: 1.0, threshold: -20, ratio: 2, attack: 0.01, release: 0.1 };
-    } else if (type === 'TRANSIENT_SHAPER') {
-      newModule.parameters = { attackGain: 0, sustainGain: 0 };
-    } else if (type === 'LIMITER') {
-      newModule.parameters = { threshold: -0.5, ceiling: -0.1, release: 0.1, lookahead: 5 };
-    } else if (type === 'MIDSIDE_EQ') {
-      newModule.parameters = { midGain: 0, midFreq: 1000, sideGain: 0, sideFreq: 1000 };
-    } else if (type === 'CAB_SIM') {
-      newModule.parameters = { irAssetId: '', mix: 1.0 };
-    } else if (type === 'LOUDNESS_METER') {
-      newModule.parameters = {};
-    } else if (type === 'SATURATION') {
-      newModule.parameters = { drive: 0.0, type: 1, outputGain: 0.0 }; // Type 1 = Tube
-    } else if (type === 'DITHERING') {
-      newModule.parameters = { bitDepth: 24 };
-    }
+    if (type === 'DYNAMIC_EQ') newModule.parameters = { frequency: 1000, gain: 0, Q: 1.0, threshold: -20, ratio: 2, attack: 0.01, release: 0.1 };
+    else if (type === 'TRANSIENT_SHAPER') newModule.parameters = { attackGain: 0, sustainGain: 0 };
+    else if (type === 'LIMITER') newModule.parameters = { threshold: -0.5, ceiling: -0.1, release: 0.1, lookahead: 5 };
+    else if (type === 'MIDSIDE_EQ') newModule.parameters = { midGain: 0, midFreq: 1000, sideGain: 0, sideFreq: 1000 };
+    else if (type === 'CAB_SIM') newModule.parameters = { irAssetId: '', mix: 1.0 };
+    else if (type === 'SATURATION') newModule.parameters = { drive: 0.0, type: 1, outputGain: 0.0 };
+    else if (type === 'DITHERING') newModule.parameters = { bitDepth: 24 };
+    else if (type === 'PARAMETRIC_EQ') newModule.parameters = { lowFreq: 100, lowGain: 0, midFreq: 1000, midGain: 0, midQ: 0.707, highFreq: 5000, highGain: 0 };
+    else if (type === 'DISTORTION') newModule.parameters = { drive: 1, wet: 1, type: 0, outputGain: 0 };
+    else if (type === 'BITCRUSHER') newModule.parameters = { bits: 8, normFreq: 1, mix: 1 };
+    else if (type === 'CHORUS') newModule.parameters = { frequency: 1.5, delayTime: 0.03, depth: 0.002, feedback: 0, wet: 0.5 };
+    else if (type === 'PHASER') newModule.parameters = { stages: 4, frequency: 0.5, baseFrequency: 1000, octaves: 2, wet: 0.5 };
+    else if (type === 'TREMOLO') newModule.parameters = { frequency: 4, depth: 0.5, spread: 0, waveform: 0 };
+    else if (type === 'AUTOWAH') newModule.parameters = { baseFrequency: 100, sensitivity: 0.5, octaves: 4, Q: 2, attack: 0.01, release: 0.1, wet: 1 };
+    else if (type === 'FEEDBACK_DELAY') newModule.parameters = { delayTime: 0.5, feedback: 0.3, wet: 0.5 };
+    else if (type === 'COMPRESSOR') newModule.parameters = { threshold: -24, ratio: 4, attack: 0.01, release: 0.1, knee: 5, makeupGain: 0, mode: 0 };
 
     set((state) => ({ rack: [...state.rack, newModule] }));
     audioEngine.rebuildGraph(get().rack); 
@@ -172,21 +166,16 @@ export const useAudioStore = create<AudioState>((set, get) => ({
   loadAsset: async (file: File): Promise<string> => {
       try {
           const arrayBuffer = await file.arrayBuffer();
-          // We need AudioContext to decode
           if (!audioEngine.context) throw new Error("Audio Engine not initialized");
           
           const audioBuffer = await audioEngine.context.decodeAudioData(arrayBuffer);
           const assetId = crypto.randomUUID();
           
-          // Save to IDB (Optimized: save file blob, not decoded buffer)
           await setIDB(`asset_${assetId}`, file);
           
-          // Update State
           set(state => ({
               assets: { ...state.assets, [assetId]: audioBuffer }
           }));
-          
-          logger.info(`Asset loaded: ${assetId}`);
           return assetId;
       } catch (e) {
           logger.error("Failed to load asset", e);
@@ -207,12 +196,10 @@ export const useAudioStore = create<AudioState>((set, get) => ({
 
   loadProject: async () => {
       try {
-        // 1. Load Meta
         const meta = await getIDB('current_project_meta');
         if (meta && meta.rack) {
             set({ rack: meta.rack, masterVolume: meta.masterVolume || 1.0 });
             
-            // 2. Re-hydrate Assets (CabSim IRs)
             const uniqueAssetIds = new Set<string>();
             meta.rack.forEach((m: RackModule) => {
                 if (m.type === 'CAB_SIM' && m.parameters.irAssetId) {
@@ -229,16 +216,13 @@ export const useAudioStore = create<AudioState>((set, get) => ({
                  }
             }
 
-            // 3. Load Source File
             const sourceFile = await getIDB('current_project_source') as File;
             if (sourceFile && audioEngine.context) {
-                 logger.info("Restoring source file from IDB...");
                  const buffer = await audioEngine.loadSource(sourceFile);
                  set({ sourceDuration: buffer.duration, currentTime: 0 });
             }
 
             audioEngine.rebuildGraph(meta.rack);
-            logger.info("Project loaded successfully.");
         }
       } catch (e) {
           logger.error("Failed to load project", e);

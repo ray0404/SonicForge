@@ -113,11 +113,11 @@ export const DynamicEQUnit: React.FC<DynamicEQUnitProps> = ({ module, onRemove, 
       <canvas 
         ref={canvasRef} 
         width={600} 
-        height={160}
-        className="w-full h-40 bg-slate-950 rounded mb-4 border border-slate-700"
+        height={120}
+        className="w-full h-32 bg-slate-950 rounded mb-3 border border-slate-700"
       />
 
-      <div className="flex flex-wrap justify-between items-end gap-2 px-2">
+      <div className="flex flex-wrap justify-center items-end gap-x-4 gap-y-3 px-1">
          <div className="flex gap-2">
             <Knob
                 label="Freq" unit="Hz"

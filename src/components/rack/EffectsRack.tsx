@@ -25,8 +25,17 @@ import { MeteringUnit } from './MeteringUnit';
 import { TransientShaperUnit } from './TransientShaperUnit';
 import { SaturationUnit } from './SaturationUnit';
 import { DitheringUnit } from './DitheringUnit';
+import { ParametricEQUnit } from './ParametricEQUnit';
+import { DistortionUnit } from './DistortionUnit';
+import { BitCrusherUnit } from './BitCrusherUnit';
+import { ChorusUnit } from './ChorusUnit';
+import { PhaserUnit } from './PhaserUnit';
+import { TremoloUnit } from './TremoloUnit';
+import { AutoWahUnit } from './AutoWahUnit';
+import { FeedbackDelayUnit } from './FeedbackDelayUnit';
+import { CompressorUnit } from './CompressorUnit';
 
-// Sortable Item Wrapper
+
 function SortableItem({ id, children }: { id: string, children: (dragHandleProps: any) => React.ReactNode }) {
     const {
         attributes,
@@ -45,8 +54,6 @@ function SortableItem({ id, children }: { id: string, children: (dragHandleProps
         position: 'relative' as 'relative',
     };
 
-    // REMOVED 'touch-none' from the wrapper div to allow scrolling on the body
-    // touch-none should only be on the drag handle
     return (
         <div ref={setNodeRef} style={style} className="w-full">
             {children({ ...attributes, ...listeners })}
@@ -55,11 +62,7 @@ function SortableItem({ id, children }: { id: string, children: (dragHandleProps
 }
 
 export const EffectsRack: React.FC = () => {
-  const rack = useAudioStore((state) => state.rack);
-  const removeModule = useAudioStore((state) => state.removeModule);
-  const updateModuleParam = useAudioStore((state) => state.updateModuleParam);
-  const toggleModuleBypass = useAudioStore((state) => state.toggleModuleBypass);
-  const reorderRack = useAudioStore((state) => state.reorderRack);
+  const { rack, removeModule, updateModuleParam, toggleModuleBypass, reorderRack } = useAudioStore();
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -88,7 +91,7 @@ export const EffectsRack: React.FC = () => {
              {rack.length === 0 ? (
                  <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-xl py-20 text-slate-600 bg-slate-900/20">
                      <p className="font-bold">Rack is empty</p>
-                     <p className="text-xs mt-2">Use the "Add Module" button in the top bar to begin.</p>
+                     <p className="text-xs mt-2">Use the "Add Module" button to add effects.</p>
                  </div>
              ) : (
                  <SortableContext
@@ -107,22 +110,23 @@ export const EffectsRack: React.FC = () => {
                                 const onUpdate = (p: string, v: any) => updateModuleParam(module.id, p, v);
 
                                 switch (module.type) {
-                                    case 'DYNAMIC_EQ':
-                                        return <DynamicEQUnit {...commonProps} onUpdate={onUpdate} />;
-                                    case 'LIMITER':
-                                        return <LimiterUnit {...commonProps} onUpdate={onUpdate} />;
-                                    case 'MIDSIDE_EQ':
-                                        return <MidSideEQUnit {...commonProps} onUpdate={onUpdate} />;
-                                    case 'CAB_SIM':
-                                        return <CabSimUnit {...commonProps} onUpdate={onUpdate} />;
-                                    case 'TRANSIENT_SHAPER':
-                                        return <TransientShaperUnit {...commonProps} onUpdate={onUpdate} />;
-                                    case 'SATURATION':
-                                        return <SaturationUnit {...commonProps} onUpdate={onUpdate} />;
-                                    case 'DITHERING':
-                                        return <DitheringUnit {...commonProps} onUpdate={onUpdate} />;
-                                    case 'LOUDNESS_METER':
-                                        return <MeteringUnit {...commonProps} />;
+                                    case 'DYNAMIC_EQ': return <DynamicEQUnit {...commonProps} onUpdate={onUpdate} />;
+                                    case 'LIMITER': return <LimiterUnit {...commonProps} onUpdate={onUpdate} />;
+                                    case 'MIDSIDE_EQ': return <MidSideEQUnit {...commonProps} onUpdate={onUpdate} />;
+                                    case 'CAB_SIM': return <CabSimUnit {...commonProps} onUpdate={onUpdate} />;
+                                    case 'TRANSIENT_SHAPER': return <TransientShaperUnit {...commonProps} onUpdate={onUpdate} />;
+                                    case 'SATURATION': return <SaturationUnit {...commonProps} onUpdate={onUpdate} />;
+                                    case 'DITHERING': return <DitheringUnit {...commonProps} onUpdate={onUpdate} />;
+                                    case 'LOUDNESS_METER': return <MeteringUnit {...commonProps} />;
+                                    case 'PARAMETRIC_EQ': return <ParametricEQUnit {...commonProps} onUpdate={onUpdate} />;
+                                    case 'DISTORTION': return <DistortionUnit {...commonProps} onUpdate={onUpdate} />;
+                                    case 'BITCRUSHER': return <BitCrusherUnit {...commonProps} onUpdate={onUpdate} />;
+                                    case 'CHORUS': return <ChorusUnit {...commonProps} onUpdate={onUpdate} />;
+                                    case 'PHASER': return <PhaserUnit {...commonProps} onUpdate={onUpdate} />;
+                                    case 'TREMOLO': return <TremoloUnit {...commonProps} onUpdate={onUpdate} />;
+                                    case 'AUTOWAH': return <AutoWahUnit {...commonProps} onUpdate={onUpdate} />;
+                                    case 'FEEDBACK_DELAY': return <FeedbackDelayUnit {...commonProps} onUpdate={onUpdate} />;
+                                    case 'COMPRESSOR': return <CompressorUnit {...commonProps} onUpdate={onUpdate} />;
                                     default:
                                         return <div className="p-4 bg-red-900/50 text-red-200 rounded">Unknown Module: {module.type}</div>;
                                 }

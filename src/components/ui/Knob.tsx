@@ -64,7 +64,7 @@ export const Knob: React.FC<KnobProps> = ({
         aria-label={label}
         mapTo01={(v) => v}
         mapFrom01={(v) => v}
-        className="relative w-12 h-12 outline-none cursor-ns-resize touch-none group select-none"
+        className="relative w-10 h-10 outline-none cursor-ns-resize touch-none group select-none"
       >
         <svg viewBox="0 0 100 100" className="w-full h-full transform transition-transform group-active:scale-105 pointer-events-none">
            <path

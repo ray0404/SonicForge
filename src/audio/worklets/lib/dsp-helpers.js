@@ -70,6 +70,14 @@ export class BiquadFilter {
                 a1 = -2 * cosw0;
                 a2 = 1 - alpha / A;
                 break;
+            case 'lowshelf':
+                b0 = A * ((A + 1) - (A - 1) * cosw0 + 2 * Math.sqrt(A) * alpha);
+                b1 = 2 * A * ((A - 1) - (A + 1) * cosw0);
+                b2 = A * ((A + 1) - (A - 1) * cosw0 - 2 * Math.sqrt(A) * alpha);
+                a0 = (A + 1) + (A - 1) * cosw0 + 2 * Math.sqrt(A) * alpha;
+                a1 = -2 * ((A - 1) + (A + 1) * cosw0);
+                a2 = (A + 1) + (A - 1) * cosw0 - 2 * Math.sqrt(A) * alpha;
+                break;
             case 'highshelf':
                 b0 = A * ((A + 1) + (A - 1) * cosw0 + 2 * Math.sqrt(A) * alpha);
                 b1 = -2 * A * ((A - 1) + (A + 1) * cosw0);
@@ -186,15 +194,55 @@ export class DelayLine {
         this.writeIndex = (this.writeIndex + 1) % this.size;
     }
 
-    // Read a sample from 'delaySamples' ago
-    // e.g. delaySamples = 100 means read the sample that was written 100 samples ago
+    // Read a sample from 'delaySamples' ago with Linear Interpolation
     read(delaySamples) {
         // Calculate read index
-        // We add this.size to ensure the result is positive before modulo
-        let readIndex = this.writeIndex - Math.floor(delaySamples);
-        while (readIndex < 0) readIndex += this.size;
-        
-        // No interpolation for now (integer delay)
-        return this.buffer[readIndex % this.size];
+        let readPtr = this.writeIndex - delaySamples;
+        while (readPtr < 0) readPtr += this.size;
+
+        const i = Math.floor(readPtr);
+        const f = readPtr - i; // Fractional part
+
+        const i1 = i % this.size;
+        const i2 = (i + 1) % this.size;
+
+        const s1 = this.buffer[i1];
+        const s2 = this.buffer[i2];
+
+        // Linear interpolation: y = s1 + f * (s2 - s1)
+        return s1 + f * (s2 - s1);
     }
 }
+
+export class LFO {
+    constructor() {
+        this.phase = 0;
+    }
+
+    process(frequency, sampleRate) {
+        // Increment phase
+        this.phase += (2 * Math.PI * frequency) / sampleRate;
+        if (this.phase > 2 * Math.PI) this.phase -= 2 * Math.PI;
+        
+        return Math.sin(this.phase);
+    }
+}
+
+export class OnePoleAllPass {
+    constructor() {
+        this.x1 = 0;
+        this.y1 = 0;
+    }
+
+    process(input, alpha) {
+        // y(n) = -x(n) + x(n-1) + a * (y(n-1) - x(n))
+        // Re-arranged from doc: -x(n) + x1 + alpha * (y1 - x(n))
+        const output = -input + this.x1 + alpha * (this.y1 - input);
+        
+        this.x1 = input;
+        this.y1 = output;
+        
+        return output;
+    }
+}
+

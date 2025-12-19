@@ -6,6 +6,7 @@ export interface SaturationOptions {
     drive?: number;
     type?: number; // 0: Tape, 1: Tube, 2: Fuzz
     outputGain?: number;
+    mix?: number;
 }
   
 export class SaturationNode extends AudioWorkletNodeBase<IAudioContext | IOfflineAudioContext> {
@@ -17,7 +18,8 @@ export class SaturationNode extends AudioWorkletNodeBase<IAudioContext | IOfflin
         return [
             { name: 'drive', defaultValue: 0.0, minValue: 0.0, maxValue: 10.0 },
             { name: 'type', defaultValue: 1, minValue: 0, maxValue: 2 },
-            { name: 'outputGain', defaultValue: 0.0, minValue: -12.0, maxValue: 12.0 }
+            { name: 'outputGain', defaultValue: 0.0, minValue: -12.0, maxValue: 12.0 },
+            { name: 'mix', defaultValue: 1.0, minValue: 0.0, maxValue: 1.0 }
         ];
     }
 

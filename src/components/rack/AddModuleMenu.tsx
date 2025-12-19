@@ -25,17 +25,28 @@ export const AddModuleMenu: React.FC = () => {
 
   const categories = {
       'Dynamics': [
+          { label: 'Compressor', type: 'COMPRESSOR' },
           { label: 'Limiter', type: 'LIMITER' },
           { label: 'Transient Shaper', type: 'TRANSIENT_SHAPER' },
       ],
       'EQ': [
+          { label: 'Parametric EQ', type: 'PARAMETRIC_EQ' },
           { label: 'Dynamic EQ', type: 'DYNAMIC_EQ' },
           { label: 'Mid/Side EQ', type: 'MIDSIDE_EQ' },
       ],
-      'Saturation': [
-          { label: 'Analog Saturation', type: 'SATURATION' },
+      'Color': [
+          { label: 'Saturation', type: 'SATURATION' },
+          { label: 'Distortion', type: 'DISTORTION' },
+          { label: 'BitCrusher', type: 'BITCRUSHER' },
+      ],
+      'Modulation': [
+          { label: 'Chorus', type: 'CHORUS' },
+          { label: 'Phaser', type: 'PHASER' },
+          { label: 'Tremolo', type: 'TREMOLO' },
+          { label: 'AutoWah', type: 'AUTOWAH' },
       ],
       'Spatial': [
+          { label: 'Feedback Delay', type: 'FEEDBACK_DELAY' },
           { label: 'Cabinet Sim', type: 'CAB_SIM' },
       ],
       'Utility': [
@@ -55,7 +66,7 @@ export const AddModuleMenu: React.FC = () => {
         </button>
 
         {isOpen && (
-            <div className="absolute top-full right-0 mt-2 w-56 bg-surface border border-slate-700 rounded-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 ring-1 ring-black/50">
+            <div className="absolute top-full right-0 mt-2 w-56 bg-surface border border-slate-700 rounded-lg shadow-2xl overflow-y-auto max-h-[70vh] animate-in fade-in zoom-in-95 duration-100 ring-1 ring-black/50">
                 {Object.entries(categories).map(([category, items]) => (
                     <div key={category} className="border-b border-slate-700 last:border-0">
                         <div className="px-3 py-1.5 bg-slate-900/80 text-[10px] font-bold text-slate-500 uppercase tracking-wider backdrop-blur-sm">
