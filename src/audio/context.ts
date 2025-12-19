@@ -425,7 +425,7 @@ export class AudioEngine {
   }
 
   private getOrCreateNode(module: RackModule): AudioNode | ConvolutionNode {
-      let node = this.nodeMap.get(module.id);
+      let node: AudioNode | ConvolutionNode | null | undefined = this.nodeMap.get(module.id);
       if (!node) {
           node = this.createModuleNode(module);
           if (node) {
