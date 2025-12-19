@@ -16,7 +16,8 @@ import {
     IGainNode,
     IAnalyserNode,
     IAudioNode,
-    IAudioBufferSourceNode
+    IAudioBufferSourceNode,
+    IAudioParam
 } from "standardized-audio-context";
 
 // @ts-ignore
@@ -58,11 +59,11 @@ class AudioEngine {
   public isPlaying: boolean = false;
 
   // The 'nodeMap' maps module.id -> AudioNode | ConvolutionNode
-  // ConvolutionNode is our custom wrapper.
-  // We use IAudioNode<IAudioContext | IOfflineAudioContext> to cover both cases roughly,
-  // but strictly speaking ConvolutionNode is separate.
   private nodeMap = new Map<string, IAudioNode<IAudioContext | IOfflineAudioContext> | ConvolutionNode>();
   private isInitialized = false;
+
+  // Track the IDs of modules currently connected in the signal chain (excluding bypassed)
+  private connectedIds: string[] = [];
 
   constructor() {
     // Lazy initialization handled in init()
@@ -175,9 +176,6 @@ class AudioEngine {
           // Verify if it ended naturally or was stopped
           // If we stopped it manually, isPlaying will be false (set by stop/pause)
           // But here onended fires async.
-          // For now, simple logic:
-          // If we reach the end, pauseTime should reset? 
-          // Let's leave looping/reset logic to the Store/UI for now.
       };
   }
 
@@ -220,61 +218,246 @@ class AudioEngine {
 
   /**
    * Rebuilds the audio graph based on the provided rack modules.
-   * Handles hot-swapping and reordering of nodes.
+   * uses intelligent diffing to minimize audio dropouts.
    */
   rebuildGraph(rack: RackModule[]) {
     if (!this.context || !this.rackInput || !this.rackOutput) return;
-    
-    // 1. Disconnect everything to start fresh routing
-    this.rackInput.disconnect();
-    
-    // Disconnect all existing module nodes
-    this.nodeMap.forEach(node => node.disconnect());
 
-    // 2. Cleanup: Remove nodes that are no longer in the rack
-    const currentIds = new Set(rack.map(m => m.id));
-    for (const [id] of this.nodeMap) {
-        if (!currentIds.has(id)) {
-            this.nodeMap.delete(id);
+    // 1. Identify the desired signal chain (exclude bypassed modules)
+    const nextActiveModules = rack.filter(m => !m.bypass);
+    const nextIds = nextActiveModules.map(m => m.id);
+
+    // 2. Check for trivial cases or complex changes requiring full rebuild
+    let firstMismatchIndex = -1;
+    const len = Math.max(this.connectedIds.length, nextIds.length);
+    for (let i = 0; i < len; i++) {
+        if (this.connectedIds[i] !== nextIds[i]) {
+            firstMismatchIndex = i;
+            break;
         }
     }
 
+    // If no mismatch, just update params
+    if (firstMismatchIndex === -1) {
+        this.syncParams(rack);
+        this.cleanupNodeMap(rack);
+        return;
+    }
+
+    // Analyze the change
+    const prevRemainder = this.connectedIds.slice(firstMismatchIndex);
+    const nextRemainder = nextIds.slice(firstMismatchIndex);
+
+    // Case: Insert (One new item)
+    if (prevRemainder.length === nextRemainder.length - 1 &&
+        prevRemainder.every((id, i) => id === nextRemainder[i+1])) {
+
+        const newNodeId = nextIds[firstMismatchIndex];
+        const module = nextActiveModules.find(m => m.id === newNodeId);
+        if (module) {
+             this.insertNode(module, firstMismatchIndex, nextActiveModules);
+             this.syncParams(rack); 
+             this.cleanupNodeMap(rack);
+             this.connectedIds = nextIds;
+             return;
+        }
+    }
+
+    // Case: Remove (One item gone)
+    if (nextRemainder.length === prevRemainder.length - 1 &&
+        nextRemainder.every((id, i) => id === prevRemainder[i+1])) {
+
+        this.removeNode(firstMismatchIndex, this.connectedIds);
+        this.syncParams(rack); 
+        this.cleanupNodeMap(rack);
+        this.connectedIds = nextIds;
+        return;
+    }
+
+    // Fallback to full rebuild for anything else
+    this.fullRebuildGraph(rack);
+  }
+
+  /**
+   * Standard "Stop the World" rebuild. Reliable but causes dropouts.
+   */
+  fullRebuildGraph(rack: RackModule[]) {
+    if (!this.context || !this.rackInput || !this.rackOutput) return;
+
+    // 1. Disconnect everything
+    this.rackInput.disconnect();
+    this.nodeMap.forEach(node => node.disconnect());
+
+    // 2. Cleanup
+    this.cleanupNodeMap(rack);
+
     // 3. Build the Chain
-    let previousNode: IAudioNode<IAudioContext> | IGainNode<IAudioContext> = this.rackInput;
+    let previousNode: IAudioNode<IAudioContext> = this.rackInput;
+    const activeIds: string[] = [];
 
     rack.forEach(module => {
-        let node: IAudioNode<IAudioContext | IOfflineAudioContext> | ConvolutionNode | undefined | null = this.nodeMap.get(module.id);
+        let node = this.getOrCreateNode(module);
         
-        if (!node) {
-            // Instantiate new node if missing
-            node = this.createModuleNode(module, this.context!);
-            if (node) {
-                this.nodeMap.set(module.id, node);
-            }
-        } else {
-             this.updateNodeParams(node, module);
-        }
+        // Update params just in case
+        this.updateNodeParams(node, module);
 
-        if (node) {
-            if (!module.bypass) {
-                // Handle Custom Node Wrappers that aren't native AudioNodes
-                if (node instanceof ConvolutionNode) {
-                    previousNode.connect(node.input as unknown as IAudioNode<IAudioContext>);
-                    previousNode = node.output as unknown as IGainNode<IAudioContext>;
-                } else {
-                    // node is IAudioNode<IAudioContext | IOfflineAudioContext>.
-                    // previousNode is IAudioNode<IAudioContext>.
-                    // Casting to specific IAudioNode<IAudioContext> is safe because we are in rebuildGraph (realtime).
-                    const realtimeNode = node as unknown as IAudioNode<IAudioContext>;
-                    previousNode.connect(realtimeNode);
-                    previousNode = realtimeNode;
-                }
-            }
+        if (!module.bypass) {
+            this.connectNodes(previousNode, node);
+            previousNode = (node instanceof ConvolutionNode) 
+                ? node.output as unknown as IAudioNode<IAudioContext> 
+                : node as unknown as IAudioNode<IAudioContext>;
+            activeIds.push(module.id);
         }
     });
 
     // 4. Connect end of chain to RackOutput
     previousNode.connect(this.rackOutput);
+    
+    this.connectedIds = activeIds;
+  }
+
+  /**
+   * Helper to insert a node into the chain at specific index
+   */
+  private insertNode(module: RackModule, index: number, activeModules: RackModule[]) {
+      if (!this.rackInput || !this.rackOutput) return;
+
+      const node = this.getOrCreateNode(module);
+      this.updateNodeParams(node, module);
+
+      // Find Previous Node
+      let prevNode: IAudioNode<IAudioContext> = this.rackInput;
+      if (index > 0) {
+          const prevId = activeModules[index - 1].id;
+          const prevModuleNode = this.nodeMap.get(prevId);
+          if (prevModuleNode) {
+              prevNode = (prevModuleNode instanceof ConvolutionNode) 
+                ? prevModuleNode.output as unknown as IAudioNode<IAudioContext> 
+                : prevModuleNode as unknown as IAudioNode<IAudioContext>;
+          }
+      }
+
+      // Find Next Node (currently connected to prevNode)
+      let nextNode: IAudioNode<IAudioContext> | IAudioParam = this.rackOutput;
+      if (index < this.connectedIds.length) {
+          const nextId = this.connectedIds[index];
+          const nextModuleNode = this.nodeMap.get(nextId);
+          if (nextModuleNode) {
+              nextNode = (nextModuleNode instanceof ConvolutionNode) 
+                ? nextModuleNode.input as unknown as IAudioNode<IAudioContext> 
+                : nextModuleNode as unknown as IAudioNode<IAudioContext>;
+          }
+      }
+
+      // Perform Patch
+      // 1. Disconnect Prev -> Next
+      try {
+          prevNode.disconnect(nextNode as IAudioNode<IAudioContext>);
+      } catch (e) {
+          logger.warn("Failed to disconnect specific node", e);
+      }
+
+      // 2. Connect Prev -> New -> Next
+      this.connectNodes(prevNode, node);
+
+      const newNodeOut = (node instanceof ConvolutionNode) 
+        ? node.output as unknown as IAudioNode<IAudioContext> 
+        : node as unknown as IAudioNode<IAudioContext>;
+      
+      newNodeOut.connect(nextNode as IAudioNode<IAudioContext>);
+  }
+
+  /**
+   * Helper to remove a node from the chain at specific index
+   */
+  private removeNode(index: number, oldConnectedIds: string[]) {
+      if (!this.rackInput || !this.rackOutput) return;
+
+      const idToRemove = oldConnectedIds[index];
+      const nodeToRemove = this.nodeMap.get(idToRemove);
+
+      if (!nodeToRemove) return;
+
+      // Find Prev Node
+      let prevNode: IAudioNode<IAudioContext> = this.rackInput;
+      if (index > 0) {
+          const prevId = oldConnectedIds[index - 1];
+          const prevModuleNode = this.nodeMap.get(prevId);
+          if (prevModuleNode) {
+              prevNode = (prevModuleNode instanceof ConvolutionNode) 
+                ? prevModuleNode.output as unknown as IAudioNode<IAudioContext> 
+                : prevModuleNode as unknown as IAudioNode<IAudioContext>;
+          }
+      }
+
+      // Find Next Node
+      let nextNode: IAudioNode<IAudioContext> | IAudioParam = this.rackOutput;
+      if (index + 1 < oldConnectedIds.length) {
+          const nextId = oldConnectedIds[index + 1];
+          const nextModuleNode = this.nodeMap.get(nextId);
+          if (nextModuleNode) {
+               nextNode = (nextModuleNode instanceof ConvolutionNode) 
+                ? nextModuleNode.input as unknown as IAudioNode<IAudioContext> 
+                : nextModuleNode as unknown as IAudioNode<IAudioContext>;
+          }
+      }
+
+      // Perform Patch
+      // 1. Disconnect Prev -> NodeToRemove
+      const nodeToRemoveIn = (nodeToRemove instanceof ConvolutionNode) 
+        ? nodeToRemove.input as unknown as IAudioNode<IAudioContext> 
+        : nodeToRemove as unknown as IAudioNode<IAudioContext>;
+      
+      try {
+          prevNode.disconnect(nodeToRemoveIn);
+      } catch (e) {}
+
+      // 2. Disconnect NodeToRemove -> Next
+      try {
+          nodeToRemove.disconnect();
+      } catch (e) {}
+
+      // 3. Connect Prev -> Next
+      prevNode.connect(nextNode as IAudioNode<IAudioContext>);
+  }
+
+  private cleanupNodeMap(rack: RackModule[]) {
+      const currentIds = new Set(rack.map(m => m.id));
+      for (const [id] of this.nodeMap) {
+        if (!currentIds.has(id)) {
+            this.nodeMap.delete(id);
+        }
+    }
+  }
+
+  private syncParams(rack: RackModule[]) {
+      rack.forEach(module => {
+          const node = this.nodeMap.get(module.id);
+          if (node) {
+              this.updateNodeParams(node, module);
+          }
+      });
+  }
+
+  private getOrCreateNode(module: RackModule): IAudioNode<IAudioContext | IOfflineAudioContext> | ConvolutionNode {
+      let node: IAudioNode<IAudioContext | IOfflineAudioContext> | ConvolutionNode | null | undefined = this.nodeMap.get(module.id);
+      if (!node) {
+          node = this.createModuleNode(module, this.context!);
+          if (node) {
+            this.nodeMap.set(module.id, node);
+          } else {
+             return this.context!.createGain();
+          }
+      }
+      return node!;
+  }
+
+  private connectNodes(source: IAudioNode<IAudioContext>, dest: IAudioNode<IAudioContext | IOfflineAudioContext> | ConvolutionNode) {
+      if (dest instanceof ConvolutionNode) {
+          source.connect(dest.input as unknown as IAudioNode<IAudioContext>);
+      } else {
+          source.connect(dest as unknown as IAudioNode<IAudioContext>);
+      }
   }
 
   /**
@@ -387,7 +570,6 @@ class AudioEngine {
           } else if (node instanceof DitheringNode) {
               node.setParam(param as any, value);
           }
-          // Add logic for other node types here
       }
   }
 
@@ -406,7 +588,6 @@ class AudioEngine {
       const offlineCtx = new OfflineAudioContext(2, length, sampleRate);
 
       // 2. Load Worklets into Offline Context (Crucial!)
-      // Note: We need to re-add modules because it's a separate context.
       try {
         if (offlineCtx.audioWorklet) {
             await offlineCtx.audioWorklet.addModule(dynamicEqUrl);
@@ -415,7 +596,6 @@ class AudioEngine {
             await offlineCtx.audioWorklet.addModule(midsideUrl);
             await offlineCtx.audioWorklet.addModule(saturationUrl);
             await offlineCtx.audioWorklet.addModule(ditheringUrl);
-            // We skip LUFS meter for offline render usually, or add it if we want to measure stats.
         }
       } catch (err) {
           logger.error("Failed to load worklets for offline render", err);
@@ -428,29 +608,20 @@ class AudioEngine {
       
       let previousNode: IAudioNode<IOfflineAudioContext> = source;
 
-      // Map module IDs to new Offline nodes
-      const offlineNodeMap = new Map<string, IAudioNode<IOfflineAudioContext> | ConvolutionNode>();
-
       for (const module of rack) {
           if (module.bypass) continue;
 
-          // Pass 'assets' so updateNodeParams uses them instead of store
           const node = this.createModuleNode(module, offlineCtx, assets);
 
           if (node) {
               if (node instanceof ConvolutionNode) {
-                  // ConvolutionNode handles both contexts
                   previousNode.connect(node.input as unknown as IAudioNode<IOfflineAudioContext>);
                   previousNode = node.output as unknown as IAudioNode<IOfflineAudioContext>;
               } else {
-                  // Node is IAudioNode<IAudioContext | IOfflineAudioContext>
-                  // We need to connect previousNode (IOffline) to it.
                   const offlineNode = node as unknown as IAudioNode<IOfflineAudioContext>;
                   previousNode.connect(offlineNode);
                   previousNode = offlineNode;
               }
-              // Cast node to fit offlineNodeMap expectation (it works because we know it's offline context)
-              offlineNodeMap.set(module.id, node as unknown as IAudioNode<IOfflineAudioContext> | ConvolutionNode);
           }
       }
 
