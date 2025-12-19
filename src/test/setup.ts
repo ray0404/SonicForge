@@ -11,9 +11,7 @@ global.ResizeObserver = class ResizeObserver {
 // Mock Canvas getContext
 HTMLCanvasElement.prototype.getContext = vi.fn();
 
-// Global Web Audio API Mocks
-
-// AudioWorkletNode
+// Mock AudioWorkletNode
 class AudioWorkletNodeMock {
   constructor() {}
   connect() {}
@@ -23,20 +21,24 @@ class AudioWorkletNodeMock {
 }
 vi.stubGlobal('AudioWorkletNode', AudioWorkletNodeMock);
 
-// AudioNode (often needed if extending)
+// Mock AudioNode
 class AudioNodeMock {
   connect() {}
   disconnect() {}
 }
 vi.stubGlobal('AudioNode', AudioNodeMock);
 
-// AudioContext (Basic Mock)
-// Individual tests can override this if they need specific return values
+// Mock AudioContext
 class AudioContextMock {
   state = 'suspended';
   resume = vi.fn();
   createGain = vi.fn(() => ({
-    gain: { value: 0, setTargetAtTime: vi.fn(), setValueAtTime: vi.fn() },
+    gain: { value: 0, setTargetAtTime: vi.fn() },
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+  }));
+  createStereoPanner = vi.fn(() => ({
+    pan: { value: 0, setTargetAtTime: vi.fn() },
     connect: vi.fn(),
     disconnect: vi.fn(),
   }));
@@ -47,43 +49,23 @@ class AudioContextMock {
     disconnect: vi.fn(),
     getByteFrequencyData: vi.fn(),
     getByteTimeDomainData: vi.fn(),
-    getFloatTimeDomainData: vi.fn(),
   }));
-  createConvolver = vi.fn(() => ({ 
-      connect: vi.fn(), 
-      disconnect: vi.fn() 
-  }));
-  createChannelSplitter = vi.fn((_channels) => ({
+  createChannelSplitter = vi.fn(() => ({
     connect: vi.fn(),
     disconnect: vi.fn(),
   }));
   createBufferSource = vi.fn(() => ({
-      connect: vi.fn(),
-      start: vi.fn(),
-      stop: vi.fn(),
-      disconnect: vi.fn(),
-      buffer: null,
-      onended: null,
+    buffer: null,
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+    start: vi.fn(),
+    stop: vi.fn(),
   }));
-  decodeAudioData = vi.fn();
+  decodeAudioData = vi.fn(() => Promise.resolve({}));
   audioWorklet = {
     addModule: vi.fn().mockResolvedValue(undefined),
   };
-  destination = {};
+  destination = new AudioNodeMock();
   currentTime = 0;
 }
 vi.stubGlobal('AudioContext', AudioContextMock);
-// Ensure we handle window.AudioContext for tests that run in "jsdom"
-if (typeof window !== 'undefined') {
-    vi.stubGlobal('window.AudioContext', AudioContextMock);
-}
-
-// Mock standardized-audio-context
-vi.mock('standardized-audio-context', async () => {
-    return {
-        AudioContext: AudioContextMock,
-        OfflineAudioContext: AudioContextMock, // reuse same mock for now
-        AudioWorkletNode: AudioWorkletNodeMock,
-        // Add other exports if needed
-    };
-});

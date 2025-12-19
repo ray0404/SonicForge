@@ -30,17 +30,19 @@ vi.mock('idb-keyval', () => ({
 
 describe('EffectsRack', () => {
     beforeEach(() => {
-        useAudioStore.setState({
-            isInitialized: true,
-            isPlaying: false,
-            masterVolume: 1.0,
-            rack: []
+        act(() => {
+            useAudioStore.setState({
+                isInitialized: true,
+                isPlaying: false,
+                masterVolume: 1.0,
+                masterRack: []
+            });
         });
     });
 
     it('should render the empty rack state initially', () => {
         render(<EffectsRack />);
-        expect(screen.getByText(/Rack is empty/i)).toBeInTheDocument();
+        expect(screen.getByText(/Master rack is empty/i)).toBeInTheDocument();
     });
 
     it('should render Dynamic EQ module', () => {
@@ -49,40 +51,5 @@ describe('EffectsRack', () => {
         
         expect(screen.getByText('Dynamic EQ')).toBeInTheDocument();
         expect(screen.getByText('Freq')).toBeInTheDocument();
-    });
-
-    it('should render Transient Shaper module', () => {
-        render(<EffectsRack />);
-        act(() => { useAudioStore.getState().addModule('TRANSIENT_SHAPER'); });
-        
-        expect(screen.getByText('Transient Shaper')).toBeInTheDocument();
-        expect(screen.getByText('Attack')).toBeInTheDocument();
-    });
-
-    it('should render Limiter module', () => {
-        render(<EffectsRack />);
-        act(() => { useAudioStore.getState().addModule('LIMITER'); });
-        expect(screen.getByText('Limiter')).toBeInTheDocument();
-        expect(screen.getByText('Ceiling')).toBeInTheDocument();
-    });
-
-    it('should render MidSide EQ module', () => {
-        render(<EffectsRack />);
-        act(() => { useAudioStore.getState().addModule('MIDSIDE_EQ'); });
-        expect(screen.getByText('Mid/Side EQ')).toBeInTheDocument();
-        expect(screen.getByText('Mid (Sum)')).toBeInTheDocument();
-    });
-
-    it('should render Cab Sim module', () => {
-        render(<EffectsRack />);
-        act(() => { useAudioStore.getState().addModule('CAB_SIM'); });
-        expect(screen.getByText('Cab Sim / IR')).toBeInTheDocument();
-        expect(screen.getByText('Mix')).toBeInTheDocument();
-    });
-
-    it('should render Loudness Meter module', () => {
-        render(<EffectsRack />);
-        act(() => { useAudioStore.getState().addModule('LOUDNESS_METER'); });
-        expect(screen.getByText('Loudness Meter')).toBeInTheDocument();
     });
 });

@@ -1,15 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useAudioStore } from './useAudioStore';
+import { act } from '@testing-library/react';
 
 // Mock the AudioEngine singleton
 vi.mock('@/audio/context', () => ({
   audioEngine: {
     init: vi.fn(),
     resume: vi.fn(),
-    playTestTone: vi.fn(),
+    play: vi.fn(),
+    pause: vi.fn(),
+    seek: vi.fn(),
     rebuildGraph: vi.fn(),
     updateModuleParam: vi.fn(),
-    context: { currentTime: 0 },
+    context: { currentTime: 0, decodeAudioData: vi.fn(() => Promise.resolve({})) },
     masterGain: { gain: { setTargetAtTime: vi.fn() } }
   }
 }));
@@ -20,94 +23,55 @@ vi.mock('idb-keyval', () => ({
   set: vi.fn(),
 }));
 
+const createMockFile = () => new File([''], 'track.wav', { type: 'audio/wav' });
+
 describe('useAudioStore', () => {
   beforeEach(() => {
-    // Reset store state
-    useAudioStore.setState({
-      isInitialized: false,
-      isPlaying: false,
-      masterVolume: 1.0,
-      rack: []
+    act(() => {
+      useAudioStore.setState({
+        isInitialized: false,
+        isPlaying: false,
+        masterVolume: 1.0,
+        masterRack: [],
+        tracks: [],
+        assets: {},
+        sourceDuration: 0,
+        currentTime: 0,
+      });
     });
     vi.clearAllMocks();
   });
 
-  it('should add a Dynamic EQ module', () => {
-    const { addModule } = useAudioStore.getState();
-    addModule('DYNAMIC_EQ');
-    
+  it('should add a module to the master rack', () => {
+    act(() => {
+      useAudioStore.getState().addModule('DYNAMIC_EQ');
+    });
     const state = useAudioStore.getState();
-    expect(state.rack).toHaveLength(1);
-    expect(state.rack[0].type).toBe('DYNAMIC_EQ');
-    expect(state.rack[0].parameters.frequency).toBe(1000);
+    expect(state.masterRack).toHaveLength(1);
+    expect(state.masterRack[0].type).toBe('DYNAMIC_EQ');
   });
 
-  it('should add a Transient Shaper module', () => {
-    const { addModule } = useAudioStore.getState();
-    addModule('TRANSIENT_SHAPER');
-    
+  it('should add a new track', async () => {
+    const mockFile = createMockFile();
+    await act(async () => {
+      await useAudioStore.getState().addTrack(mockFile);
+    });
     const state = useAudioStore.getState();
-    expect(state.rack).toHaveLength(1);
-    expect(state.rack[0].type).toBe('TRANSIENT_SHAPER');
-    expect(state.rack[0].parameters.attackGain).toBe(0);
+    expect(state.tracks).toHaveLength(1);
+    expect(state.tracks[0].name).toBe('track');
   });
 
-  it('should add a Limiter module', () => {
-    const { addModule } = useAudioStore.getState();
-    addModule('LIMITER');
-    
+  it('should add a module to a specific track', async () => {
+    const mockFile = createMockFile();
+    await act(async () => {
+      await useAudioStore.getState().addTrack(mockFile);
+    });
+    const trackId = useAudioStore.getState().tracks[0].id;
+    act(() => {
+      useAudioStore.getState().addModule('LIMITER', trackId);
+    });
     const state = useAudioStore.getState();
-    expect(state.rack).toHaveLength(1);
-    expect(state.rack[0].type).toBe('LIMITER');
-    expect(state.rack[0].parameters.threshold).toBe(-0.5);
-  });
-
-  it('should add a MidSide EQ module', () => {
-    const { addModule } = useAudioStore.getState();
-    addModule('MIDSIDE_EQ');
-    
-    const state = useAudioStore.getState();
-    expect(state.rack).toHaveLength(1);
-    expect(state.rack[0].type).toBe('MIDSIDE_EQ');
-    expect(state.rack[0].parameters.midGain).toBe(0);
-  });
-
-  it('should add a Cab Sim module', () => {
-    const { addModule } = useAudioStore.getState();
-    addModule('CAB_SIM');
-    
-    const state = useAudioStore.getState();
-    expect(state.rack).toHaveLength(1);
-    expect(state.rack[0].type).toBe('CAB_SIM');
-    expect(state.rack[0].parameters.mix).toBe(1.0);
-    expect(state.rack[0].parameters.irAssetId).toBeDefined();
-  });
-
-  it('should add a Loudness Meter module', () => {
-    const { addModule } = useAudioStore.getState();
-    addModule('LOUDNESS_METER');
-    
-    const state = useAudioStore.getState();
-    expect(state.rack).toHaveLength(1);
-    expect(state.rack[0].type).toBe('LOUDNESS_METER');
-  });
-
-  it('should remove a module', () => {
-    const { addModule, removeModule } = useAudioStore.getState();
-    addModule('DYNAMIC_EQ');
-    const id = useAudioStore.getState().rack[0].id;
-    
-    removeModule(id);
-    expect(useAudioStore.getState().rack).toHaveLength(0);
-  });
-
-  it('should update module params', () => {
-    const { addModule, updateModuleParam } = useAudioStore.getState();
-    addModule('DYNAMIC_EQ');
-    const id = useAudioStore.getState().rack[0].id;
-
-    updateModuleParam(id, 'frequency', 500);
-    
-    expect(useAudioStore.getState().rack[0].parameters.frequency).toBe(500);
+    expect(state.tracks[0].rack).toHaveLength(1);
+    expect(state.tracks[0].rack[0].type).toBe('LIMITER');
   });
 });

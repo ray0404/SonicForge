@@ -45,8 +45,6 @@ function SortableItem({ id, children }: { id: string, children: (dragHandleProps
         position: 'relative' as 'relative',
     };
 
-    // REMOVED 'touch-none' from the wrapper div to allow scrolling on the body
-    // touch-none should only be on the drag handle
     return (
         <div ref={setNodeRef} style={style} className="w-full">
             {children({ ...attributes, ...listeners })}
@@ -55,11 +53,7 @@ function SortableItem({ id, children }: { id: string, children: (dragHandleProps
 }
 
 export const EffectsRack: React.FC = () => {
-  const rack = useAudioStore((state) => state.rack);
-  const removeModule = useAudioStore((state) => state.removeModule);
-  const updateModuleParam = useAudioStore((state) => state.updateModuleParam);
-  const toggleModuleBypass = useAudioStore((state) => state.toggleModuleBypass);
-  const reorderRack = useAudioStore((state) => state.reorderRack);
+  const { masterRack, removeModule, updateModuleParam, toggleModuleBypass, reorderRack } = useAudioStore();
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -72,8 +66,8 @@ export const EffectsRack: React.FC = () => {
     const { active, over } = event;
 
     if (active.id !== over?.id) {
-        const oldIndex = rack.findIndex((item) => item.id === active.id);
-        const newIndex = rack.findIndex((item) => item.id === over?.id);
+        const oldIndex = masterRack.findIndex((item) => item.id === active.id);
+        const newIndex = masterRack.findIndex((item) => item.id === over?.id);
         reorderRack(oldIndex, newIndex);
     }
   };
@@ -85,17 +79,17 @@ export const EffectsRack: React.FC = () => {
       onDragEnd={handleDragEnd}
     >
         <div className="w-full flex flex-col gap-4 pb-32">
-             {rack.length === 0 ? (
+             {masterRack.length === 0 ? (
                  <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-800 rounded-xl py-20 text-slate-600 bg-slate-900/20">
-                     <p className="font-bold">Rack is empty</p>
-                     <p className="text-xs mt-2">Use the "Add Module" button in the top bar to begin.</p>
+                     <p className="font-bold">Master rack is empty</p>
+                     <p className="text-xs mt-2">Use the "Add Module" button to affect the master output.</p>
                  </div>
              ) : (
                  <SortableContext
-                    items={rack.map(m => m.id)}
+                    items={masterRack.map(m => m.id)}
                     strategy={verticalListSortingStrategy}
                  >
-                    {rack.map((module) => (
+                    {masterRack.map((module) => (
                         <SortableItem key={module.id} id={module.id}>
                             {(dragHandleProps) => {
                                 const commonProps = {

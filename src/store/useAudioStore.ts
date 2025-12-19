@@ -10,29 +10,43 @@ export interface RackModule {
   id: string;
   type: RackModuleType;
   bypass: boolean;
-  parameters: Record<string, any>; // Changed from number to any to support string IDs
+  parameters: Record<string, any>;
+}
+
+export interface Track {
+  id: string;
+  name: string;
+  audioAssetId: string; // ID pointing to a buffer in the assets record
+  volume: number; // 0.0 to 1.0
+  pan: number; // -1.0 (L) to 1.0 (R)
+  mute: boolean;
+  solo: boolean;
+  rack: RackModule[];
 }
 
 interface AudioState {
   isInitialized: boolean;
   isPlaying: boolean;
-  sourceDuration: number;
+  sourceDuration: number; // This will now represent the longest track duration
   currentTime: number;
   masterVolume: number; // 0.0 to 1.0
-  rack: RackModule[];
+  masterRack: RackModule[];
+  tracks: Track[];
   assets: Record<string, AudioBuffer>;
 
   initializeEngine: () => Promise<void>;
   togglePlay: () => void;
   seek: (time: number) => void;
-  loadSourceFile: (file: File) => Promise<void>;
   setMasterVolume: (val: number) => void;
   
-  addModule: (type: RackModuleType) => void;
-  removeModule: (id: string) => void;
-  toggleModuleBypass: (id: string) => void;
-  reorderRack: (startIndex: number, endIndex: number) => void;
-  updateModuleParam: (id: string, param: string, value: any) => void;
+  addTrack: (file: File) => Promise<void>;
+  updateTrackParams: (trackId: string, params: Partial<Omit<Track, 'id' | 'rack'>>) => void;
+
+  addModule: (type: RackModuleType, trackId?: string) => void;
+  removeModule: (id: string, trackId?: string) => void;
+  toggleModuleBypass: (id: string, trackId?: string) => void;
+  reorderRack: (startIndex: number, endIndex: number, trackId?: string) => void;
+  updateModuleParam: (moduleId: string, param: string, value: any, trackId?: string) => void;
   
   loadAsset: (file: File) => Promise<string>;
   saveProject: () => Promise<void>;
@@ -45,7 +59,8 @@ export const useAudioStore = create<AudioState>((set, get) => ({
   sourceDuration: 0,
   currentTime: 0,
   masterVolume: 1.0,
-  rack: [],
+  masterRack: [],
+  tracks: [],
   assets: {},
 
   initializeEngine: async () => {
@@ -53,10 +68,8 @@ export const useAudioStore = create<AudioState>((set, get) => ({
     try {
       await audioEngine.init();
       set({ isInitialized: true });
-      // Attempt to load previous session
       get().loadProject();
       
-      // Playback loop for UI updates
       setInterval(() => {
           if (audioEngine.isPlaying && audioEngine.context) {
               const elapsed = audioEngine.context.currentTime - audioEngine.startTime;
@@ -74,32 +87,14 @@ export const useAudioStore = create<AudioState>((set, get) => ({
        audioEngine.pause();
        set({ isPlaying: false });
     } else {
-       audioEngine.play();
+       audioEngine.play(get().tracks);
        set({ isPlaying: true });
     }
   },
 
   seek: (time: number) => {
-      audioEngine.seek(time);
+      audioEngine.seek(time, get().tracks);
       set({ currentTime: time });
-  },
-
-  loadSourceFile: async (file: File) => {
-      try {
-          // 1. Save File to IDB for persistence
-          await setIDB('current_project_source', file);
-
-          // 2. Decode
-          const buffer = await audioEngine.loadSource(file);
-          set({ 
-              sourceDuration: buffer.duration,
-              currentTime: 0,
-              isPlaying: false // Stop previous playback
-          });
-          logger.info("Source file loaded and saved to IDB.");
-      } catch (e) {
-          logger.error("Failed to load source file", e);
-      }
   },
 
   setMasterVolume: (val: number) => {
@@ -109,7 +104,41 @@ export const useAudioStore = create<AudioState>((set, get) => ({
     }
   },
 
-  addModule: (type: RackModuleType) => {
+  addTrack: async (file: File) => {
+    try {
+      const assetId = await get().loadAsset(file);
+      const newTrack: Track = {
+        id: crypto.randomUUID(),
+        name: file.name.replace(/\.[^/.]+$/, ""), // Remove file extension
+        audioAssetId: assetId,
+        volume: 1.0,
+        pan: 0,
+        mute: false,
+        solo: false,
+        rack: [],
+      };
+      set(state => ({ tracks: [...state.tracks, newTrack] }));
+      // Update overall duration if this track is longest
+      const newDuration = get().assets[assetId].duration;
+      if (newDuration > get().sourceDuration) {
+        set({ sourceDuration: newDuration });
+      }
+      audioEngine.rebuildGraph(get().masterRack, get().tracks, get().assets);
+    } catch (e) {
+      logger.error("Failed to add track", e);
+    }
+  },
+
+  updateTrackParams: (trackId: string, params: Partial<Omit<Track, 'id' | 'rack'>>) => {
+    set(state => ({
+      tracks: state.tracks.map(t =>
+        t.id === trackId ? { ...t, ...params } : t
+      )
+    }));
+    audioEngine.rebuildGraph(get().masterRack, get().tracks, get().assets); // Rebuild to handle mute/solo
+  },
+
+  addModule: (type: RackModuleType, trackId?: string) => {
     const newModule: RackModule = {
       id: crypto.randomUUID(),
       type,
@@ -117,131 +146,157 @@ export const useAudioStore = create<AudioState>((set, get) => ({
       parameters: {}
     };
 
-    if (type === 'DYNAMIC_EQ') {
-      newModule.parameters = { frequency: 1000, gain: 0, Q: 1.0, threshold: -20, ratio: 2, attack: 0.01, release: 0.1 };
-    } else if (type === 'TRANSIENT_SHAPER') {
-      newModule.parameters = { attackGain: 0, sustainGain: 0 };
-    } else if (type === 'LIMITER') {
-      newModule.parameters = { threshold: -0.5, ceiling: -0.1, release: 0.1, lookahead: 5 };
-    } else if (type === 'MIDSIDE_EQ') {
-      newModule.parameters = { midGain: 0, midFreq: 1000, sideGain: 0, sideFreq: 1000 };
-    } else if (type === 'CAB_SIM') {
-      newModule.parameters = { irAssetId: '', mix: 1.0 };
-    } else if (type === 'LOUDNESS_METER') {
-      newModule.parameters = {};
-    } else if (type === 'SATURATION') {
-      newModule.parameters = { drive: 0.0, type: 1, outputGain: 0.0 }; // Type 1 = Tube
-    } else if (type === 'DITHERING') {
-      newModule.parameters = { bitDepth: 24 };
+    // Default parameters (same as before)
+    if (type === 'DYNAMIC_EQ') newModule.parameters = { frequency: 1000, gain: 0, Q: 1.0, threshold: -20, ratio: 2, attack: 0.01, release: 0.1 };
+    else if (type === 'TRANSIENT_SHAPER') newModule.parameters = { attackGain: 0, sustainGain: 0 };
+    else if (type === 'LIMITER') newModule.parameters = { threshold: -0.5, ceiling: -0.1, release: 0.1, lookahead: 5 };
+    else if (type === 'MIDSIDE_EQ') newModule.parameters = { midGain: 0, midFreq: 1000, sideGain: 0, sideFreq: 1000 };
+    else if (type === 'CAB_SIM') newModule.parameters = { irAssetId: '', mix: 1.0 };
+    else if (type === 'SATURATION') newModule.parameters = { drive: 0.0, type: 1, outputGain: 0.0 };
+    else if (type === 'DITHERING') newModule.parameters = { bitDepth: 24 };
+
+    if (trackId) {
+      set(state => ({
+        tracks: state.tracks.map(t =>
+          t.id === trackId ? { ...t, rack: [...t.rack, newModule] } : t
+        )
+      }));
+    } else {
+      set(state => ({ masterRack: [...state.masterRack, newModule] }));
     }
-
-    set((state) => ({ rack: [...state.rack, newModule] }));
-    audioEngine.rebuildGraph(get().rack); 
+    audioEngine.rebuildGraph(get().masterRack, get().tracks, get().assets);
   },
 
-  removeModule: (id: string) => {
-    set((state) => ({ rack: state.rack.filter(m => m.id !== id) }));
-    audioEngine.rebuildGraph(get().rack);
+  removeModule: (id: string, trackId?: string) => {
+    if (trackId) {
+      set(state => ({
+        tracks: state.tracks.map(t =>
+          t.id === trackId ? { ...t, rack: t.rack.filter(m => m.id !== id) } : t
+        )
+      }));
+    } else {
+      set(state => ({ masterRack: state.masterRack.filter(m => m.id !== id) }));
+    }
+    audioEngine.rebuildGraph(get().masterRack, get().tracks, get().assets);
   },
 
-  reorderRack: (startIndex: number, endIndex: number) => {
-    set((state) => ({ rack: arrayMove(state.rack, startIndex, endIndex) }));
-    audioEngine.rebuildGraph(get().rack);
+  reorderRack: (startIndex: number, endIndex: number, trackId?: string) => {
+    if (trackId) {
+        set(state => ({
+            tracks: state.tracks.map(t =>
+                t.id === trackId
+                ? { ...t, rack: arrayMove(t.rack, startIndex, endIndex) }
+                : t
+            )
+        }));
+    } else {
+        set(state => ({ masterRack: arrayMove(state.masterRack, startIndex, endIndex) }));
+    }
+    audioEngine.rebuildGraph(get().masterRack, get().tracks, get().assets);
   },
 
-  toggleModuleBypass: (id: string) => {
-    set((state) => ({
-      rack: state.rack.map(m =>
-        m.id === id ? { ...m, bypass: !m.bypass } : m
-      )
-    }));
-    audioEngine.rebuildGraph(get().rack);
+  toggleModuleBypass: (id: string, trackId?: string) => {
+    if (trackId) {
+        set(state => ({
+            tracks: state.tracks.map(t =>
+                t.id === trackId
+                ? { ...t, rack: t.rack.map(m => m.id === id ? { ...m, bypass: !m.bypass } : m) }
+                : t
+            )
+        }));
+    } else {
+        set(state => ({
+            masterRack: state.masterRack.map(m => m.id === id ? { ...m, bypass: !m.bypass } : m)
+        }));
+    }
+    audioEngine.rebuildGraph(get().masterRack, get().tracks, get().assets);
   },
 
-  updateModuleParam: (id: string, param: string, value: any) => {
-    set((state) => ({
-      rack: state.rack.map(m => 
-        m.id === id 
-        ? { ...m, parameters: { ...m.parameters, [param]: value } }
-        : m
-      )
-    }));
-    audioEngine.updateModuleParam(id, param, value);
+  updateModuleParam: (moduleId: string, param: string, value: any, trackId?: string) => {
+    if (trackId) {
+      set(state => ({
+        tracks: state.tracks.map(t =>
+          t.id === trackId
+          ? { ...t, rack: t.rack.map(m => m.id === moduleId ? { ...m, parameters: { ...m.parameters, [param]: value } } : m) }
+          : t
+        )
+      }));
+    } else {
+      set(state => ({
+        masterRack: state.masterRack.map(m =>
+          m.id === moduleId
+          ? { ...m, parameters: { ...m.parameters, [param]: value } }
+          : m
+        )
+      }));
+    }
+    audioEngine.updateModuleParam(moduleId, param, value);
   },
 
   loadAsset: async (file: File): Promise<string> => {
-      try {
-          const arrayBuffer = await file.arrayBuffer();
-          // We need AudioContext to decode
-          if (!audioEngine.context) throw new Error("Audio Engine not initialized");
-          
-          const audioBuffer = await audioEngine.context.decodeAudioData(arrayBuffer);
-          const assetId = crypto.randomUUID();
-          
-          // Save to IDB (Optimized: save file blob, not decoded buffer)
-          await setIDB(`asset_${assetId}`, file);
-          
-          // Update State
-          set(state => ({
-              assets: { ...state.assets, [assetId]: audioBuffer }
-          }));
-          
-          logger.info(`Asset loaded: ${assetId}`);
-          return assetId;
-      } catch (e) {
-          logger.error("Failed to load asset", e);
-          throw e;
-      }
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        if (!audioEngine.context) throw new Error("Audio Engine not initialized");
+
+        const audioBuffer = await audioEngine.context.decodeAudioData(arrayBuffer);
+        const assetId = `asset_${crypto.randomUUID()}`;
+
+        await setIDB(assetId, file);
+
+        set(state => ({
+            assets: { ...state.assets, [assetId]: audioBuffer }
+        }));
+
+        logger.info(`Asset loaded: ${assetId}`);
+        return assetId;
+    } catch (e) {
+        logger.error("Failed to load asset", e);
+        throw e;
+    }
   },
 
   saveProject: async () => {
-      const state = get();
-      const projectMeta = {
-          updatedAt: Date.now(),
-          rack: state.rack,
-          masterVolume: state.masterVolume
-      };
-      await setIDB('current_project_meta', projectMeta);
-      logger.info("Project saved.");
+    const state = get();
+    const project = {
+        updatedAt: Date.now(),
+        masterRack: state.masterRack,
+        tracks: state.tracks,
+        masterVolume: state.masterVolume
+    };
+    await setIDB('current_project', project);
+    logger.info("Project saved.");
   },
 
   loadProject: async () => {
-      try {
-        // 1. Load Meta
-        const meta = await getIDB('current_project_meta');
-        if (meta && meta.rack) {
-            set({ rack: meta.rack, masterVolume: meta.masterVolume || 1.0 });
-            
-            // 2. Re-hydrate Assets (CabSim IRs)
-            const uniqueAssetIds = new Set<string>();
-            meta.rack.forEach((m: RackModule) => {
-                if (m.type === 'CAB_SIM' && m.parameters.irAssetId) {
-                    uniqueAssetIds.add(m.parameters.irAssetId);
-                }
-            });
+    try {
+      const project = await getIDB('current_project');
+      if (project) {
+          set({
+              masterRack: project.masterRack || [],
+              tracks: project.tracks || [],
+              masterVolume: project.masterVolume || 1.0,
+          });
 
-            for (const id of uniqueAssetIds) {
-                 const file = await getIDB(`asset_${id}`) as File;
-                 if (file && audioEngine.context) {
-                     const arrayBuffer = await file.arrayBuffer();
-                     const audioBuffer = await audioEngine.context.decodeAudioData(arrayBuffer);
-                     set(state => ({ assets: { ...state.assets, [id]: audioBuffer } }));
-                 }
-            }
+          // Re-hydrate all assets for all tracks
+          let maxDuration = 0;
+          for (const track of project.tracks) {
+              const file = await getIDB(track.audioAssetId) as File;
+              if (file && audioEngine.context) {
+                  const arrayBuffer = await file.arrayBuffer();
+                  const audioBuffer = await audioEngine.context.decodeAudioData(arrayBuffer);
+                  if (audioBuffer.duration > maxDuration) {
+                    maxDuration = audioBuffer.duration;
+                  }
+                  set(state => ({ assets: { ...state.assets, [track.audioAssetId]: audioBuffer } }));
+              }
+          }
+          set({ sourceDuration: maxDuration });
 
-            // 3. Load Source File
-            const sourceFile = await getIDB('current_project_source') as File;
-            if (sourceFile && audioEngine.context) {
-                 logger.info("Restoring source file from IDB...");
-                 const buffer = await audioEngine.loadSource(sourceFile);
-                 set({ sourceDuration: buffer.duration, currentTime: 0 });
-            }
-
-            audioEngine.rebuildGraph(meta.rack);
-            logger.info("Project loaded successfully.");
-        }
-      } catch (e) {
-          logger.error("Failed to load project", e);
+          audioEngine.rebuildGraph(get().masterRack, get().tracks, get().assets);
+          logger.info("Project loaded successfully.");
       }
+    } catch (e) {
+        logger.error("Failed to load project", e);
+    }
   }
 }));
