@@ -8,12 +8,15 @@ export const MasteringVisualizer: React.FC<{ className?: string }> = ({ classNam
 
   useEffect(() => {
     let animationId: number;
-
+    
+    // Setup Analyser - cached references
+    // Note: These might be null during early init, so we check inside render loop
+    
     const render = () => {
-       animationId = requestAnimationFrame(render);
-
        const analyser = audioEngine.analyser;
-       
+       const analyserL = audioEngine.analyserL;
+       const analyserR = audioEngine.analyserR;
+
        // --- Spectrum Render ---
        if (spectrumRef.current && analyser) {
            const canvas = spectrumRef.current;
@@ -51,7 +54,7 @@ export const MasteringVisualizer: React.FC<{ className?: string }> = ({ classNam
        }
 
        // --- Goniometer Render ---
-       if (gonioRef.current && audioEngine.analyserL && audioEngine.analyserR) {
+       if (gonioRef.current && analyserL && analyserR) {
            const canvas = gonioRef.current;
            const ctx = canvas.getContext('2d');
            const width = canvas.width / (window.devicePixelRatio || 1);
@@ -62,11 +65,17 @@ export const MasteringVisualizer: React.FC<{ className?: string }> = ({ classNam
                ctx.fillStyle = 'rgba(2, 6, 23, 0.2)'; 
                ctx.fillRect(0, 0, width, height);
                
-               const len = audioEngine.analyserL.frequencyBinCount;
+               const len = analyserL.frequencyBinCount;
+               // Using Uint8Array for fast/simple viz, or Float32 for precision. 
+               // Byte data is 0..255 (128 = 0.0). Float is -1.0..1.0
+               // HEAD used byte data, feature used float. Let's use Float for gonio accuracy if supported easily.
+               // However, getByteTimeDomainData is faster for viz. Let's stick to HEAD's implementation (Byte) 
+               // but ensure we use analyserL/R which HEAD has now from the merge.
+               
                const dataL = new Uint8Array(len);
                const dataR = new Uint8Array(len);
-               audioEngine.analyserL.getByteTimeDomainData(dataL);
-               audioEngine.analyserR.getByteTimeDomainData(dataR);
+               analyserL.getByteTimeDomainData(dataL);
+               analyserR.getByteTimeDomainData(dataR);
                
                ctx.lineWidth = 1.5;
                ctx.strokeStyle = '#22c55e'; // active-led green
@@ -92,6 +101,8 @@ export const MasteringVisualizer: React.FC<{ className?: string }> = ({ classNam
                ctx.stroke();
            }
        }
+
+       animationId = requestAnimationFrame(render);
     };
 
     render();
