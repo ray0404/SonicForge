@@ -10,11 +10,12 @@ export class TransientShaperNode extends AudioWorkletNodeBase<IAudioContext | IO
             parameterData: {
                 attackGain: 0,
                 sustainGain: 0,
+                mix: 1
             },
         });
     }
 
-    setParam(param: 'attackGain' | 'sustainGain', value: number) {
+    setParam(param: 'attackGain' | 'sustainGain' | 'mix', value: number) {
         const paramNode = this.parameters.get(param);
         if (paramNode) {
             paramNode.setTargetAtTime(value, this.context.currentTime, 0.01);

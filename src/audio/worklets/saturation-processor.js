@@ -10,7 +10,8 @@ class SaturationProcessor extends AudioWorkletProcessor {
     return [
       { name: 'drive', defaultValue: 0.0, minValue: 0.0, maxValue: 10.0 },
       { name: 'type', defaultValue: 1, minValue: 0, maxValue: 2 }, // 0: Tape, 1: Tube, 2: Fuzz
-      { name: 'outputGain', defaultValue: 0.0, minValue: -12.0, maxValue: 12.0 }
+      { name: 'outputGain', defaultValue: 0.0, minValue: -12.0, maxValue: 12.0 },
+      { name: 'mix', defaultValue: 1.0, minValue: 0.0, maxValue: 1.0 }
     ];
   }
 
@@ -20,6 +21,7 @@ class SaturationProcessor extends AudioWorkletProcessor {
     const drive = parameters.drive;
     const typeParam = parameters.type;
     const outGain = parameters.outputGain;
+    const mixParam = parameters.mix;
 
     if (!input || !input[0] || !output) return true;
 
@@ -35,10 +37,12 @@ class SaturationProcessor extends AudioWorkletProcessor {
       const isDriveConst = drive.length === 1;
       const isTypeConst = typeParam.length === 1;
       const isGainConst = outGain.length === 1;
+      const isMixConst = mixParam.length === 1;
 
       let currentDrive = drive[0];
       let currentTypeIdx = typeParam[0]; // Float index
       let currentGainDb = outGain[0];
+      let currentMix = mixParam[0];
       let currentType = 'Tube';
 
       if (isTypeConst) {
@@ -50,6 +54,7 @@ class SaturationProcessor extends AudioWorkletProcessor {
       for (let i = 0; i < length; i++) {
         if (!isDriveConst) currentDrive = drive[i];
         if (!isGainConst) currentGainDb = outGain[i];
+        if (!isMixConst) currentMix = mixParam[i];
         
         if (!isTypeConst) {
             const idx = Math.round(typeParam[i]);
@@ -77,7 +82,8 @@ class SaturationProcessor extends AudioWorkletProcessor {
         // dB to Linear: 10 ^ (db / 20)
         const linearGain = Math.pow(10, currentGainDb / 20);
         
-        outputChannel[i] = saturated * linearGain;
+        const wet = saturated * linearGain;
+        outputChannel[i] = inputChannel[i] * (1 - currentMix) + wet * currentMix;
       }
     }
 

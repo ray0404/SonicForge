@@ -16,13 +16,18 @@
     *   **Goniometer:** Real-time stereo field visualization (Lissajous figure) via dedicated L/R analysers.
     *   **Loudness Meter:** EBU R128 compliant LUFS metering (Momentary & Short-term).
 *   **Included Modules:**
-    *   **Dynamic EQ:** 5-band equalizer with sidechain compression.
-    *   **Transient Shaper:** Attack/Sustain envelope shaping.
+    *   **Compressor:** VCA, FET, Opto, and VarMu topologies with **Sidechain Routing**.
+    *   **Multiband Dynamics:** 3-band independent compression with crossover control.
+    *   **De-Esser:** Frequency-selective sidechain compression for sibilance control.
+    *   **Multiband Stereo Imager:** Independent width control for Low, Mid, and High bands.
+    *   **Dynamic EQ:** 5-band equalizer with sidechain-driven gain reduction.
     *   **Lookahead Limiter:** Mastering-grade limiter with lookahead.
+    *   **Transient Shaper:** Attack/Sustain envelope shaping.
     *   **Mid/Side EQ:** Independent processing for Mid and Side channels.
     *   **Cab Sim / IR Loader:** Convolution engine for Impulse Responses.
     *   **Analog Saturation:** Harmonic distortion and warmth.
     *   **TPDF Dithering:** High-quality bit-depth reduction.
+*   **Advanced Routing:** Support for **External Sidechaining**, allowing modules to use arbitrary signals from the rack for detection.
 *   **Offline Export:** Render your processed track to a high-quality WAV file directly in the browser.
 *   **Local-First & Offline:** Sessions and assets are saved automatically. Works without an internet connection (PWA).
 

@@ -57,6 +57,31 @@ describe('EffectsRack', () => {
         
         expect(screen.getByText('Transient Shaper')).toBeInTheDocument();
         expect(screen.getByText('Attack')).toBeInTheDocument();
+        expect(screen.getByText('Mix')).toBeInTheDocument();
+    });
+
+    it('should render Compressor module', () => {
+        render(<EffectsRack />);
+        act(() => { useAudioStore.getState().addModule('COMPRESSOR'); });
+        expect(screen.getByText('Compressor')).toBeInTheDocument();
+        expect(screen.getByText('Ratio')).toBeInTheDocument();
+        expect(screen.getAllByText('Mix').length).toBeGreaterThan(0);
+    });
+
+    it('should render Tremolo module', () => {
+        render(<EffectsRack />);
+        act(() => { useAudioStore.getState().addModule('TREMOLO'); });
+        expect(screen.getByText('Tremolo')).toBeInTheDocument();
+        expect(screen.getByText('Depth')).toBeInTheDocument();
+        expect(screen.getAllByText('Mix').length).toBeGreaterThan(0);
+    });
+
+    it('should render Saturation module', () => {
+        render(<EffectsRack />);
+        act(() => { useAudioStore.getState().addModule('SATURATION'); });
+        expect(screen.getByText('Analog Saturation')).toBeInTheDocument();
+        expect(screen.getByText('Drive')).toBeInTheDocument();
+        expect(screen.getAllByText('Mix').length).toBeGreaterThan(0);
     });
 
     it('should render Limiter module', () => {

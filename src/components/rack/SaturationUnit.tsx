@@ -38,7 +38,6 @@ export const SaturationUnit: React.FC<SaturationUnitProps> = ({
           max={10}
           step={0.1}
           onChange={(v: number) => onUpdate('drive', v)}
-          className="w-16 h-16"
         />
 
         {/* Type Selection */}
@@ -75,6 +74,16 @@ export const SaturationUnit: React.FC<SaturationUnitProps> = ({
           max={12}
           step={0.1}
           onChange={(v: number) => onUpdate('outputGain', v)}
+        />
+
+        {/* Mix Knob */}
+        <Knob
+          label="Mix"
+          value={parameters.mix ?? 1}
+          min={0}
+          max={1}
+          step={0.01}
+          onChange={(v: number) => onUpdate('mix', v)}
         />
       </div>
     </ModuleShell>

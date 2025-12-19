@@ -61,7 +61,7 @@ export const ModuleShell: React.FC<ModuleShellProps> = ({
       </div>
 
       {/* Body */}
-      <div className="relative p-4 bg-slate-900/50">
+      <div className="relative p-2 bg-slate-900/50">
         <div className={clsx("transition-opacity duration-300", isBypassed && "opacity-40 grayscale pointer-events-none")}>
            {children}
         </div>

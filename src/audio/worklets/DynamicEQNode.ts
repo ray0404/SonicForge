@@ -8,7 +8,7 @@ export class DynamicEQNode extends AudioWorkletNodeBase<IAudioContext | IOffline
 
   constructor(context: IAudioContext | IOfflineAudioContext) {
     super(context, 'dynamic-eq-processor', {
-      numberOfInputs: 1,
+      numberOfInputs: 2,
       numberOfOutputs: 1,
       outputChannelCount: [2], // Default to stereo
       parameterData: {

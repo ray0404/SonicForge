@@ -24,6 +24,7 @@ This document serves as the operational manual for Autonomous AI Agents (e.g., G
 *   **Smoothing:** Use `setTargetAtTime` for parameter changes.
 *   **Memory:** Pre-allocate buffers. No allocations in `process()`.
 *   **Offline:** Verify every node works in `OfflineAudioContext` for WAV export.
+*   **Sidechain:** Dynamics processors (Compressor, Dynamic EQ, De-Esser, Multiband Comp) support a secondary input buffer (`inputs[1]`) for gain detection.
 
 ## 4. Testing Strategy
 *   **Mocks:** Update `src/test/setup.ts` when adding new global Web Audio mocks.
@@ -37,14 +38,16 @@ This document serves as the operational manual for Autonomous AI Agents (e.g., G
     *   Add to `createModuleNode()` (Realtime Factory).
     *   Add to `updateModuleParam()` (Realtime Update).
     *   Add to `renderOffline()` (Offline Factory).
+    *   **Sidechain:** If multi-input, ensure \`numberOfInputs: 2\` in the Node constructor.
     *   **New:** Verify `getModuleNode` support if the UI needs to read back data.
 4.  [ ] **Store:** Update `RackModuleType` and `addModule`.
 5.  [ ] **UI:** Create `src/components/rack/MyUnit.tsx` and add to `EffectsRack.tsx`.
 
 ## 6. Current High-Priority Targets
 *   **Loudness Penalty UI:** Integrate the `calculateLoudnessPenalty` utility from `src/utils/loudness-penalty.ts` into the `MeteringUnit` or export summary.
+*   **Internal Sidechain Filtering:** Implement the "Pass 2" logic in `rebuildGraph` to create and route internal filter nodes for modules in 'internal' sidechain mode.
 *   **WASM DSP:** Implementation of performance-critical filters in Rust/C++ (Blueprint: `proof-of-concept-wasm-dsp.md`).
-*   **Advanced Visualizers:** Implementation of a phase correlation meter using the new L/R analysers.
+*   **Phase Correlation Meter:** Dedicated visualizer for phase alignment using the L/R analysers.
 
 ---
 
