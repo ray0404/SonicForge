@@ -45,6 +45,9 @@ class SaturationProcessor extends AudioWorkletProcessor {
       let currentMix = mixParam[0];
       let currentType = 'Tube';
 
+      // Optimization: Pre-calculate linear gain if constant
+      const constLinearGain = Math.pow(10, currentGainDb / 20);
+
       if (isTypeConst) {
          const idx = Math.round(currentTypeIdx);
          if (idx === 0) currentType = 'Tape';
@@ -53,7 +56,13 @@ class SaturationProcessor extends AudioWorkletProcessor {
 
       for (let i = 0; i < length; i++) {
         if (!isDriveConst) currentDrive = drive[i];
-        if (!isGainConst) currentGainDb = outGain[i];
+
+        let linearGain = constLinearGain;
+        if (!isGainConst) {
+            currentGainDb = outGain[i];
+            linearGain = Math.pow(10, currentGainDb / 20);
+        }
+
         if (!isMixConst) currentMix = mixParam[i];
         
         if (!isTypeConst) {
@@ -78,10 +87,7 @@ class SaturationProcessor extends AudioWorkletProcessor {
         
         const saturated = this.saturator.process(inputChannel[i], 1.0 + currentDrive, currentType);
 
-        // Apply Output Gain
-        // dB to Linear: 10 ^ (db / 20)
-        const linearGain = Math.pow(10, currentGainDb / 20);
-        
+        // Apply Output Gain (using pre-calculated linearGain)
         const wet = saturated * linearGain;
         outputChannel[i] = inputChannel[i] * (1 - currentMix) + wet * currentMix;
       }

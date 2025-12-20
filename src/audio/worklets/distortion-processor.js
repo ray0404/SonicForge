@@ -28,6 +28,12 @@ class DistortionProcessor extends AudioWorkletProcessor {
         const isConstType = typeParam.length === 1;
         const isConstGain = outGainParam.length === 1;
 
+        // Optimization: Pre-calculate linear gain if constant
+        let constOutGain = 1.0;
+        if (isConstGain) {
+            constOutGain = Math.pow(10, outGainParam[0] / 20.0);
+        }
+
         for (let channel = 0; channel < input.length; channel++) {
             const inputChannel = input[channel];
             const outputChannel = output[channel];
@@ -38,9 +44,11 @@ class DistortionProcessor extends AudioWorkletProcessor {
                 const drive = isConstDrive ? driveParam[0] : driveParam[i];
                 const wet = isConstWet ? wetParam[0] : wetParam[i];
                 const type = isConstType ? typeParam[0] : typeParam[i];
-                const outGainDb = isConstGain ? outGainParam[0] : outGainParam[i];
                 
-                const outGain = Math.pow(10, outGainDb / 20.0);
+                let outGain = constOutGain;
+                if (!isConstGain) {
+                    outGain = Math.pow(10, outGainParam[i] / 20.0);
+                }
 
                 // 2x Oversampling (Linear Interpolation + Averaging)
                 // 1. Interpolate intermediate sample
