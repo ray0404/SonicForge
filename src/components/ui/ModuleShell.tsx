@@ -28,8 +28,9 @@ export const ModuleShell: React.FC<ModuleShellProps> = ({
         <div className="flex items-center gap-2">
            {/* Drag Handle */}
            <div
-             className="cursor-grab active:cursor-grabbing text-slate-600 hover:text-slate-400 focus:outline-none touch-none p-1"
+             className="cursor-grab active:cursor-grabbing text-slate-600 hover:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 rounded touch-none p-1"
              {...dragHandleProps}
+             aria-label={`Drag to reorder ${title}`}
            >
              <GripVertical size={16} />
            </div>
@@ -38,12 +39,15 @@ export const ModuleShell: React.FC<ModuleShellProps> = ({
            <button
              onClick={onBypass}
              className={clsx(
-               "w-3 h-3 rounded-full border transition-all shadow-[0_0_8px_rgba(0,0,0,0.5)] mx-1",
+               "w-3 h-3 rounded-full border transition-all shadow-[0_0_8px_rgba(0,0,0,0.5)] mx-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900",
                isBypassed
                  ? "bg-slate-800 border-slate-600"
                  : "bg-active-led border-green-400 shadow-[0_0_8px_rgba(34,197,94,0.6)]"
              )}
              title={isBypassed ? "Engage" : "Bypass"}
+             aria-label="Active"
+             role="switch"
+             aria-checked={!isBypassed}
            />
 
            <span className={clsx("font-bold text-sm tracking-wide uppercase select-none", color)}>
@@ -53,8 +57,9 @@ export const ModuleShell: React.FC<ModuleShellProps> = ({
 
         <button
           onClick={onRemove}
-          className="text-slate-600 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+          className="text-slate-600 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 rounded p-1"
           title="Remove Module"
+          aria-label="Remove Module"
         >
           <X size={16} />
         </button>
