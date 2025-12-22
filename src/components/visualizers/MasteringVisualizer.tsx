@@ -6,11 +6,13 @@ export const MasteringVisualizer: React.FC<{ className?: string }> = ({ classNam
   const spectrumRef = useRef<HTMLCanvasElement | null>(null);
   const gonioRef = useRef<HTMLCanvasElement | null>(null);
 
+  // Cache buffers to avoid allocation in render loop
+  const spectrumDataRef = useRef<Uint8Array | null>(null);
+  const gonioDataLRef = useRef<Uint8Array | null>(null);
+  const gonioDataRRef = useRef<Uint8Array | null>(null);
+
   useEffect(() => {
     let animationId: number;
-    
-    // Setup Analyser - cached references
-    // Note: These might be null during early init, so we check inside render loop
     
     const render = () => {
        const analyser = audioEngine.analyser;
@@ -30,7 +32,13 @@ export const MasteringVisualizer: React.FC<{ className?: string }> = ({ classNam
                ctx.fillRect(0, 0, width, height);
 
                const bufferLength = analyser.frequencyBinCount;
-               const dataArray = new Uint8Array(bufferLength);
+
+               // Reuse buffer if size matches
+               if (!spectrumDataRef.current || spectrumDataRef.current.length !== bufferLength) {
+                   spectrumDataRef.current = new Uint8Array(bufferLength);
+               }
+               const dataArray = spectrumDataRef.current;
+
                analyser.getByteFrequencyData(dataArray);
 
                ctx.lineWidth = 2;
@@ -66,14 +74,18 @@ export const MasteringVisualizer: React.FC<{ className?: string }> = ({ classNam
                ctx.fillRect(0, 0, width, height);
                
                const len = analyserL.frequencyBinCount;
-               // Using Uint8Array for fast/simple viz, or Float32 for precision. 
-               // Byte data is 0..255 (128 = 0.0). Float is -1.0..1.0
-               // HEAD used byte data, feature used float. Let's use Float for gonio accuracy if supported easily.
-               // However, getByteTimeDomainData is faster for viz. Let's stick to HEAD's implementation (Byte) 
-               // but ensure we use analyserL/R which HEAD has now from the merge.
                
-               const dataL = new Uint8Array(len);
-               const dataR = new Uint8Array(len);
+               // Reuse buffers
+               if (!gonioDataLRef.current || gonioDataLRef.current.length !== len) {
+                   gonioDataLRef.current = new Uint8Array(len);
+               }
+               if (!gonioDataRRef.current || gonioDataRRef.current.length !== len) {
+                   gonioDataRRef.current = new Uint8Array(len);
+               }
+
+               const dataL = gonioDataLRef.current;
+               const dataR = gonioDataRRef.current;
+
                analyserL.getByteTimeDomainData(dataL);
                analyserR.getByteTimeDomainData(dataR);
                
