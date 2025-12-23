@@ -45,15 +45,25 @@ class SaturationProcessor extends AudioWorkletProcessor {
       let currentMix = mixParam[0];
       let currentType = 'Tube';
 
+      // ⚡ Bolt Optimization: Hoist Type resolution
       if (isTypeConst) {
          const idx = Math.round(currentTypeIdx);
          if (idx === 0) currentType = 'Tape';
          else if (idx === 2) currentType = 'Fuzz';
       }
 
+      // ⚡ Bolt Optimization: Hoist expensive Math.pow
+      // dB to Linear: 10 ^ (db / 20)
+      let linearGain = Math.pow(10, currentGainDb / 20);
+
       for (let i = 0; i < length; i++) {
         if (!isDriveConst) currentDrive = drive[i];
-        if (!isGainConst) currentGainDb = outGain[i];
+
+        if (!isGainConst) {
+            currentGainDb = outGain[i];
+            linearGain = Math.pow(10, currentGainDb / 20);
+        }
+
         if (!isMixConst) currentMix = mixParam[i];
         
         if (!isTypeConst) {
@@ -63,27 +73,16 @@ class SaturationProcessor extends AudioWorkletProcessor {
             else currentType = 'Tube';
         }
 
+        const inSample = inputChannel[i];
+
         // Apply input gain (Drive)
         // Saturator.process(input, drive, type)
-        // Note: The logic in Saturator applies 'drive' inside. 
-        // We pass 1.0 + drive to make 0.0 be unity? 
-        // Looking at lib/saturation.js: "x = input * drive". 
-        // So drive=1.0 is unity. The parameter is 0-10.
-        // Let's assume user knob 0 = unity (1.0) for better UX? 
-        // Or knob 0 = 0 (silence)? 
-        // "Drive: 0.0 to 10.0". Usually drive adds to unity.
-        // Let's interpret Parameter 0 as unity gain (1x). 
-        // Actually, standard distortion plugins: Drive 0 = clean.
-        // So we'll pass (1.0 + currentDrive).
+        // We pass 1.0 + drive to make 0.0 be unity gain.
+        const saturated = this.saturator.process(inSample, 1.0 + currentDrive, currentType);
         
-        const saturated = this.saturator.process(inputChannel[i], 1.0 + currentDrive, currentType);
-
         // Apply Output Gain
-        // dB to Linear: 10 ^ (db / 20)
-        const linearGain = Math.pow(10, currentGainDb / 20);
-        
         const wet = saturated * linearGain;
-        outputChannel[i] = inputChannel[i] * (1 - currentMix) + wet * currentMix;
+        outputChannel[i] = inSample * (1 - currentMix) + wet * currentMix;
       }
     }
 
