@@ -29,6 +29,7 @@ export const ModuleShell: React.FC<ModuleShellProps> = ({
            {/* Drag Handle */}
            <div
              className="cursor-grab active:cursor-grabbing text-slate-600 hover:text-slate-400 focus:outline-none touch-none p-1"
+             aria-label="Drag to reorder"
              {...dragHandleProps}
            >
              <GripVertical size={16} />
@@ -37,8 +38,11 @@ export const ModuleShell: React.FC<ModuleShellProps> = ({
            {/* Bypass Switch */}
            <button
              onClick={onBypass}
+             role="switch"
+             aria-checked={isBypassed}
+             aria-label={isBypassed ? "Unbypass Module" : "Bypass Module"}
              className={clsx(
-               "w-3 h-3 rounded-full border transition-all shadow-[0_0_8px_rgba(0,0,0,0.5)] mx-1",
+               "w-3 h-3 rounded-full border transition-all shadow-[0_0_8px_rgba(0,0,0,0.5)] mx-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
                isBypassed
                  ? "bg-slate-800 border-slate-600"
                  : "bg-active-led border-green-400 shadow-[0_0_8px_rgba(34,197,94,0.6)]"
@@ -53,7 +57,8 @@ export const ModuleShell: React.FC<ModuleShellProps> = ({
 
         <button
           onClick={onRemove}
-          className="text-slate-600 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+          aria-label="Remove Module"
+          className="text-slate-600 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-red-500 rounded"
           title="Remove Module"
         >
           <X size={16} />
