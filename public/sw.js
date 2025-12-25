@@ -1,4 +1,11 @@
+// Service Worker for Sonic Forge
+
 const CACHE_NAME = 'sonic-forge-v1';
+
+// This is the injection point for vite-plugin-pwa
+// eslint-disable-next-line
+const MANIFEST = self.__WB_MANIFEST;
+
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',

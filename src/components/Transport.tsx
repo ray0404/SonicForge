@@ -3,8 +3,10 @@ import { useAudioStore } from '@/store/useAudioStore';
 import { audioEngine } from '@/audio/context';
 import { Play, Pause, FileAudio, Download, Loader2 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { TransportDisplay } from './TransportDisplay';
+import { useShallow } from 'zustand/react/shallow';
 
-// WAV Encoder Helper (omitted for brevity, same as before)
+// WAV Encoder Helper
 function bufferToWav(buffer: AudioBuffer): Blob {
     const numChannels = buffer.numberOfChannels;
     const sampleRate = buffer.sampleRate;
@@ -65,30 +67,30 @@ function writeString(view: DataView, offset: number, string: string) {
 }
 
 export const Transport: React.FC = () => {
+  // Use granular selectors or shallow comparison to prevent unnecessary re-renders
+  // when unrelated store state changes.
+  // However, since we split the display, this component only needs:
+  // isPlaying, togglePlay, sourceDuration (for hasSource check), loadSourceFile, rack, assets
+  // It DOES NOT need currentTime.
+
   const { 
     isPlaying, 
     togglePlay, 
-    currentTime, 
     sourceDuration, 
-    seek, 
     loadSourceFile,
     rack,
     assets
-  } = useAudioStore();
+  } = useAudioStore(useShallow(state => ({
+    isPlaying: state.isPlaying,
+    togglePlay: state.togglePlay,
+    sourceDuration: state.sourceDuration,
+    loadSourceFile: state.loadSourceFile,
+    rack: state.rack,
+    assets: state.assets
+  })));
   
   const [isExporting, setIsExporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    const ms = Math.floor((seconds % 1) * 100);
-    return `${mins}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
-  };
-
-  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-      seek(parseFloat(e.target.value));
-  };
 
   const handleExport = async () => {
       if (isExporting) return;
@@ -159,37 +161,8 @@ export const Transport: React.FC = () => {
           {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-1" />}
       </button>
 
-      {/* Time & Seeker */}
-      <div className="flex-1 flex flex-col gap-1 min-w-0">
-          <div className="flex justify-between items-end px-1">
-             <span className="font-mono text-sm font-bold text-slate-200 tracking-wider">
-                {formatTime(currentTime)}
-             </span>
-             <span className="font-mono text-[10px] text-slate-500">
-                {formatTime(sourceDuration)}
-             </span>
-          </div>
-          <div className="relative h-6 group flex items-center">
-             {/* Custom Range Track */}
-             <div className="absolute left-0 right-0 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                 <div 
-                    className="h-full bg-primary transition-all duration-75" 
-                    style={{ width: `${(currentTime / (sourceDuration || 1)) * 100}%` }}
-                 />
-             </div>
-             <input 
-                  type="range"
-                  aria-label="Seek"
-                  min={0}
-                  max={sourceDuration || 100}
-                  step={0.01}
-                  value={currentTime}
-                  onChange={handleSeek}
-                  disabled={!hasSource}
-                  className="absolute inset-0 w-full opacity-0 cursor-pointer z-10"
-              />
-          </div>
-      </div>
+      {/* Time & Seeker - Moved to subcomponent to isolate re-renders */}
+      <TransportDisplay />
 
       {/* Export / Menu */}
       <button 
