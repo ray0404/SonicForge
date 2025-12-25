@@ -44,6 +44,9 @@ export const ModuleShell: React.FC<ModuleShellProps> = ({
                  : "bg-active-led border-green-400 shadow-[0_0_8px_rgba(34,197,94,0.6)]"
              )}
              title={isBypassed ? "Engage" : "Bypass"}
+             aria-label={isBypassed ? "Engage module" : "Bypass module"}
+             aria-checked={!isBypassed}
+             role="switch"
            />
 
            <span className={clsx("font-bold text-sm tracking-wide uppercase select-none", color)}>
@@ -53,7 +56,7 @@ export const ModuleShell: React.FC<ModuleShellProps> = ({
 
         <button
           onClick={onRemove}
-          className="text-slate-600 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+          className="text-slate-600 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 rounded"
           title="Remove Module"
         >
           <X size={16} />
