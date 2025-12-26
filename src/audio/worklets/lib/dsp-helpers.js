@@ -3,6 +3,9 @@
  * Pure JS implementation of common DSP components.
  */
 
+/**
+ * Standard RBJ Biquad Filter implementation.
+ */
 export class BiquadFilter {
     constructor() {
         this.reset();
@@ -11,6 +14,9 @@ export class BiquadFilter {
         this.setParams(1000, 0, 1.0, 44100, 'lowpass');
     }
 
+    /**
+     * Resets the filter state (delay lines).
+     */
     reset() {
         this.x1 = 0; this.x2 = 0;
         this.y1 = 0; this.y2 = 0;
@@ -18,11 +24,22 @@ export class BiquadFilter {
         this.a1 = 0; this.a2 = 0;
     }
 
+    /**
+     * Sets the filter parameters and updates coefficients.
+     * @param {number} frequency - Cutoff or center frequency in Hz.
+     * @param {number} gain - Gain in dB (for peaking/shelving filters).
+     * @param {number} Q - Quality factor.
+     * @param {number} sampleRate - System sample rate.
+     * @param {string} type - Filter type ('lowpass', 'highpass', etc.).
+     */
     setParams(frequency, gain, Q, sampleRate, type) {
         this.updateBase(frequency, Q, sampleRate, type);
         this.setGain(gain);
     }
 
+    /**
+     * Updates common intermediate variables based on frequency and Q.
+     */
     updateBase(frequency, Q, sampleRate, type) {
         const w0 = (2 * Math.PI * frequency) / sampleRate;
         this.cache.w0 = w0;
@@ -31,6 +48,10 @@ export class BiquadFilter {
         this.cache.type = type;
     }
 
+    /**
+     * Calculates filter coefficients based on gain.
+     * @param {number} gain - Gain in dB.
+     */
     setGain(gain) {
         const A = Math.pow(10, gain / 40);
         const { cosw0, alpha, type } = this.cache;
@@ -98,6 +119,11 @@ export class BiquadFilter {
         this.a2 = a2 / a0;
     }
 
+    /**
+     * Processes a single input sample.
+     * @param {number} input - Input sample.
+     * @returns {number} Filtered output sample.
+     */
     process(input) {
         const output = this.b0 * input + this.b1 * this.x1 + this.b2 * this.x2
                      - this.a1 * this.y1 - this.a2 * this.y2;
@@ -122,23 +148,25 @@ export class BiquadFilter {
  * Consists of a pre-filter (high shelf) and a RLB filter (high pass).
  */
 export class KWeightingFilter {
+    /**
+     * @param {number} sampleRate - System sample rate.
+     */
     constructor(sampleRate) {
         this.preFilter = new BiquadFilter();
         this.rlbFilter = new BiquadFilter();
         
         // Stage 1: High Shelf (+4dB @ ~1500Hz)
-        // Exact coeffs depend on spec, but typically modeled as:
-        // Gain: +4dB
-        // Freq: 1500Hz (roughly)
-        // Q: 0.5 (ish)
-        // Ideally we use exact values from spec, but standard HS is close enough for approximation.
         this.preFilter.setParams(1500, 4, 0.707, sampleRate, 'highshelf');
 
         // Stage 2: High Pass (Cutoff @ ~100Hz)
-        // "RLB" filter
         this.rlbFilter.setParams(100, 0, 1.0, sampleRate, 'highpass');
     }
 
+    /**
+     * Processes a single input sample through the K-Weighting stages.
+     * @param {number} input - Input sample.
+     * @returns {number} Filtered output sample.
+     */
     process(input) {
         // Series processing
         const stage1 = this.preFilter.process(input);
@@ -147,6 +175,9 @@ export class KWeightingFilter {
     }
 }
 
+/**
+ * Simple envelope follower with independent attack and release times.
+ */
 export class EnvelopeFollower {
     constructor() {
         this.envelope = 0;
@@ -155,8 +186,13 @@ export class EnvelopeFollower {
         this.setParams(0.01, 0.1, 44100); // Default 10ms attack, 100ms release
     }
 
+    /**
+     * Sets the attack and release times.
+     * @param {number} attackTime - Attack time in seconds.
+     * @param {number} releaseTime - Release time in seconds.
+     * @param {number} sampleRate - System sample rate.
+     */
     setParams(attackTime, releaseTime, sampleRate) {
-        // Attack/Release are in seconds
         const tAtt = Math.max(0.001, attackTime);
         const tRel = Math.max(0.001, releaseTime);
 
@@ -165,6 +201,11 @@ export class EnvelopeFollower {
         this.relCoeff = Math.exp(-1.0 / (tRel * sampleRate));
     }
 
+    /**
+     * Processes a single input sample and returns current envelope level.
+     * @param {number} input - Input sample.
+     * @returns {number} Current envelope level.
+     */
     process(input) {
         const absInput = Math.abs(input);
         
@@ -181,20 +222,34 @@ export class EnvelopeFollower {
     }
 }
 
+/**
+ * Circular buffer delay line with linear interpolation.
+ */
 export class DelayLine {
+    /**
+     * @param {number} maxDelaySeconds - Maximum delay time.
+     * @param {number} sampleRate - System sample rate.
+     */
     constructor(maxDelaySeconds, sampleRate) {
         this.size = Math.ceil(maxDelaySeconds * sampleRate);
         this.buffer = new Float32Array(this.size);
         this.writeIndex = 0;
     }
 
-    // Write a sample to the buffer
+    /**
+     * Writes a sample into the delay buffer.
+     * @param {number} input - Input sample.
+     */
     write(input) {
         this.buffer[this.writeIndex] = input;
         this.writeIndex = (this.writeIndex + 1) % this.size;
     }
 
-    // Read a sample from 'delaySamples' ago with Linear Interpolation
+    /**
+     * Reads a delayed sample using linear interpolation.
+     * @param {number} delaySamples - Delay time in samples (can be fractional).
+     * @returns {number} Delayed sample.
+     */
     read(delaySamples) {
         // Calculate read index
         let readPtr = this.writeIndex - delaySamples;
@@ -214,11 +269,20 @@ export class DelayLine {
     }
 }
 
+/**
+ * Basic sine-wave LFO.
+ */
 export class LFO {
     constructor() {
         this.phase = 0;
     }
 
+    /**
+     * Processes LFO and returns current sine value.
+     * @param {number} frequency - LFO frequency in Hz.
+     * @param {number} sampleRate - System sample rate.
+     * @returns {number} Current LFO value [-1, 1].
+     */
     process(frequency, sampleRate) {
         // Increment phase
         this.phase += (2 * Math.PI * frequency) / sampleRate;
@@ -228,16 +292,25 @@ export class LFO {
     }
 }
 
+/**
+ * One-pole all-pass filter.
+ */
 export class OnePoleAllPass {
     constructor() {
         this.x1 = 0;
         this.y1 = 0;
     }
 
+    /**
+     * Processes a sample through the all-pass filter.
+     * @param {number} input - Input sample.
+     * @param {number} alpha - Filter coefficient.
+     * @returns {number} Filtered output.
+     */
     process(input, alpha) {
-        // y(n) = -x(n) + x(n-1) + a * (y(n-1) - x(n))
-        // Re-arranged from doc: -x(n) + x1 + alpha * (y1 - x(n))
-        const output = -input + this.x1 + alpha * (this.y1 - input);
+        // Standard one-pole all-pass filter:
+        // y[n] = alpha * x[n] + x[n-1] - alpha * y[n-1]
+        const output = alpha * input + this.x1 - alpha * this.y1;
         
         this.x1 = input;
         this.y1 = output;
