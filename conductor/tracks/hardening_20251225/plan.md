@@ -1,9 +1,9 @@
 # Track Plan: System Hardening & Core Refinement
 
-## Phase 1: DSP Validation
+## Phase 1: DSP Validation [checkpoint: e05286e]
 - [x] Task: Write unit tests for `dsp-helpers.js` (filters, math) e7c2ecf
 - [x] Task: Write unit tests for `crossover.js` and `gain-match.js` f6c11ec
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: DSP Validation' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: DSP Validation' (Protocol in workflow.md)
 
 ## Phase 2: Engine Optimization
 - [ ] Task: Profile `AudioEngine.rebuildGraph` and identify bottlenecks
