@@ -122,3 +122,4 @@ dist
 blueprints/
 .gemini/
 conductor/
+.firebase/
