@@ -121,3 +121,4 @@ dist
 # Blueprints
 blueprints/
 .gemini/
+conductor/

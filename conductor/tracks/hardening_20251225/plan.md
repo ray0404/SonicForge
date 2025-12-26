@@ -13,5 +13,6 @@
 ## Phase 3: Architectural Documentation
 - [x] Task: Create `docs/trinity-pattern.md` with implementation examples 4e87b02
 - [x] Task: Add JSDoc to all core `AudioWorkletNode` classes 141afa1
-- [x] Task: Create in-depth (verbose) documentation for all 20 audio modules in `docs/modules/` 6da2776
+- [x] Task: Create individual, verbose (100-150+ lines) documentation pages for every module in categorized sub-directories 29ad5c0
+- [x] Task: Revise and expand original core documentation (`guide.md`, `architecture.md`, etc.) to match new verbose standards 6a41dc6
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Architectural Documentation' (Protocol in workflow.md)
