@@ -12,5 +12,5 @@
 
 ## Phase 3: Architectural Documentation
 - [x] Task: Create `docs/trinity-pattern.md` with implementation examples 4e87b02
-- [ ] Task: Add JSDoc to all core `AudioWorkletNode` classes
+- [x] Task: Add JSDoc to all core `AudioWorkletNode` classes 141afa1
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Architectural Documentation' (Protocol in workflow.md)
