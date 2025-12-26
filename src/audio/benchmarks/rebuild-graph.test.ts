@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, beforeEach, vi } from 'vitest';
 import { audioEngine } from '../context';
+import type { RackModule, RackModuleType } from '@/store/useAudioStore';
 
 // Mock the standardized-audio-context because we are in JSDOM/Node
 vi.mock('standardized-audio-context', () => {
@@ -48,10 +49,10 @@ describe('AudioEngine Rebuild Performance', () => {
         await audioEngine.init();
     });
 
-    const createMockRack = (count: number) => {
+    const createMockRack = (count: number): RackModule[] => {
         return Array.from({ length: count }, (_, i) => ({
             id: `module-${i}`,
-            type: 'LIMITER',
+            type: 'LIMITER' as RackModuleType,
             bypass: false,
             parameters: {}
         }));
