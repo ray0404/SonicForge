@@ -2,7 +2,7 @@
 
 ## Phase 1: DSP Validation
 - [x] Task: Write unit tests for `dsp-helpers.js` (filters, math) e7c2ecf
-- [ ] Task: Write unit tests for `crossover.js` and `gain-match.js`
+- [x] Task: Write unit tests for `crossover.js` and `gain-match.js` f6c11ec
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: DSP Validation' (Protocol in workflow.md)
 
 ## Phase 2: Engine Optimization
