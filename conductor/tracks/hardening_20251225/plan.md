@@ -1,0 +1,16 @@
+# Track Plan: System Hardening & Core Refinement
+
+## Phase 1: DSP Validation
+- [x] Task: Write unit tests for `dsp-helpers.js` (filters, math) e7c2ecf
+- [ ] Task: Write unit tests for `crossover.js` and `gain-match.js`
+- [ ] Task: Conductor - User Manual Verification 'Phase 1: DSP Validation' (Protocol in workflow.md)
+
+## Phase 2: Engine Optimization
+- [ ] Task: Profile `AudioEngine.rebuildGraph` and identify bottlenecks
+- [ ] Task: Implement optimized diff-patching for single-node changes
+- [ ] Task: Conductor - User Manual Verification 'Phase 2: Engine Optimization' (Protocol in workflow.md)
+
+## Phase 3: Architectural Documentation
+- [ ] Task: Create `docs/trinity-pattern.md` with implementation examples
+- [ ] Task: Add JSDoc to all core `AudioWorkletNode` classes
+- [ ] Task: Conductor - User Manual Verification 'Phase 3: Architectural Documentation' (Protocol in workflow.md)
