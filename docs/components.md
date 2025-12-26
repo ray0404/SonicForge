@@ -1,56 +1,95 @@
-# Component Deep Dive
+# Component Library & Design System
 
-SonicForge is built on the **Trinity Pattern**, ensuring separation of concerns between UI, Control Logic, and DSP.
+## 1. Introduction
+The Sonic Forge UI is built on a custom component library designed specifically for audio applications. Unlike standard web UIs (Bootstrap, Material), audio interfaces require specialized controls: precision knobs, responsive meters, and high-density layouts.
 
-## The Trinity Pattern
+The design philosophy prioritizes **Function over Form**, mimicking the "Rack" aesthetic of hardware units while leveraging the flexibility of CSS Grid and Flexbox.
 
-Every audio effect module consists of three distinct files:
+---
 
-| Layer | File Example | Responsibility |
-| :--- | :--- | :--- |
-| **DSP (Worker)** | `limiter-processor.js` | Runs on Audio Thread. Performs math on samples. Extends `AudioWorkletProcessor`. |
-| **Bridge (Node)** | `LimiterNode.ts` | Runs on Main Thread. Bridges UI and DSP. Extends `AudioWorkletNode`. |
-| **UI (React)** | `LimiterUnit.tsx` | Visual representation. Handles user input. Renders Knobs/Meters. |
+## 2. The "Atomic" Design Hierarchy
 
-### 1. DSP Layer (`*-processor.js`)
+### 2.1 Atoms (Primitives)
+The building blocks of the interface.
+- **`<Knob />`**: The primary input method.
+    - **Features:** Vertical drag behavior, Shift-key for fine-tuning, Double-click to reset.
+    - **SVG Rendering:** Uses SVG for crisp scaling at any resolution.
+    - **Arc Math:** Maps a value (0-100) to an angle (-135deg to +135deg).
+- **`<Toggle />`**: A skeuomorphic switch or button.
+- **`<LED />`**: A simple status indicator (Green/Red/Off).
+- **`<Label />`**: Typography standard for parameter names (usually uppercase, varying weights).
 
-Located in `src/audio/worklets/`. This is raw JavaScript (no DOM access).
+### 2.2 Molecules (Controls)
+Combinations of atoms that form a functional unit.
+- **`<ParameterControl />`**: Combines a `<Knob>`, a `<Label>`, and a textual `<ValueDisplay>` (e.g., "-6.0 dB").
+- **`<Meter />`**: A canvas-based bar graph driven by analysis data.
 
-*   **Inputs:** `inputs[][]` (Channels -> Samples)
-*   **Parameters:** `parameters` (AudioParams like Threshold, Gain)
-*   **Output:** `process()` returns `true` to keep alive.
+### 2.3 Organisms (Modules)
+Complete functional sections.
+- **`<ModuleShell />`**: The container for every effect. Provides the "Hardware Faceplate" look, the Title Bar, Bypass Toggle, and Remove Button.
+- **`<Rack />`**: The scrollable container that holds the list of Modules.
 
-**Example (Limiter Logic):**
-> The limiter uses a **Lookahead Buffer** (`DelayLine`) and an **Envelope Follower**. It analyzes the input signal `N` milliseconds in the future (relative to the output) to ramp down gain *before* a peak occurs, preventing clipping.
+---
 
-### 2. Bridge Layer (`*Node.ts`)
+## 3. Visualization Strategy
+Audio visualization requires drawing at 60fps. Doing this via React Render cycles (updating state) is too slow and causes UI jank. We use a **Direct Canvas Access** strategy.
 
-Located in `src/audio/worklets/`.
+### 3.1 The `ResponsiveCanvas` Hook
+A custom hook/component that handles:
+- **Resizing:** Observes the parent container size and scales the internal `<canvas>` resolution (DPI awareness) to look sharp on Retina screens.
+- **Loop:** Sets up a `requestAnimationFrame` loop.
+- **Context:** Exposes the `CanvasRenderingContext2D` to the consumer.
 
-*   **Purpose:** Typed wrapper around the `AudioWorkletNode`.
-*   **Key Method:** `setParam(key, value)` - interpolates values using `setTargetAtTime` to prevent clicking (zipper noise).
-*   **Communication:** Listens to `this.port.onmessage` for debug data (e.g., gain reduction meters) from the processor.
+### 3.2 Drawing Logic
+Visualizers (like the Spectrum Analyzer) obtain their data directly from the Audio Engine, bypassing the React store.
 
-### 3. UI Layer (`*Unit.tsx`)
+```tsx
+const draw = (ctx, frameCount) => {
+    // 1. Get Data
+    // We access the AnalyserNode directly, NOT via props/state
+    analyserNode.getFloatFrequencyData(dataArray);
 
-Located in `src/components/rack/`.
+    // 2. Clear
+    ctx.clearRect(0, 0, width, height);
 
-*   **State:** Controlled via props (`module.parameters`).
-*   **Updates:** Calls `onUpdate` which dispatches to Zustand.
-*   **Visuals:** Often includes a `<canvas>` loop for real-time visualization (e.g., GR meter).
+    // 3. Draw Path
+    ctx.beginPath();
+    for (let i = 0; i < len; i++) {
+        // ... map frequency to x, decibel to y ...
+        ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+};
+```
 
-## Audio Engine (`src/audio/context.ts`)
+---
 
-The `AudioEngine` class is a **Singleton**.
+## 4. Accessibility (A11y)
+Audio tools are often used by visually impaired engineers. We strive for WCAG AA compliance.
 
-*   **Initialization:** Lazy loaded via `init()`. Loads all Worklet modules via `addModule`.
-*   **Routing:** Manages `nodeMap` (Map<ModuleID, AudioNode>).
-*   **RebuildGraph:** A critical method that:
-    1.  Disconnects `RackInput`.
-    2.  Iterates through the `Rack` state.
-    3.  Instantiates missing nodes or reuses existing ones.
-    4.  Chains them together: `PrevNode.connect(CurrentNode)`.
-    5.  Connects the tail to `RackOutput`.
+### 4.1 Knob Accessibility
+Since a `<Knob>` is just an `<div>` or `<svg>` visually, it must implement ARIA roles to be usable by screen readers.
+- **Role:** `role="slider"`
+- **Attributes:** `aria-valuenow`, `aria-valuemin`, `aria-valuemax`, `aria-label`.
+- **Keyboard Support:**
+    - `Arrow Up/Right`: Increment.
+    - `Arrow Down/Left`: Decrement.
+    - `Home/End`: Min/Max.
+    - `PageUp/PageDown`: Large steps.
 
-**Offline Rendering:**
-The engine supports `renderOffline`. It spawns a temporary `OfflineAudioContext`, re-instantiates the entire graph (mirroring the real-time one), and processes the audio faster-than-realtime to generate a WAV file.
+### 4.2 Focus Management
+The Rack supports keyboard navigation. Users can Tab through modules and controls. Focus styles are distinct (high contrast outlines) to aid navigation.
+
+---
+
+## 5. Theming & Styling
+We use **Tailwind CSS** for layout and utility classes, but component-specific styling (like Knob gradients) is often handled in CSS Modules or inline styles for dynamic properties.
+
+### 5.1 The "Dark Mode" Standard
+Audio environments are typically dark to reduce eye strain in dimly lit studios.
+- **Backgrounds:** Slate-900 / Zinc-900.
+- **Accents:** Cyan-500 (Primary), Amber-500 (Warning), Rose-500 (Error/Clipping).
+- **Text:** Slate-200 (Primary), Slate-500 (Labels).
+
+### 5.2 Density
+The UI is "information dense." Padding is minimized to fit as many controls as possible on the screen without scrolling. Knobs are sized at 48x48px or 64x64px standard.

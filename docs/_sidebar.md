@@ -1,6 +1,9 @@
 - [Home](/)
 - [User Guide](guide.md)
 - [Architecture](architecture.md)
+  - [Concepts](architecture/concept-abstraction.md)
+  - [Data Flow](architecture/state-flow.md)
+  - [Audio Graph](architecture/audio-graph.md)
 - [Trinity Pattern](trinity-pattern.md)
 - [Module Reference]
   - **Dynamics**
