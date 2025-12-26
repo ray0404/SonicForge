@@ -1,65 +1,57 @@
 # AI Agent Directives: Sonic Forge
 
-This document serves as the operational manual for Autonomous AI Agents (e.g., Google Jules) working on the Sonic Forge repository.
+**Current State:** Phase 3 (Documentation & Hardening) Complete.
+**Active Track:** `hardening_20251225`
+
+This document serves as the operational manual for Autonomous AI Agents working on the Sonic Forge repository.
 
 ## 1. Core Directives
 
-### Directive Alpha: "Do No Harm"
-*   **Constraint:** Do not modify the core logic of `src/audio/context.ts` or `src/store/useAudioStore.ts` unless implementing a high-level feature requested by the user.
-*   **Audio Graph:** Respect the **Diff-based Patching** in `rebuildGraph`. It optimizes for single-node changes. Avoid triggering `fullRebuildGraph` for trivial param updates or single bypass toggles.
+### Directive Alpha: "Respect the Trinity"
+*   **The Law:** Every audio effect functions as a triad of **Processor (DSP)**, **Node (Interface)**, and **Unit (UI)**.
+*   **Constraint:** You MUST NOT merge these responsibilities. 
+    *   Do NOT put DSP logic in the Node.
+    *   Do NOT put DOM access in the Processor.
+    *   Do NOT put Audio API calls in the UI (use the Store).
+*   **Reference:** See `docs/trinity-pattern.md` before writing any module code.
 
-### Directive Beta: "Static Parity"
-*   **Validation:** You MUST rely on:
-    1.  `npm run build` (tsc) to verify type safety across `standardized-audio-context` interfaces.
-    2.  `npm run test` to ensure zero regressions in DSP math and Rack logic.
+### Directive Beta: "Do No Harm"
+*   **Audio Engine:** The `src/audio/context.ts` file is critical infrastructure. Do not modify the `rebuildGraph` logic unless you understand the "Diff-Based Patching" algorithm (see `docs/architecture/audio-graph.md`).
+*   **Type Safety:** Stick to `standardized-audio-context` interfaces. Do not bypass the type checker with `any`.
 
 ## 2. Architectural Integrity
-*   **The Trinity Pattern:** Every audio effect requires three parts:
-    1.  **DSP (Worklet):** JS in `src/audio/worklets/`.
-    2.  **Interface (Node):** TS class extending `AudioWorkletNode` using `standardized-audio-context` types.
-    3.  **Control (UI/Store):** A Zustand module definition and a React component.
-*   **Encapsulation:** Always use `audioEngine.getModuleNode(id)` to read state from an active node in the UI.
 
-## 3. DSP Implementation Guidelines
-*   **Smoothing:** Use `setTargetAtTime` for parameter changes.
-*   **Memory:** Pre-allocate buffers. No allocations in `process()`.
-*   **Offline:** Verify every node works in `OfflineAudioContext` for WAV export.
+### The Store as Source of Truth
+*   The UI reads from `useAudioStore`.
+*   The Engine subscribes to `useAudioStore`.
+*   Therefore, **Updating the Store** is the only way to change the Audio.
 
-## 4. Testing Strategy
-*   **Mocks:** Update `src/test/setup.ts` when adding new global Web Audio mocks.
-*   **Coverage:** Every new DSP utility MUST have a corresponding `.test.js` or `.test.ts` file.
+### Thread Isolation
+*   **Audio Thread:** `src/audio/worklets/*.js`. NO DOM ACCESS. NO ALLOCATIONS inside `process()`.
+*   **Main Thread:** Everything else. 
+*   **Communication:** Use `port.postMessage` for analysis data (meters), but throttle UI updates to 30/60fps to avoid main-thread jank.
 
-## 5. How to Add a New Effect (Checklist)
-1.  [ ] **DSP:** Create `src/audio/worklets/my-processor.js`.
-2.  [ ] **Node:** Create `src/audio/worklets/MyNode.ts`.
-3.  [ ] **Engine:**
-    *   Add to `init()` (Realtime URLs).
-    *   Add to `createModuleNode()` (Realtime Factory).
-    *   Add to `updateModuleParam()` (Realtime Update).
-    *   Add to `renderOffline()` (Offline Factory).
-    *   **New:** Verify `getModuleNode` support if the UI needs to read back data.
-4.  [ ] **Store:** Update `RackModuleType` and `addModule`.
-5.  [ ] **UI:** Create `src/components/rack/MyUnit.tsx` and add to `EffectsRack.tsx`.
+## 3. Implementation Protocols
 
-## 6. Current High-Priority Targets
-*   **Loudness Penalty UI:** Integrate the `calculateLoudnessPenalty` utility from `src/utils/loudness-penalty.ts` into the `MeteringUnit` or export summary.
-*   **WASM DSP:** Implementation of performance-critical filters in Rust/C++ (Blueprint: `proof-of-concept-wasm-dsp.md`).
-*   **Advanced Visualizers:** Implementation of a phase correlation meter using the new L/R analysers.
+### Adding a New Effect
+1.  **DSP:** Create `src/audio/worklets/[name]-processor.js`.
+2.  **Node:** Create `src/audio/worklets/[Name]Node.ts`.
+3.  **UI:** Create `src/components/rack/[Name]Unit.tsx`.
+4.  **Register:**
+    *   `src/store/useAudioStore.ts` (Types & Defaults).
+    *   `src/audio/context.ts` (`createModuleNode` & `renderOffline`).
+    *   `src/components/rack/EffectsRack.tsx` (Menu).
 
----
+### Testing Strategy
+*   **DSP Tests:** `src/audio/worklets/lib/*.test.js`. Verify math logic.
+*   **Integration Tests:** `src/audio/context.test.ts`. Verify graph construction.
+*   **Benchmark:** `src/audio/benchmarks/rebuild-graph.test.ts`. Verify performance regressions.
 
-# 🤖 Jules Asynchronous Blueprint: [Blueprint Name]
+## 4. Documentation Standards
+*   **Code:** JSDoc is mandatory for all `AudioWorkletNode` classes and `dsp-helpers` functions.
+*   **Docs:** Update `docs/modules/` when modifying DSP behavior. Ensure the "Technical Specifications" section matches the code.
 
-**Context:** Sonic Forge
-**Asynchronous Intent:** [Goal, e.g., "Add Phase Meter"]
-
-## 🔒 Workflow Constraints
-1.  **Decoupled:** Use existing `AudioEngine` hooks and methods.
-2.  **Additive:** Do not rewrite existing effects.
-
-## 🚀 Jules Context (Async Implementation Agent)
-
-### Operational Directives
-1.  **AudioEngine Integrity:** `AudioEngine` is the critical core. Never leave it in a state where `init()` fails.
-2.  **Diff-Patching:** Ensure any routing changes are compatible with the `insertNode` / `removeNode` logic in `rebuildGraph`.
-3.  **Dependency Handling:** Prefer `standardized-audio-context` interfaces for all new node types.
+## 5. Current Priorities
+*   **Documentation Maintenance:** Keep the `docs/` folder in sync with code changes.
+*   **DSP Optimization:** Identifying heavy processors and optimizing their loops.
+*   **WASM:** Preparing the architecture for future WebAssembly modules.

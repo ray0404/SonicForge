@@ -64,3 +64,7 @@ src/
 - **Stereo Analysis:** The engine provides `analyserL` and `analyserR` nodes via a `ChannelSplitter`. Use these for stereo-specific visualizers or processing logic.
 - **Safe Refactoring:** When changing `src/audio/`, verify that `renderOffline` (used for WAV export) still has parity with the real-time path.
 - **Accessibility:** Maintain ARIA labels and semantic markup in UI components, especially in `Transport.tsx`.
+
+## 7. Optimization Strategies
+- **Partial Graph Rebuild:** The engine compares the new Rack state with the old one. If only one node changed position, it re-routes the connections without tearing down the nodes. This preserves internal state (delay buffers, filter energy) and prevents audio glitches.
+- **Canvas Bypass:** Visualizers do NOT use React state. They use `requestAnimationFrame` to query the Audio Node directly and draw to a canvas ref. This keeps the main thread free for UI interactions.
