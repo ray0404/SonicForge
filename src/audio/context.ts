@@ -219,6 +219,7 @@ class AudioEngine {
     const nextActiveModules = rack.filter(m => !m.bypass);
     const nextIds = nextActiveModules.map(m => m.id);
 
+    // 1. Find the first point of difference in the ACTIVE signal chain
     let firstMismatchIndex = -1;
     const len = Math.max(this.connectedIds.length, nextIds.length);
     for (let i = 0; i < len; i++) {
@@ -228,13 +229,80 @@ class AudioEngine {
         }
     }
 
+    // 2. If no structural changes in active nodes, just sync params and cleanup
     if (firstMismatchIndex === -1) {
         this.syncParams(rack);
         this.cleanupNodeMap(rack);
         return;
     }
 
-    this.fullRebuildGraph(rack);
+    // 3. Partial Rebuild: Only reconnect from the point of failure
+    this.partialRebuildGraph(rack, firstMismatchIndex);
+  }
+
+  private partialRebuildGraph(rack: RackModule[], startIndex: number) {
+    if (!this.context || !this.rackInput || !this.rackOutput) return;
+
+    // Disconnect everything from the first mismatch onwards
+    // connectedIds stores IDs of nodes currently in the chain (not bypassed)
+    
+    // Find the node that preceded the first mismatch
+    let previousNode: IAudioNode<IAudioContext>;
+    if (startIndex === 0) {
+        previousNode = this.rackInput;
+        this.rackInput.disconnect();
+    } else {
+        const prevId = this.connectedIds[startIndex - 1];
+        const prevNode = this.nodeMap.get(prevId);
+        if (!prevNode) {
+            // Should not happen, but fallback to full
+            return this.fullRebuildGraph(rack);
+        }
+        previousNode = (prevNode instanceof ConvolutionNode) 
+            ? prevNode.output as unknown as IAudioNode<IAudioContext>
+            : prevNode as unknown as IAudioNode<IAudioContext>;
+        previousNode.disconnect();
+    }
+
+    // Disconnect all subsequent nodes in the OLD chain
+    for (let i = startIndex; i < this.connectedIds.length; i++) {
+        const node = this.nodeMap.get(this.connectedIds[i]);
+        if (node) node.disconnect();
+    }
+
+    // Cleanup nodes that are no longer in the rack at all
+    this.cleanupNodeMap(rack);
+
+    // Reconstruct the chain from the mismatch point
+    const activeIds = this.connectedIds.slice(0, startIndex);
+    
+    // We need to iterate through the FULL rack to find where we are in the sequence
+    // But we only care about nodes that appear AFTER the last 'stable' node
+    
+    let foundStart = (startIndex === 0);
+    const lastStableId = startIndex > 0 ? this.connectedIds[startIndex - 1] : null;
+
+    rack.forEach(module => {
+        if (!foundStart) {
+            if (module.id === lastStableId) foundStart = true;
+            return;
+        }
+
+        const node = this.getOrCreateNode(module);
+        this.updateNodeParams(node, module);
+
+        if (!module.bypass) {
+            this.connectNodes(previousNode, node);
+            previousNode = (node instanceof ConvolutionNode) 
+                ? node.output as unknown as IAudioNode<IAudioContext> 
+                : node as unknown as IAudioNode<IAudioContext>;
+            activeIds.push(module.id);
+        }
+    });
+
+    // Final connection to output
+    previousNode.connect(this.rackOutput);
+    this.connectedIds = activeIds;
   }
 
   fullRebuildGraph(rack: RackModule[]) {
