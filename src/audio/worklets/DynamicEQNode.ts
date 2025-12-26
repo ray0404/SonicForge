@@ -3,6 +3,10 @@ import { AudioWorkletNode, IAudioContext, IOfflineAudioContext, TAudioWorkletNod
 
 const AudioWorkletNodeBase = AudioWorkletNode as TAudioWorkletNodeConstructor;
 
+/**
+ * Node for the DynamicEQNode effect.
+ * Follows the Trinity Pattern.
+ */
 export class DynamicEQNode extends AudioWorkletNodeBase<IAudioContext | IOfflineAudioContext> {
   public currentGainReduction: number = 0;
 
@@ -30,6 +34,7 @@ export class DynamicEQNode extends AudioWorkletNodeBase<IAudioContext | IOffline
   }
 
   // Helper to set parameters with automation support
+  /** Updates a module parameter with smoothing. */
   setParam(paramName: string, value: number, timeConstant: number = 0) {
     const param = this.parameters.get(paramName);
     if (!param) {

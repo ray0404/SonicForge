@@ -13,6 +13,10 @@ export interface ParametricEQOptions {
 
 const AudioWorkletNodeBase = AudioWorkletNode as TAudioWorkletNodeConstructor;
 
+/**
+ * Node for the ParametricEQNode effect.
+ * Follows the Trinity Pattern.
+ */
 export class ParametricEQNode extends AudioWorkletNodeBase<IAudioContext | IOfflineAudioContext> {
     constructor(context: IAudioContext | IOfflineAudioContext) {
         super(context, 'parametric-eq-processor', {
@@ -31,7 +35,8 @@ export class ParametricEQNode extends AudioWorkletNodeBase<IAudioContext | IOffl
         });
     }
 
-    setParam(paramName: string, value: number, timeConstant: number = 0.01) {
+    /** Updates a module parameter with smoothing. */
+  setParam(paramName: string, value: number, timeConstant: number = 0.01) {
         const param = this.parameters.get(paramName);
         if (!param) {
             logger.warn(`[ParametricEQNode] Parameter '${paramName}' not found.`);

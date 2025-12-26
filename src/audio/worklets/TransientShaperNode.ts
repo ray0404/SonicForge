@@ -2,6 +2,10 @@ import { AudioWorkletNode, IAudioContext, IOfflineAudioContext, TAudioWorkletNod
 
 const AudioWorkletNodeBase = AudioWorkletNode as TAudioWorkletNodeConstructor;
 
+/**
+ * Node for the TransientShaperNode effect.
+ * Follows the Trinity Pattern.
+ */
 export class TransientShaperNode extends AudioWorkletNodeBase<IAudioContext | IOfflineAudioContext> {
     constructor(context: IAudioContext | IOfflineAudioContext) {
         super(context, 'transient-processor', {
@@ -15,7 +19,8 @@ export class TransientShaperNode extends AudioWorkletNodeBase<IAudioContext | IO
         });
     }
 
-    setParam(param: 'attackGain' | 'sustainGain' | 'mix', value: number) {
+    /** Updates a module parameter with smoothing. */
+  setParam(param: 'attackGain' | 'sustainGain' | 'mix', value: number) {
         const paramNode = this.parameters.get(param);
         if (paramNode) {
             paramNode.setTargetAtTime(value, this.context.currentTime, 0.01);

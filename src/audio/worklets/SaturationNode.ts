@@ -9,6 +9,10 @@ export interface SaturationOptions {
     mix?: number;
 }
   
+/**
+ * Node for the SaturationNode effect.
+ * Follows the Trinity Pattern.
+ */
 export class SaturationNode extends AudioWorkletNodeBase<IAudioContext | IOfflineAudioContext> {
     constructor(context: IAudioContext | IOfflineAudioContext) {
         super(context, 'saturation-processor');
@@ -23,7 +27,8 @@ export class SaturationNode extends AudioWorkletNodeBase<IAudioContext | IOfflin
         ];
     }
 
-    setParam(param: keyof SaturationOptions, value: number) {
+    /** Updates a module parameter with smoothing. */
+  setParam(param: keyof SaturationOptions, value: number) {
         const p = this.parameters.get(param);
         if (p) {
             p.setTargetAtTime(value, this.context.currentTime, 0.01);

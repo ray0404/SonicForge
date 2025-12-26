@@ -2,6 +2,10 @@ import { AudioWorkletNode, IAudioContext, IOfflineAudioContext, TAudioWorkletNod
 
 const AudioWorkletNodeBase = AudioWorkletNode as TAudioWorkletNodeConstructor;
 
+/**
+ * Node for the ChorusNode effect.
+ * Follows the Trinity Pattern.
+ */
 export class ChorusNode extends AudioWorkletNodeBase<IAudioContext | IOfflineAudioContext> {
     constructor(context: IAudioContext | IOfflineAudioContext) {
         super(context, 'chorus-processor', {
@@ -10,7 +14,8 @@ export class ChorusNode extends AudioWorkletNodeBase<IAudioContext | IOfflineAud
             parameterData: { frequency: 1.5, delayTime: 0.03, depth: 0.002, feedback: 0, wet: 0.5 }
         });
     }
-    setParam(param: string, value: number) {
+    /** Updates a module parameter with smoothing. */
+  setParam(param: string, value: number) {
         const p = this.parameters.get(param);
         if (p) p.setTargetAtTime(value, this.context.currentTime, 0.01);
     }
