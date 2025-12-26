@@ -2,15 +2,27 @@ import React, { useEffect, useRef } from 'react';
 import { audioEngine } from '@/audio/context';
 import { ResponsiveCanvas } from './ResponsiveCanvas';
 
+// Pre-define colors to avoid reallocation
+const COLOR_BG = '#020617'; // slate-950
+const COLOR_SPECTRUM = '#3b82f6'; // primary
+const COLOR_GONIO_BG = 'rgba(2, 6, 23, 0.2)';
+const COLOR_GONIO_TRACE = '#22c55e'; // active-led green
+
 export const MasteringVisualizer: React.FC<{ className?: string }> = ({ className }) => {
   const spectrumRef = useRef<HTMLCanvasElement | null>(null);
   const gonioRef = useRef<HTMLCanvasElement | null>(null);
 
+  // Cache contexts
+  const spectrumCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const gonioCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+
+  // Reuse buffers to avoid GC
+  const spectrumBufferRef = useRef<Uint8Array | null>(null);
+  const gonioLBufferRef = useRef<Uint8Array | null>(null);
+  const gonioRBufferRef = useRef<Uint8Array | null>(null);
+
   useEffect(() => {
     let animationId: number;
-    
-    // Setup Analyser - cached references
-    // Note: These might be null during early init, so we check inside render loop
     
     const render = () => {
        const analyser = audioEngine.analyser;
@@ -20,29 +32,43 @@ export const MasteringVisualizer: React.FC<{ className?: string }> = ({ classNam
        // --- Spectrum Render ---
        if (spectrumRef.current && analyser) {
            const canvas = spectrumRef.current;
-           const ctx = canvas.getContext('2d');
-           // Dimensions are logical CSS pixels (handled by ResponsiveCanvas scaling)
-           const width = canvas.width / (window.devicePixelRatio || 1);
-           const height = canvas.height / (window.devicePixelRatio || 1);
+           // Get context only if not cached or canvas changed (rare)
+           if (!spectrumCtxRef.current || spectrumCtxRef.current.canvas !== canvas) {
+               spectrumCtxRef.current = canvas.getContext('2d', { alpha: false }); // alpha: false hint
+           }
+           const ctx = spectrumCtxRef.current;
 
            if (ctx) {
-               ctx.fillStyle = '#020617'; // slate-950
+               // Dimensions are logical CSS pixels
+               const dpr = window.devicePixelRatio || 1;
+               const width = canvas.width / dpr;
+               const height = canvas.height / dpr;
+
+               ctx.fillStyle = COLOR_BG;
                ctx.fillRect(0, 0, width, height);
 
                const bufferLength = analyser.frequencyBinCount;
-               const dataArray = new Uint8Array(bufferLength);
+
+               // Re-allocate only if size changes
+               if (!spectrumBufferRef.current || spectrumBufferRef.current.length !== bufferLength) {
+                   spectrumBufferRef.current = new Uint8Array(bufferLength);
+               }
+               const dataArray = spectrumBufferRef.current;
+
                analyser.getByteFrequencyData(dataArray);
 
                ctx.lineWidth = 2;
-               ctx.strokeStyle = '#3b82f6'; // primary
+               ctx.strokeStyle = COLOR_SPECTRUM;
                ctx.beginPath();
                
-               // Draw Spectrum
                const sliceWidth = width * 1.0 / bufferLength;
                let x = 0;
+
+               // Optimization: Skip points if buffer is huge relative to width?
+               // For now, keeping logic same but allocation-free.
                for(let i = 0; i < bufferLength; i++) {
                    const v = dataArray[i] / 128.0; 
-                   const y = height - (v * height / 2); // Normalize roughly
+                   const y = height - (v * height / 2);
 
                    if(i === 0) ctx.moveTo(x, y);
                    else ctx.lineTo(x, y);
@@ -56,42 +82,44 @@ export const MasteringVisualizer: React.FC<{ className?: string }> = ({ classNam
        // --- Goniometer Render ---
        if (gonioRef.current && analyserL && analyserR) {
            const canvas = gonioRef.current;
-           const ctx = canvas.getContext('2d');
-           const width = canvas.width / (window.devicePixelRatio || 1);
-           const height = canvas.height / (window.devicePixelRatio || 1);
+           if (!gonioCtxRef.current || gonioCtxRef.current.canvas !== canvas) {
+               gonioCtxRef.current = canvas.getContext('2d');
+           }
+           const ctx = gonioCtxRef.current;
            
            if (ctx) {
+               const dpr = window.devicePixelRatio || 1;
+               const width = canvas.width / dpr;
+               const height = canvas.height / dpr;
+
                // Fade trail
-               ctx.fillStyle = 'rgba(2, 6, 23, 0.2)'; 
+               ctx.fillStyle = COLOR_GONIO_BG;
                ctx.fillRect(0, 0, width, height);
                
                const len = analyserL.frequencyBinCount;
-               // Using Uint8Array for fast/simple viz, or Float32 for precision. 
-               // Byte data is 0..255 (128 = 0.0). Float is -1.0..1.0
-               // HEAD used byte data, feature used float. Let's use Float for gonio accuracy if supported easily.
-               // However, getByteTimeDomainData is faster for viz. Let's stick to HEAD's implementation (Byte) 
-               // but ensure we use analyserL/R which HEAD has now from the merge.
                
-               const dataL = new Uint8Array(len);
-               const dataR = new Uint8Array(len);
+               if (!gonioLBufferRef.current || gonioLBufferRef.current.length !== len) {
+                   gonioLBufferRef.current = new Uint8Array(len);
+                   gonioRBufferRef.current = new Uint8Array(len);
+               }
+               const dataL = gonioLBufferRef.current!;
+               const dataR = gonioRBufferRef.current!; // We know this is set if L is set
+
                analyserL.getByteTimeDomainData(dataL);
                analyserR.getByteTimeDomainData(dataR);
                
                ctx.lineWidth = 1.5;
-               ctx.strokeStyle = '#22c55e'; // active-led green
+               ctx.strokeStyle = COLOR_GONIO_TRACE;
                ctx.beginPath();
                
                const cx = width / 2;
                const cy = height / 2;
                const scale = Math.min(width, height) / 2;
                
-               // Downsample for performance / aesthetics
                for(let i = 0; i < len; i += 4) {
                    const l = (dataL[i] / 128.0) - 1.0;
                    const r = (dataR[i] / 128.0) - 1.0;
                    
-                   // Rotate 45deg
-                   // S = (L-R), M = (L+R)
                    const x = cx + (l - r) * 0.707 * scale;
                    const y = cy - (l + r) * 0.707 * scale;
                    
