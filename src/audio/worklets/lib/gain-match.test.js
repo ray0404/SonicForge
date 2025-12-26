@@ -81,4 +81,21 @@ describe('GainMatch', () => {
         expect(gain).not.toBe(Infinity);
         expect(Number.isFinite(gain)).toBe(true);
     });
+
+    it('should handle NaN input gracefully', () => {
+        const gm = new GainMatch(44100);
+        const initialGain = gm.currentGain;
+        const gain = gm.process(NaN, 0.5);
+        expect(gain).toBe(initialGain);
+    });
+
+    it('should reset state correctly', () => {
+        const gm = new GainMatch(44100);
+        gm.process(1.0, 0.5);
+        expect(gm.currentGain).not.toBe(1.0);
+        gm.reset();
+        expect(gm.currentGain).toBe(1.0);
+        expect(gm.refSumSquares).toBe(0);
+        expect(gm.wetSumSquares).toBe(0);
+    });
 });

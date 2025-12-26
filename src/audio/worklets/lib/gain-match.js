@@ -26,12 +26,19 @@ export class GainMatch {
         this.gainAlpha = Math.exp(-1.0 / (smoothT * sampleRate));
 
         // State
-        this.refSumSquares = 0;
-        this.wetSumSquares = 0;
-        this.currentGain = 1.0;
+        this.reset();
 
         // Epsilon to avoid division by zero
         this.EPSILON = 1e-9;
+    }
+
+    /**
+     * Resets the internal state of the RMS detectors and current gain.
+     */
+    reset() {
+        this.refSumSquares = 0;
+        this.wetSumSquares = 0;
+        this.currentGain = 1.0;
     }
 
     /**
@@ -42,6 +49,11 @@ export class GainMatch {
      * @returns {number} The compensation gain factor
      */
     process(refSample, wetSample) {
+        // NaN/Infinity Safety
+        if (!Number.isFinite(refSample) || !Number.isFinite(wetSample)) {
+            return this.currentGain;
+        }
+
         // 1. Update RMS Detectors (EMA of squared samples)
         const refSq = refSample * refSample;
         const wetSq = wetSample * wetSample;
@@ -58,10 +70,7 @@ export class GainMatch {
 
         // Avoid boosting noise if reference is silent
         if (refRMS < this.EPSILON) {
-            targetGain = 0.0; // Or 1.0? If input is silent, we probably want output to be silent too.
-                              // If wet is noise, gain 0 silences it.
-                              // If wet is also silent, gain 0 is fine.
-                              // Let's assume strict matching: if ref is silent, output should be silent.
+            targetGain = 0.0;
         } else if (wetRMS < this.EPSILON) {
             // Wet is silent but ref is not.
             // Ideally gain should be infinite to match ref.
@@ -72,12 +81,14 @@ export class GainMatch {
             targetGain = refRMS / wetRMS;
         }
 
-        // Safety clamp (optional but recommended to prevent infinite blowups)
-        // e.g. Limit to +36dB (approx 63x) and -inf
-        // targetGain = Math.min(targetGain, 63.0);
-
         // 4. Smooth the Gain
         this.currentGain = (this.gainAlpha * this.currentGain) + ((1 - this.gainAlpha) * targetGain);
+
+        // Final safety check
+        if (!Number.isFinite(this.currentGain)) {
+            this.reset();
+            return 1.0;
+        }
 
         return this.currentGain;
     }

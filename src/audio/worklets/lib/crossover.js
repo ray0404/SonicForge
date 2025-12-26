@@ -1,4 +1,3 @@
-
 import { BiquadFilter } from './dsp-helpers.js';
 
 /**
@@ -13,8 +12,8 @@ import { BiquadFilter } from './dsp-helpers.js';
  */
 export class LinkwitzRiley4 {
     /**
-     * @param {number} sampleRate
-     * @param {number} cutoffFrequency
+     * @param {number} sampleRate - System sample rate.
+     * @param {number} cutoffFrequency - Crossover frequency in Hz.
      */
     constructor(sampleRate, cutoffFrequency) {
         this.sampleRate = sampleRate;
@@ -48,8 +47,8 @@ export class LinkwitzRiley4 {
     }
 
     /**
-     * Set a new cutoff frequency
-     * @param {number} frequency
+     * Set a new cutoff frequency and update coefficients.
+     * @param {number} frequency - New cutoff frequency in Hz.
      */
     setCutoff(frequency) {
         this.cutoffFrequency = frequency;
@@ -57,9 +56,9 @@ export class LinkwitzRiley4 {
     }
 
     /**
-     * Process a single sample
-     * @param {number} input
-     * @returns {{low: number, high: number}}
+     * Process a single sample through the crossover bands.
+     * @param {number} input - Input sample.
+     * @returns {{low: number, high: number}} Low and High band output samples.
      */
     process(input) {
         // Process Low Band: Input -> LP1 -> LP2
