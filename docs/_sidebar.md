@@ -3,12 +3,30 @@
 - [Architecture](architecture.md)
 - [Trinity Pattern](trinity-pattern.md)
 - [Module Reference]
-  - [Limiter](modules/limiter.md)
-  - [Dynamic EQ](modules/dynamic-eq.md)
-  - [Compressor](modules/compressor.md)
-  - [Core Processing](modules/core-processing.md)
-  - [Modulation & Time](modules/modulation-time.md)
-  - [Mixing & Creative](modules/mixing-creative.md)
-  - [Specialized Tools](modules/specialized-tools.md)
+  - **Dynamics**
+    - [Limiter](modules/dynamics/limiter.md)
+    - [Compressor](modules/dynamics/compressor.md)
+    - [Multiband Compressor](modules/dynamics/multiband-compressor.md)
+    - [DeEsser](modules/dynamics/deesser.md)
+    - [Transient Shaper](modules/dynamics/transient-shaper.md)
+  - **EQ & Filters**
+    - [Parametric EQ](modules/eq-filters/parametric-eq.md)
+    - [Dynamic EQ](modules/eq-filters/dynamic-eq.md)
+    - [Mid/Side EQ](modules/eq-filters/midside-eq.md)
+    - [AutoWah](modules/eq-filters/autowah.md)
+  - **Distortion**
+    - [Analog Saturation](modules/distortion/saturation.md)
+    - [Soft-Clip Distortion](modules/distortion/soft-clipper.md)
+    - [Bitcrusher](modules/distortion/bitcrusher.md)
+  - **Modulation**
+    - [Chorus](modules/modulation/chorus.md)
+    - [Phaser](modules/modulation/phaser.md)
+    - [Tremolo](modules/modulation/tremolo.md)
+  - **Time**
+    - [Feedback Delay](modules/time/feedback-delay.md)
+  - **Utility**
+    - [Stereo Imager](modules/utility/stereo-imager.md)
+    - [Cab Sim](modules/utility/cab-sim.md)
+    - [LUFS Meter](modules/utility/lufs-meter.md)
 - [Component Library](components.md)
 - [State Management](data-state.md)
