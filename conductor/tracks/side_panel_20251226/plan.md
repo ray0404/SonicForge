@@ -22,9 +22,9 @@ This plan follows the Trinity Pattern and TDD principles. Each phase concludes w
 - [x] **Task 1: URL Synchronization Hook**
     - [x] Write tests for `usePanelRouting.ts` (sync store state to URL search params).
     - [x] Implement routing sync logic.
-- [ ] **Task 2: Navigation Menu**
-    - [ ] Write tests for `NavMenu.tsx` (active state highlighting, click interactions).
-    - [ ] Implement the menu with icons (Lucide React) for Settings, Docs, Mixer, Timeline, Assets, Export.
+- [x] **Task 2: Navigation Menu**
+    - [x] Write tests for `NavMenu.tsx` (active state highlighting, click interactions).
+    - [x] Implement the menu with icons (Lucide React) for Settings, Docs, Mixer, Timeline, Assets, Export.
 - [ ] **Task: Conductor - User Manual Verification 'Phase 2: Navigation & Routing' (Protocol in workflow.md)**
 
 ## Phase 3: Documentation Viewer
