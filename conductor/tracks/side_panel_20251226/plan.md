@@ -30,9 +30,9 @@ This plan follows the Trinity Pattern and TDD principles. Each phase concludes w
 ## Phase 3: Documentation Viewer
 *Goal: Implement the in-app markdown viewer.*
 
-- [ ] **Task 1: Markdown Rendering Setup**
-    - [ ] Write tests for a `MarkdownViewer.tsx` component.
-    - [ ] Implement rendering using `react-markdown` with Tailwind Typography styling.
+- [x] **Task 1: Markdown Rendering Setup**
+    - [x] Write tests for a `MarkdownViewer.tsx` component.
+    - [x] Implement rendering using `react-markdown` with Tailwind Typography styling.
 - [ ] **Task 2: Doc Content Loading**
     - [ ] Write tests for an async loader to fetch `.md` files from the `docs/` directory.
     - [ ] Implement content fetching and error handling.
