@@ -1,10 +1,16 @@
 import React from 'react';
-import { useUIStore } from '@/store/useUIStore';
+import { useUIStore, PanelView } from '@/store/useUIStore';
 import { twMerge } from 'tailwind-merge';
 import { NavMenu } from './nav/NavMenu';
+import { SettingsView } from './panels/SettingsView';
+import { AssetManagerView } from './panels/AssetManagerView';
+import { ExportView } from './panels/ExportView';
+import { MarkdownViewer } from '@/components/common/MarkdownViewer';
+import { useDocumentation } from '@/hooks/useDocumentation';
 
 export const SidePanel: React.FC = () => {
     const { isPanelOpen, activeView } = useUIStore();
+    const { content: docContent, isLoading: isDocLoading } = useDocumentation(activeView === 'DOCS' ? 'guide' : ''); // Default to guide for now
 
     if (!isPanelOpen) return null;
 
@@ -16,6 +22,24 @@ export const SidePanel: React.FC = () => {
         'TIMELINE': 'Timeline',
         'ASSETS': 'Asset Manager',
         'EXPORT': 'Export'
+    };
+
+    const renderContent = () => {
+        switch (activeView) {
+            case 'SETTINGS': return <SettingsView />;
+            case 'ASSETS': return <AssetManagerView />;
+            case 'EXPORT': return <ExportView />;
+            case 'DOCS': 
+                return isDocLoading 
+                    ? <div className="text-slate-500 p-4">Loading docs...</div>
+                    : <MarkdownViewer content={docContent} />;
+            default:
+                return (
+                    <div className="flex flex-col items-center justify-center h-full text-slate-500 opacity-50">
+                        <p>This view is under construction.</p>
+                    </div>
+                );
+        }
     };
 
     return (
@@ -39,9 +63,8 @@ export const SidePanel: React.FC = () => {
                     <NavMenu />
                 </div>
                 
-                <div className="flex-1 p-4 overflow-y-auto">
-                    {/* Content placeholder */}
-                    <p className="text-slate-400">Content for {activeView} goes here.</p>
+                <div className="flex-1 p-4 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700">
+                    {renderContent()}
                 </div>
             </div>
         </div>
