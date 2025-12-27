@@ -1,6 +1,7 @@
 import React from 'react';
 import { useUIStore } from '@/store/useUIStore';
 import { twMerge } from 'tailwind-merge';
+import { NavMenu } from './nav/NavMenu';
 
 export const SidePanel: React.FC = () => {
     const { isPanelOpen, activeView } = useUIStore();
@@ -33,9 +34,15 @@ export const SidePanel: React.FC = () => {
                 <h2 className="text-xl font-bold">{titles[activeView] || 'Panel'}</h2>
             </div>
             
-            <div className="flex-1 p-4 overflow-y-auto">
-                {/* Content placeholder */}
-                <p className="text-slate-400">Content for {activeView} goes here.</p>
+            <div className="flex-1 overflow-hidden flex flex-col">
+                <div className="p-4 border-b border-slate-700 bg-slate-900/30">
+                    <NavMenu />
+                </div>
+                
+                <div className="flex-1 p-4 overflow-y-auto">
+                    {/* Content placeholder */}
+                    <p className="text-slate-400">Content for {activeView} goes here.</p>
+                </div>
             </div>
         </div>
     );
