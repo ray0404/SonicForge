@@ -39,7 +39,7 @@ This plan follows the Trinity Pattern and TDD principles. Each phase concludes w
 - [x] **Task: Conductor - User Manual Verification 'Phase 3: Documentation Viewer' (Protocol in workflow.md)**
 
 ## Phase 4: Content Sections & Integration
-*Goal: Implement the content for the remaining navigation items.*
+*Goal: Implement the content for the remaining navigation items.* [checkpoint: 7e3119b]
 
 - [x] **Task 1: Settings Section**
     - [x] Write tests for `SettingsView.tsx`.
@@ -49,7 +49,7 @@ This plan follows the Trinity Pattern and TDD principles. Each phase concludes w
     - [x] Create a view that lists assets currently in `useAudioStore`.
 - [x] **Task 3: Export Access**
     - [x] Connect the Export nav item to trigger the existing `renderOffline` functionality.
-- [ ] **Task: Conductor - User Manual Verification 'Phase 4: Content Sections & Integration' (Protocol in workflow.md)**
+- [x] **Task: Conductor - User Manual Verification 'Phase 4: Content Sections & Integration' (Protocol in workflow.md)**
 
 ## Phase 5: Polish & Accessibility
 *Goal: Final refinements for a production-ready feel.*
