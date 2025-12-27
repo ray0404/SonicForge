@@ -41,8 +41,8 @@ export const MasteringWorkspace: React.FC = () => {
   return (
     <div className="flex flex-col h-[100dvh] bg-background text-slate-200 overflow-hidden font-sans">
         {/* === HEADER === */}
-        <header className="shrink-0 flex items-center justify-between px-4 py-3 bg-surface border-b border-slate-700 shadow-lg z-50 relative">
-             <div className="flex items-center gap-3">
+        <header className="shrink-0 flex items-center justify-between px-4 py-3 bg-surface border-b border-slate-700 shadow-lg z-[60] relative">
+             <div className="flex items-center gap-3 shrink-0">
                  <div className="w-8 h-8 bg-gradient-to-br from-primary to-purple-600 rounded-lg shadow-inner flex items-center justify-center">
                     <Activity size={18} className="text-white mix-blend-overlay" />
                  </div>
@@ -52,23 +52,23 @@ export const MasteringWorkspace: React.FC = () => {
                  </div>
              </div>
 
-             <div className="flex items-center gap-3">
+             <div className="flex items-center gap-3 justify-end flex-1 min-w-0">
                  {!isPersistedToDisk && (
-                     <div className="hidden sm:flex items-center gap-1 text-amber-500 bg-amber-900/20 px-2 py-0.5 rounded text-[10px] border border-amber-500/20 animate-pulse">
+                     <div className="hidden sm:flex items-center gap-1 text-amber-500 bg-amber-900/20 px-2 py-0.5 rounded text-[10px] border border-amber-500/20 animate-pulse shrink-0">
                          <AlertTriangle size={10} />
                          <span>Unsaved</span>
                      </div>
                  )}
                  <button
                    onClick={handleSave}
-                   className="p-2 sm:px-3 sm:py-1.5 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 rounded-lg text-xs font-bold transition-all border border-slate-700 flex items-center gap-2"
+                   className="p-2 sm:px-3 sm:py-1.5 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 rounded-lg text-xs font-bold transition-all border border-slate-700 flex items-center gap-2 shrink-0"
                    title="Save Project"
                  >
                      <Save size={16} className="sm:w-3 sm:h-3" />
                      <span className="hidden sm:inline">Save</span>
                  </button>
 
-                 <div className="flex items-center bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
+                 <div className="flex items-center bg-slate-800 rounded-lg border border-slate-700 overflow-hidden shrink-0">
                     <button
                         onClick={handleImportClick}
                         className="p-2 sm:px-3 sm:py-1.5 hover:bg-slate-700 active:bg-slate-600 text-xs font-bold transition-all flex items-center gap-2 border-r border-slate-700"
@@ -96,14 +96,14 @@ export const MasteringWorkspace: React.FC = () => {
                     onChange={handleFileChange}
                  />
 
-                 <div className="h-6 w-px bg-slate-700 mx-1 hidden sm:block"></div>
+                 <div className="h-6 w-px bg-slate-700 mx-1 hidden sm:block shrink-0"></div>
                  <AddModuleMenu />
                  
-                 <div className="h-6 w-px bg-slate-700 mx-1"></div>
+                 <div className="h-6 w-px bg-slate-700 mx-1 shrink-0"></div>
                  <button
                     onClick={togglePanel}
                     className={clsx(
-                        "p-2 rounded-lg transition-all",
+                        "p-2 rounded-lg transition-all shrink-0",
                         isPanelOpen ? "bg-primary text-white shadow-glow" : "text-slate-400 hover:text-white hover:bg-slate-800"
                     )}
                  >
@@ -132,10 +132,10 @@ export const MasteringWorkspace: React.FC = () => {
                     
                     {/* Bottom Section: Transport & Visuals */}
                     <div className="bg-surface border-t border-slate-700 flex flex-col shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-40">
-                        <div className="px-4 py-2 bg-slate-900 border-b border-slate-800 flex justify-center shadow-inner">
+                        <div className="px-4 py-2 bg-background border-b border-slate-800 flex justify-center shadow-inner">
                             <Transport />
                         </div>
-                        <div className="flex-1 p-4 bg-slate-900">
+                        <div className="flex-1 p-4 bg-background">
                             <MasteringVisualizer className="w-full h-full" />
                         </div>
                     </div>
@@ -146,7 +146,7 @@ export const MasteringWorkspace: React.FC = () => {
                     <div className="flex-1 overflow-hidden relative">
                         {/* Rack Tab */}
                         <div className={clsx(
-                            "absolute inset-0 overflow-y-auto bg-rack-pattern p-4 pb-24 transition-opacity duration-300",
+                            "absolute inset-0 overflow-y-auto bg-rack-bg p-4 pb-24 transition-opacity duration-300",
                             activeTab === 'rack' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
                         )}>
                             <EffectsRack />
@@ -154,7 +154,7 @@ export const MasteringWorkspace: React.FC = () => {
                         
                         {/* Visualizer Tab */}
                         <div className={clsx(
-                            "absolute inset-0 bg-slate-900 p-4 flex flex-col gap-4 transition-opacity duration-300",
+                            "absolute inset-0 bg-background p-4 flex flex-col gap-4 transition-opacity duration-300",
                             activeTab === 'visualizer' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
                         )}>
                             <MasteringVisualizer className="w-full h-full" />
@@ -164,7 +164,7 @@ export const MasteringWorkspace: React.FC = () => {
                     {/* Mobile Bottom Bar: Transport + Tabs */}
                     <div className="shrink-0 bg-surface border-t border-slate-700 pb-safe z-50">
                          {/* Mini Transport */}
-                         <div className="px-2 py-2 bg-slate-950 border-b border-slate-800 flex justify-center">
+                         <div className="px-2 py-2 bg-background border-b border-slate-800 flex justify-center">
                              <Transport />
                          </div>
                          
