@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { act } from '@testing-library/react';
-import { useUIStore, PanelView } from './useUIStore';
+import { useUIStore } from './useUIStore';
 
 describe('useUIStore', () => {
     beforeEach(() => {

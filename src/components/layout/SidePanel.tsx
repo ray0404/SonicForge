@@ -1,6 +1,5 @@
 import React from 'react';
 import { useUIStore } from '@/store/useUIStore';
-import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 export const SidePanel: React.FC = () => {
