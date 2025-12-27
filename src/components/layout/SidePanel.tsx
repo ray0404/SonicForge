@@ -1,16 +1,13 @@
 import React from 'react';
-import { useUIStore, PanelView } from '@/store/useUIStore';
+import { useUIStore } from '@/store/useUIStore';
 import { twMerge } from 'tailwind-merge';
 import { NavMenu } from './nav/NavMenu';
 import { SettingsView } from './panels/SettingsView';
 import { AssetManagerView } from './panels/AssetManagerView';
 import { ExportView } from './panels/ExportView';
-import { MarkdownViewer } from '@/components/common/MarkdownViewer';
-import { useDocumentation } from '@/hooks/useDocumentation';
 
 export const SidePanel: React.FC = () => {
     const { isPanelOpen, activeView } = useUIStore();
-    const { content: docContent, isLoading: isDocLoading } = useDocumentation(activeView === 'DOCS' ? 'guide' : ''); // Default to guide for now
 
     if (!isPanelOpen) return null;
 
@@ -29,10 +26,6 @@ export const SidePanel: React.FC = () => {
             case 'SETTINGS': return <SettingsView />;
             case 'ASSETS': return <AssetManagerView />;
             case 'EXPORT': return <ExportView />;
-            case 'DOCS': 
-                return isDocLoading 
-                    ? <div className="text-slate-500 p-4">Loading docs...</div>
-                    : <MarkdownViewer content={docContent} />;
             default:
                 return (
                     <div className="flex flex-col items-center justify-center h-full text-slate-500 opacity-50">

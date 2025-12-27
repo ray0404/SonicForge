@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { audioEngine } from '@/audio/context';
+import { useAudioStore } from '@/store/useAudioStore';
 import { Download, CheckCircle, Loader2 } from 'lucide-react';
 
 export const ExportView: React.FC = () => {
+    const { rack, assets } = useAudioStore();
     const [isExporting, setIsExporting] = useState(false);
     const [isComplete, setIsComplete] = useState(false);
 
@@ -10,7 +12,7 @@ export const ExportView: React.FC = () => {
         setIsExporting(true);
         setIsComplete(false);
         try {
-            await audioEngine.renderOffline();
+            await audioEngine.renderOffline(rack, assets);
             setIsComplete(true);
         } catch (error) {
             console.error('Export failed', error);
