@@ -52,7 +52,7 @@ This plan follows the Trinity Pattern and TDD principles. Each phase concludes w
 - [x] **Task: Conductor - User Manual Verification 'Phase 4: Content Sections & Integration' (Protocol in workflow.md)**
 
 ## Phase 5: Polish & Accessibility
-*Goal: Final refinements for a production-ready feel.*
+*Goal: Final refinements for a production-ready feel.* [checkpoint: 2792b8e]
 
 - [x] **Task 1: Animations (Framer Motion)**
     - [x] Implement smooth slide transitions for opening/closing and content swapping.
