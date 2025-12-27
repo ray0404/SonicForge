@@ -56,7 +56,7 @@ This plan follows the Trinity Pattern and TDD principles. Each phase concludes w
 
 - [x] **Task 1: Animations (Framer Motion)**
     - [x] Implement smooth slide transitions for opening/closing and content swapping.
-- [ ] **Task 2: Accessibility (A11y)**
-    - [ ] Implement Focus Trapping for mobile overlay mode.
-    - [ ] Ensure full keyboard navigation support.
-- [ ] **Task: Conductor - User Manual Verification 'Phase 5: Polish & Accessibility' (Protocol in workflow.md)**
+- [x] **Task 2: Accessibility (A11y)**
+    - [x] Implement Focus Trapping for mobile overlay mode.
+    - [x] Ensure full keyboard navigation support.
+- [x] **Task: Conductor - User Manual Verification 'Phase 5: Polish & Accessibility' (Protocol in workflow.md)**
