@@ -19,9 +19,9 @@ This plan follows the Trinity Pattern and TDD principles. Each phase concludes w
 ## Phase 2: Navigation & Routing
 *Goal: Connect the side panel to the URL and provide the navigation menu.*
 
-- [ ] **Task 1: URL Synchronization Hook**
-    - [ ] Write tests for `usePanelRouting.ts` (sync store state to URL search params).
-    - [ ] Implement routing sync logic.
+- [x] **Task 1: URL Synchronization Hook**
+    - [x] Write tests for `usePanelRouting.ts` (sync store state to URL search params).
+    - [x] Implement routing sync logic.
 - [ ] **Task 2: Navigation Menu**
     - [ ] Write tests for `NavMenu.tsx` (active state highlighting, click interactions).
     - [ ] Implement the menu with icons (Lucide React) for Settings, Docs, Mixer, Timeline, Assets, Export.
