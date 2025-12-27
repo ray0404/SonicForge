@@ -3,7 +3,7 @@
 This plan follows the Trinity Pattern and TDD principles. Each phase concludes with a mandatory verification and checkpointing protocol.
 
 ## Phase 1: Infrastructure & Layout (UI Shell)
-*Goal: Establish the global UI state and the basic responsive layout shell.*
+*Goal: Establish the global UI state and the basic responsive layout shell.* [checkpoint: 04c6202]
 
 - [x] **Task 1: UI State Store**
     - [x] Write tests for `useUIStore.ts` (open/close, setView).
@@ -14,7 +14,7 @@ This plan follows the Trinity Pattern and TDD principles. Each phase concludes w
 - [x] **Task 3: Layout Integration (Push/Overlay)**
     - [x] Write integration tests for `MasteringWorkspace.tsx` to verify layout shifts on desktop vs mobile.
     - [x] Update layout to support the Hybrid (Overlay/Push) behavior.
-- [ ] **Task: Conductor - User Manual Verification 'Phase 1: Infrastructure & Layout' (Protocol in workflow.md)**
+- [x] **Task: Conductor - User Manual Verification 'Phase 1: Infrastructure & Layout' (Protocol in workflow.md)**
 
 ## Phase 2: Navigation & Routing
 *Goal: Connect the side panel to the URL and provide the navigation menu.*
