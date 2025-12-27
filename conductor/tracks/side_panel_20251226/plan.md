@@ -44,9 +44,9 @@ This plan follows the Trinity Pattern and TDD principles. Each phase concludes w
 - [x] **Task 1: Settings Section**
     - [x] Write tests for `SettingsView.tsx`.
     - [x] Implement basic preferences (e.g., Theme toggle, Audio Engine status).
-- [ ] **Task 2: Asset Manager Integration**
-    - [ ] Write tests for `AssetManagerView.tsx`.
-    - [ ] Create a view that lists assets currently in `useAudioStore`.
+- [x] **Task 2: Asset Manager Integration**
+    - [x] Write tests for `AssetManagerView.tsx`.
+    - [x] Create a view that lists assets currently in `useAudioStore`.
 - [ ] **Task 3: Export Access**
     - [ ] Connect the Export nav item to trigger the existing `renderOffline` functionality.
 - [ ] **Task: Conductor - User Manual Verification 'Phase 4: Content Sections & Integration' (Protocol in workflow.md)**
