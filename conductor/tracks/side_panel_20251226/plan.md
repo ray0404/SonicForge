@@ -33,9 +33,9 @@ This plan follows the Trinity Pattern and TDD principles. Each phase concludes w
 - [x] **Task 1: Markdown Rendering Setup**
     - [x] Write tests for a `MarkdownViewer.tsx` component.
     - [x] Implement rendering using `react-markdown` with Tailwind Typography styling.
-- [ ] **Task 2: Doc Content Loading**
-    - [ ] Write tests for an async loader to fetch `.md` files from the `docs/` directory.
-    - [ ] Implement content fetching and error handling.
+- [x] **Task 2: Doc Content Loading**
+    - [x] Write tests for an async loader to fetch `.md` files from the `docs/` directory.
+    - [x] Implement content fetching and error handling.
 - [ ] **Task: Conductor - User Manual Verification 'Phase 3: Documentation Viewer' (Protocol in workflow.md)**
 
 ## Phase 4: Content Sections & Integration
