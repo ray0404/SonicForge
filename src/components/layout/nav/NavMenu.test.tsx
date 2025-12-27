@@ -30,18 +30,16 @@ describe('NavMenu', () => {
 
     it('should highlight the active view', () => {
         (useUIStore as any).mockReturnValue({
-            activeView: 'DOCS',
+            activeView: 'ASSETS',
             setActiveView,
         });
 
         render(<NavMenu />);
         
-        const docsButton = screen.getByText('Documentation').closest('button');
+        const assetsButton = screen.getByText('Assets').closest('button');
         const settingsButton = screen.getByText('Settings').closest('button');
 
-        // Assuming active class has 'bg-slate-800' or similar
-        // We'll test for specific class presence or aria-current
-        expect(docsButton).toHaveAttribute('aria-current', 'page');
+        expect(assetsButton).toHaveAttribute('aria-current', 'page');
         expect(settingsButton).not.toHaveAttribute('aria-current');
     });
 

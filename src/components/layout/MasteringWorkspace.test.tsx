@@ -35,6 +35,8 @@ describe('MasteringWorkspace Layout Integration', () => {
             isPanelOpen: false,
             activeView: 'SETTINGS',
             togglePanel: vi.fn(),
+            openView: vi.fn(),
+            setPanelOpen: vi.fn(),
         });
     });
 
@@ -48,6 +50,9 @@ describe('MasteringWorkspace Layout Integration', () => {
         (useUIStore as any).mockReturnValue({
             isPanelOpen: true,
             activeView: 'SETTINGS',
+            togglePanel: vi.fn(),
+            openView: vi.fn(),
+            setPanelOpen: vi.fn(),
         });
 
         const { container } = render(<MasteringWorkspace />);
