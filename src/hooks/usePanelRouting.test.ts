@@ -36,7 +36,9 @@ describe('usePanelRouting', () => {
     });
 
     afterEach(() => {
-        window.location = originalLocation;
+        // Restore location
+        delete (window as any).location;
+        (window as any).location = originalLocation;
     });
 
     it('should update URL when panel opens', () => {

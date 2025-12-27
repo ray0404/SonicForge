@@ -3,6 +3,7 @@ import { Save, AlertTriangle, Layers, Activity, FileAudio, Trash2, Menu, X } fro
 import { useProjectPersistence } from '@/hooks/useProjectPersistence';
 import { useAudioStore } from '@/store/useAudioStore';
 import { useUIStore } from '@/store/useUIStore';
+import { usePanelRouting } from '@/hooks/usePanelRouting';
 import { EffectsRack } from '@/components/rack/EffectsRack';
 import { Transport } from '@/components/Transport';
 import { MasteringVisualizer } from '@/components/visualizers/MasteringVisualizer';
@@ -16,6 +17,9 @@ export const MasteringWorkspace: React.FC = () => {
   const { saveProject, isPersistedToDisk } = useProjectPersistence();
   const { loadSourceFile, clearSource, sourceDuration } = useAudioStore();
   const { isPanelOpen, togglePanel } = useUIStore();
+  
+  // Enable URL <-> Store synchronization
+  usePanelRouting();
   
   const [activeTab, setActiveTab] = useState<Tab>('rack');
   const fileInputRef = useRef<HTMLInputElement>(null);
