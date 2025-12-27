@@ -11,9 +11,9 @@ This plan follows the Trinity Pattern and TDD principles. Each phase concludes w
 - [x] **Task 2: SidePanel Component Shell**
     - [x] Write unit tests for `SidePanel.tsx` visibility and basic accessibility (ARIA roles).
     - [x] Create `SidePanel.tsx` with Glassmorphic styling (Tailwind `backdrop-blur`).
-- [ ] **Task 3: Layout Integration (Push/Overlay)**
-    - [ ] Write integration tests for `MasteringWorkspace.tsx` to verify layout shifts on desktop vs mobile.
-    - [ ] Update layout to support the Hybrid (Overlay/Push) behavior.
+- [x] **Task 3: Layout Integration (Push/Overlay)**
+    - [x] Write integration tests for `MasteringWorkspace.tsx` to verify layout shifts on desktop vs mobile.
+    - [x] Update layout to support the Hybrid (Overlay/Push) behavior.
 - [ ] **Task: Conductor - User Manual Verification 'Phase 1: Infrastructure & Layout' (Protocol in workflow.md)**
 
 ## Phase 2: Navigation & Routing
