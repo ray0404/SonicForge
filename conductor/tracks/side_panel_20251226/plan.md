@@ -54,8 +54,8 @@ This plan follows the Trinity Pattern and TDD principles. Each phase concludes w
 ## Phase 5: Polish & Accessibility
 *Goal: Final refinements for a production-ready feel.*
 
-- [ ] **Task 1: Animations (Framer Motion)**
-    - [ ] Implement smooth slide transitions for opening/closing and content swapping.
+- [x] **Task 1: Animations (Framer Motion)**
+    - [x] Implement smooth slide transitions for opening/closing and content swapping.
 - [ ] **Task 2: Accessibility (A11y)**
     - [ ] Implement Focus Trapping for mobile overlay mode.
     - [ ] Ensure full keyboard navigation support.
