@@ -28,7 +28,7 @@ This plan follows the Trinity Pattern and TDD principles. Each phase concludes w
 - [x] **Task: Conductor - User Manual Verification 'Phase 2: Navigation & Routing' (Protocol in workflow.md)**
 
 ## Phase 3: Documentation Viewer
-*Goal: Implement the in-app markdown viewer.*
+*Goal: Implement the in-app markdown viewer.* [checkpoint: 1f327fe]
 
 - [x] **Task 1: Markdown Rendering Setup**
     - [x] Write tests for a `MarkdownViewer.tsx` component.
@@ -36,7 +36,7 @@ This plan follows the Trinity Pattern and TDD principles. Each phase concludes w
 - [x] **Task 2: Doc Content Loading**
     - [x] Write tests for an async loader to fetch `.md` files from the `docs/` directory.
     - [x] Implement content fetching and error handling.
-- [ ] **Task: Conductor - User Manual Verification 'Phase 3: Documentation Viewer' (Protocol in workflow.md)**
+- [x] **Task: Conductor - User Manual Verification 'Phase 3: Documentation Viewer' (Protocol in workflow.md)**
 
 ## Phase 4: Content Sections & Integration
 *Goal: Implement the content for the remaining navigation items.*
