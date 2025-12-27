@@ -17,7 +17,7 @@ This plan follows the Trinity Pattern and TDD principles. Each phase concludes w
 - [x] **Task: Conductor - User Manual Verification 'Phase 1: Infrastructure & Layout' (Protocol in workflow.md)**
 
 ## Phase 2: Navigation & Routing
-*Goal: Connect the side panel to the URL and provide the navigation menu.*
+*Goal: Connect the side panel to the URL and provide the navigation menu.* [checkpoint: acb73c4]
 
 - [x] **Task 1: URL Synchronization Hook**
     - [x] Write tests for `usePanelRouting.ts` (sync store state to URL search params).
@@ -25,7 +25,7 @@ This plan follows the Trinity Pattern and TDD principles. Each phase concludes w
 - [x] **Task 2: Navigation Menu**
     - [x] Write tests for `NavMenu.tsx` (active state highlighting, click interactions).
     - [x] Implement the menu with icons (Lucide React) for Settings, Docs, Mixer, Timeline, Assets, Export.
-- [ ] **Task: Conductor - User Manual Verification 'Phase 2: Navigation & Routing' (Protocol in workflow.md)**
+- [x] **Task: Conductor - User Manual Verification 'Phase 2: Navigation & Routing' (Protocol in workflow.md)**
 
 ## Phase 3: Documentation Viewer
 *Goal: Implement the in-app markdown viewer.*
