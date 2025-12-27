@@ -16,9 +16,14 @@ describe('ExportView', () => {
         expect(screen.getByText('Start Offline Render')).toBeInTheDocument();
     });
 
-    it('should trigger renderOffline on click', () => {
+    it('should trigger renderOffline on click', async () => {
+        const renderOfflineMock = vi.fn().mockResolvedValue(undefined);
+        vi.mocked(audioEngine.renderOffline).mockImplementation(renderOfflineMock);
+
         render(<ExportView />);
         fireEvent.click(screen.getByText('Start Offline Render'));
-        expect(audioEngine.renderOffline).toHaveBeenCalled();
+        
+        expect(renderOfflineMock).toHaveBeenCalled();
+        expect(await screen.findByText('Export Complete!')).toBeInTheDocument();
     });
 });
