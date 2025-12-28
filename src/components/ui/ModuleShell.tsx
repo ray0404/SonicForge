@@ -28,7 +28,9 @@ export const ModuleShell: React.FC<ModuleShellProps> = ({
         <div className="flex items-center gap-2">
            {/* Drag Handle */}
            <div
-             className="cursor-grab active:cursor-grabbing text-slate-600 hover:text-slate-400 focus:outline-none touch-none p-1"
+             role="button"
+             aria-label={`Drag ${title}`}
+             className="cursor-grab active:cursor-grabbing text-slate-600 hover:text-slate-400 focus:outline-none focus:text-slate-400 touch-none p-1"
              {...dragHandleProps}
            >
              <GripVertical size={16} />
@@ -37,8 +39,11 @@ export const ModuleShell: React.FC<ModuleShellProps> = ({
            {/* Bypass Switch */}
            <button
              onClick={onBypass}
+             role="switch"
+             aria-checked={!isBypassed}
+             aria-label={isBypassed ? `Enable ${title}` : `Bypass ${title}`}
              className={clsx(
-               "w-3 h-3 rounded-full border transition-all shadow-[0_0_8px_rgba(0,0,0,0.5)] mx-1",
+               "w-3 h-3 rounded-full border transition-all shadow-[0_0_8px_rgba(0,0,0,0.5)] mx-1 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-offset-slate-950 focus:ring-primary",
                isBypassed
                  ? "bg-slate-800 border-slate-600"
                  : "bg-active-led border-green-400 shadow-[0_0_8px_rgba(34,197,94,0.6)]"
@@ -53,7 +58,8 @@ export const ModuleShell: React.FC<ModuleShellProps> = ({
 
         <button
           onClick={onRemove}
-          className="text-slate-600 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+          aria-label={`Remove ${title}`}
+          className="text-slate-600 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:text-red-500"
           title="Remove Module"
         >
           <X size={16} />
