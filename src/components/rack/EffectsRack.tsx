@@ -54,7 +54,7 @@ function SortableItem({ id, children }: { id: string, children: (dragHandleProps
         transition,
         opacity: isDragging ? 0.5 : 1,
         zIndex: isDragging ? 100 : 1,
-        position: 'relative' as 'relative',
+        position: 'relative' as const,
     };
 
     return (
