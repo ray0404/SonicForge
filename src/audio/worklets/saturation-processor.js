@@ -39,49 +39,43 @@ class SaturationProcessor extends AudioWorkletProcessor {
       const isGainConst = outGain.length === 1;
       const isMixConst = mixParam.length === 1;
 
+      // Initialize base variables
       let currentDrive = drive[0];
-      let currentTypeIdx = typeParam[0]; // Float index
       let currentGainDb = outGain[0];
       let currentMix = mixParam[0];
-      let currentType = 'Tube';
+      let currentTypeInt = 1; // Default to Tube (1)
+
+      // Pre-calculate constants outside the loop
+      let linearGain = 1.0;
+      if (isGainConst) {
+        linearGain = Math.pow(10, currentGainDb / 20);
+      }
 
       if (isTypeConst) {
-         const idx = Math.round(currentTypeIdx);
-         if (idx === 0) currentType = 'Tape';
-         else if (idx === 2) currentType = 'Fuzz';
+         currentTypeInt = Math.round(typeParam[0]);
       }
 
       for (let i = 0; i < length; i++) {
+        // Update per-sample parameters if not constant
         if (!isDriveConst) currentDrive = drive[i];
-        if (!isGainConst) currentGainDb = outGain[i];
         if (!isMixConst) currentMix = mixParam[i];
         
+        if (!isGainConst) {
+           currentGainDb = outGain[i];
+           // Only calculate pow inside loop if gain is changing
+           linearGain = Math.pow(10, currentGainDb / 20);
+        }
+
         if (!isTypeConst) {
-            const idx = Math.round(typeParam[i]);
-            if (idx === 0) currentType = 'Tape';
-            else if (idx === 2) currentType = 'Fuzz';
-            else currentType = 'Tube';
+            currentTypeInt = Math.round(typeParam[i]);
         }
 
         // Apply input gain (Drive)
         // Saturator.process(input, drive, type)
         // Note: The logic in Saturator applies 'drive' inside. 
-        // We pass 1.0 + drive to make 0.0 be unity? 
-        // Looking at lib/saturation.js: "x = input * drive". 
-        // So drive=1.0 is unity. The parameter is 0-10.
-        // Let's assume user knob 0 = unity (1.0) for better UX? 
-        // Or knob 0 = 0 (silence)? 
-        // "Drive: 0.0 to 10.0". Usually drive adds to unity.
-        // Let's interpret Parameter 0 as unity gain (1x). 
-        // Actually, standard distortion plugins: Drive 0 = clean.
-        // So we'll pass (1.0 + currentDrive).
-        
-        const saturated = this.saturator.process(inputChannel[i], 1.0 + currentDrive, currentType);
+        // We pass 1.0 + currentDrive so that drive 0.0 = unity gain.
+        const saturated = this.saturator.process(inputChannel[i], 1.0 + currentDrive, currentTypeInt);
 
-        // Apply Output Gain
-        // dB to Linear: 10 ^ (db / 20)
-        const linearGain = Math.pow(10, currentGainDb / 20);
-        
         const wet = saturated * linearGain;
         outputChannel[i] = inputChannel[i] * (1 - currentMix) + wet * currentMix;
       }

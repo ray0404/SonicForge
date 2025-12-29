@@ -4,50 +4,48 @@ import { Saturator } from './saturation.js';
 describe('Saturator DSP', () => {
     const saturator = new Saturator();
 
-    it('should pass through 0 without modification', () => {
-        expect(saturator.process(0, 1.0, 'Tube')).toBe(0);
-        expect(saturator.process(0, 1.0, 'Tape')).toBe(0);
-        expect(saturator.process(0, 1.0, 'Fuzz')).toBe(0);
+    it('should pass through silence correctly', () => {
+        expect(saturator.process(0, 1.0, Saturator.TYPE_TAPE)).toBe(0);
+        expect(saturator.process(0, 1.0, Saturator.TYPE_TUBE)).toBe(0);
+        expect(saturator.process(0, 1.0, Saturator.TYPE_FUZZ)).toBe(0);
     });
 
-    it('should hard clip Fuzz at +/- 1.0', () => {
-        expect(saturator.process(1.5, 1.0, 'Fuzz')).toBe(1.0);
-        expect(saturator.process(-1.5, 1.0, 'Fuzz')).toBe(-1.0);
-    });
-
-    it('should apply drive gain', () => {
-        // Drive of 2.0 (1.0 passed as param effectively means 1x, so input * 2.0?)
-        // In our processor logic we pass (1.0 + DriveKnob).
-        // Saturator.process(input, drive, ...) does `x = input * drive`.
-        // So input 0.5 * drive 2.0 = 1.0.
-        // Fuzz should clip 1.0 at 1.0.
-        expect(saturator.process(0.5, 2.0, 'Fuzz')).toBe(1.0);
-    });
-
-    it('should saturate asymmetrically for Tube (positive)', () => {
+    it('should implement Tape saturation (tanh)', () => {
+        // Tape is type 0
         const input = 0.5;
-        const drive = 1.0;
-        const output = saturator.process(input, drive, 'Tube');
-        // tanh(0.5) = 0.4621
-        expect(output).toBeCloseTo(Math.tanh(0.5), 4);
+        // Saturator.process(input, drive, ...) does `x = input * drive`.
+        const expected = Math.tanh(input);
+        expect(saturator.process(input, 1.0, Saturator.TYPE_TAPE)).toBeCloseTo(expected);
     });
 
-    it('should saturate asymmetrically for Tube (negative)', () => {
-        const input = -0.5;
-        const drive = 1.0;
-        const output = saturator.process(input, drive, 'Tube');
-        // x / (1 + |x|) = -0.5 / 1.5 = -0.3333
-        expect(output).toBeCloseTo(-0.3333, 4);
+    it('should implement Tube saturation (asymmetric)', () => {
+        // Tube is type 1
+        // Positive input -> tanh
+        expect(saturator.process(0.5, 1.0, Saturator.TYPE_TUBE)).toBeCloseTo(Math.tanh(0.5));
+
+        // Negative input -> x / (1 + |x|)
+        const negInput = -0.5;
+        const expected = negInput / (1 + Math.abs(negInput));
+        expect(saturator.process(negInput, 1.0, Saturator.TYPE_TUBE)).toBeCloseTo(expected);
     });
 
-    it('should saturate symmetrically for Tape', () => {
-        const drive = 1.0;
-        const pos = saturator.process(0.5, drive, 'Tape');
-        const neg = saturator.process(-0.5, drive, 'Tape');
-        // tanh(0.5) approx 0.4621
-        // tanh(-0.5) approx -0.4621
-        expect(pos).toBeCloseTo(Math.tanh(0.5), 4);
-        expect(neg).toBeCloseTo(Math.tanh(-0.5), 4);
-        expect(pos).toBeCloseTo(-neg, 4);
+    it('should implement Fuzz saturation (hard clipping)', () => {
+        // Fuzz is type 2
+        // Within range
+        expect(saturator.process(0.5, 1.0, Saturator.TYPE_FUZZ)).toBe(0.5);
+
+        // Clipping
+        expect(saturator.process(1.5, 1.0, Saturator.TYPE_FUZZ)).toBe(1.0);
+        expect(saturator.process(-1.5, 1.0, Saturator.TYPE_FUZZ)).toBe(-1.0);
+    });
+
+    it('should apply drive correctly', () => {
+        // With drive=2.0, input 0.5 becomes 1.0
+        // Tape (type 0) at 1.0 -> tanh(1.0)
+        expect(saturator.process(0.5, 2.0, Saturator.TYPE_TAPE)).toBeCloseTo(Math.tanh(1.0));
+    });
+
+    it('should fallback to Tape for unknown types', () => {
+        expect(saturator.process(0.5, 1.0, 99)).toBeCloseTo(Math.tanh(0.5));
     });
 });
