@@ -6,12 +6,15 @@ const CACHE_NAME = 'sonic-forge-v1';
 // eslint-disable-next-line
 const MANIFEST = self.__WB_MANIFEST;
 
+const MANIFEST_URLS = Array.isArray(MANIFEST) ? MANIFEST.map(e => e.url) : [];
+
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/manifest.json',
   '/pwa-192x192.png',
-  '/pwa-512x512.png'
+  '/pwa-512x512.png',
+  ...MANIFEST_URLS
 ];
 
 self.addEventListener('install', (event) => {
