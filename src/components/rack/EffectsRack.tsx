@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAudioStore } from '@/store/useAudioStore';
+import { useShallow } from 'zustand/react/shallow';
 import {
   DndContext,
   closestCenter,
@@ -65,7 +66,15 @@ function SortableItem({ id, children }: { id: string, children: (dragHandleProps
 }
 
 export const EffectsRack: React.FC = () => {
-  const { rack, removeModule, updateModuleParam, toggleModuleBypass, reorderRack } = useAudioStore();
+  const { rack, removeModule, updateModuleParam, toggleModuleBypass, reorderRack } = useAudioStore(
+    useShallow((state) => ({
+      rack: state.rack,
+      removeModule: state.removeModule,
+      updateModuleParam: state.updateModuleParam,
+      toggleModuleBypass: state.toggleModuleBypass,
+      reorderRack: state.reorderRack
+    }))
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor),
