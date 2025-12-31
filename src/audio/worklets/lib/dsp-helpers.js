@@ -242,7 +242,12 @@ export class DelayLine {
      */
     write(input) {
         this.buffer[this.writeIndex] = input;
-        this.writeIndex = (this.writeIndex + 1) % this.size;
+
+        // Optimization: Avoid modulo operator for simple increment
+        this.writeIndex++;
+        if (this.writeIndex === this.size) {
+            this.writeIndex = 0;
+        }
     }
 
     /**
@@ -253,13 +258,23 @@ export class DelayLine {
     read(delaySamples) {
         // Calculate read index
         let readPtr = this.writeIndex - delaySamples;
-        while (readPtr < 0) readPtr += this.size;
+
+        // Optimization: Handle wrapping without loop for common case
+        while (readPtr < 0) {
+             readPtr += this.size;
+        }
 
         const i = Math.floor(readPtr);
         const f = readPtr - i; // Fractional part
 
-        const i1 = i % this.size;
-        const i2 = (i + 1) % this.size;
+        // Optimization: Avoid modulo where simple comparison works
+        // readPtr is [0, size). i is [0, size-1].
+        const i1 = i;
+
+        let i2 = i + 1;
+        if (i2 === this.size) {
+            i2 = 0;
+        }
 
         const s1 = this.buffer[i1];
         const s2 = this.buffer[i2];
@@ -284,9 +299,11 @@ export class LFO {
      * @returns {number} Current LFO value [-1, 1].
      */
     process(frequency, sampleRate) {
+        const TWO_PI = 6.283185307179586;
+
         // Increment phase
-        this.phase += (2 * Math.PI * frequency) / sampleRate;
-        if (this.phase > 2 * Math.PI) this.phase -= 2 * Math.PI;
+        this.phase += (TWO_PI * frequency) / sampleRate;
+        if (this.phase > TWO_PI) this.phase -= TWO_PI;
         
         return Math.sin(this.phase);
     }
@@ -318,4 +335,3 @@ export class OnePoleAllPass {
         return output;
     }
 }
-
