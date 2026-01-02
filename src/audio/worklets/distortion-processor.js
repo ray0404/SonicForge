@@ -31,7 +31,6 @@ class DistortionProcessor extends AudioWorkletProcessor {
         // Optimization: Hoist Constant Calculations
         const constDrive = isConstDrive ? driveParam[0] : 0;
         const constWet = isConstWet ? wetParam[0] : 0;
-        // Pre-round type for constant case as shaper expects integer
         const constTypeInt = isConstType ? Math.round(typeParam[0]) : 0;
         const constOutGain = isConstGain ? Math.pow(10, outGainParam[0] / 20.0) : 0;
 
@@ -40,21 +39,50 @@ class DistortionProcessor extends AudioWorkletProcessor {
             const outputChannel = output[channel];
             let lastX = this.lastSample; // Simple state for 2x oversampling interpolation
 
+            // Optimization: Inline shaper logic and avoid function calls
             for (let i = 0; i < inputChannel.length; i++) {
                 const x = inputChannel[i];
                 
                 const drive = isConstDrive ? constDrive : driveParam[i];
                 const wet = isConstWet ? constWet : wetParam[i];
-                const type = isConstType ? constTypeInt : typeParam[i];
+                // Resolve type once per sample if automated, otherwise use hoisted constant
+                const type = isConstType ? constTypeInt : Math.round(typeParam[i]);
                 const outGain = isConstGain ? constOutGain : Math.pow(10, outGainParam[i] / 20.0);
 
                 // 2x Oversampling (Linear Interpolation + Averaging)
-                // 1. Interpolate intermediate sample
                 const x_interp = 0.5 * (x + lastX);
-                
-                // 2. Process both samples
-                const y_real = this.shaper(x * drive, type);
-                const y_interp = this.shaper(x_interp * drive, type);
+                const xd = x * drive;
+                const xid = x_interp * drive;
+
+                let y_real, y_interp;
+
+                // Inline Shaper Logic
+                if (type === 0) {
+                    // Soft Clipping (Tanh)
+                    y_real = Math.tanh(xd);
+                    y_interp = Math.tanh(xid);
+                } else if (type === 1) {
+                    // ArcTangent (Harder Clip)
+                    // f(x) = (2/PI) * atan(x)
+                    // Optimization: 2/PI is approx 0.6366197723675814
+                    const k = 0.6366197723675814;
+                    y_real = k * Math.atan(xd);
+                    y_interp = k * Math.atan(xid);
+                } else {
+                    // Simple Soft Clip (Cubic)
+                    // f(x) = x - x^3/3 if -1.5 < x < 1.5
+                    if (xd > -1.5 && xd < 1.5) {
+                        y_real = xd - (xd * xd * xd) / 3.0;
+                    } else {
+                        y_real = xd > 0 ? 1.0 : -1.0;
+                    }
+
+                    if (xid > -1.5 && xid < 1.5) {
+                        y_interp = xid - (xid * xid * xid) / 3.0;
+                    } else {
+                        y_interp = xid > 0 ? 1.0 : -1.0;
+                    }
+                }
 
                 // 3. Decimate (Average)
                 const processed = 0.5 * (y_real + y_interp);
@@ -65,31 +93,9 @@ class DistortionProcessor extends AudioWorkletProcessor {
                 lastX = x;
             }
             // Note: Per-channel state persistence between blocks is simplified here.
-            // In a production environment with critical fidelity requirements,
-            // explicit per-channel state management (this.channelState[ch]) would be preferred.
         }
         
         return true;
-    }
-
-    shaper(x, type) {
-        const t = Math.round(type);
-        if (t === 0) {
-            // Soft Clipping (Tanh)
-            return Math.tanh(x);
-        } else if (t === 1) {
-            // ArcTangent (Harder Clip)
-            // f(x) = (2/PI) * atan(x)
-            return (2.0 / Math.PI) * Math.atan(x);
-        } else {
-            // Simple Soft Clip (Cubic)
-            // f(x) = x - x^3/3 if -1.5 < x < 1.5
-            if (x > -1.5 && x < 1.5) {
-                return x - (x * x * x) / 3.0;
-            } else {
-                return x > 0 ? 1.0 : -1.0;
-            }
-        }
     }
 }
 
