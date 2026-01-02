@@ -28,6 +28,8 @@ export const ModuleShell: React.FC<ModuleShellProps> = ({
         <div className="flex items-center gap-2">
            {/* Drag Handle */}
            <div
+             role="button"
+             aria-label="Drag handle"
              className="cursor-grab active:cursor-grabbing text-slate-600 hover:text-slate-400 focus:outline-none touch-none p-1"
              {...dragHandleProps}
            >
@@ -37,6 +39,9 @@ export const ModuleShell: React.FC<ModuleShellProps> = ({
            {/* Bypass Switch */}
            <button
              onClick={onBypass}
+             role="switch"
+             aria-checked={!isBypassed}
+             aria-label={isBypassed ? "Activate module" : "Bypass module"}
              className={clsx(
                "w-3 h-3 rounded-full border transition-all shadow-[0_0_8px_rgba(0,0,0,0.5)] mx-1",
                isBypassed
@@ -53,7 +58,8 @@ export const ModuleShell: React.FC<ModuleShellProps> = ({
 
         <button
           onClick={onRemove}
-          className="text-slate-600 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+          aria-label={`Remove ${title} module`}
+          className="text-slate-600 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 focus:text-red-500"
           title="Remove Module"
         >
           <X size={16} />
