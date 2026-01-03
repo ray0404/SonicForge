@@ -242,7 +242,8 @@ export class DelayLine {
      */
     write(input) {
         this.buffer[this.writeIndex] = input;
-        this.writeIndex = (this.writeIndex + 1) % this.size;
+        this.writeIndex++;
+        if (this.writeIndex >= this.size) this.writeIndex = 0;
     }
 
     /**
@@ -253,13 +254,25 @@ export class DelayLine {
     read(delaySamples) {
         // Calculate read index
         let readPtr = this.writeIndex - delaySamples;
-        while (readPtr < 0) readPtr += this.size;
+        if (readPtr < 0) {
+            readPtr += this.size;
+            // Handle extremely large delaySamples just in case, though unlikely in typical usage
+            if (readPtr < 0) {
+                readPtr %= this.size;
+                if (readPtr < 0) readPtr += this.size;
+            }
+        } else if (readPtr >= this.size) {
+            // Should not happen for delay, but for safety
+            readPtr %= this.size;
+        }
 
         const i = Math.floor(readPtr);
         const f = readPtr - i; // Fractional part
 
-        const i1 = i % this.size;
-        const i2 = (i + 1) % this.size;
+        // i is guaranteed to be within [0, size)
+        const i1 = i;
+        let i2 = i + 1;
+        if (i2 >= this.size) i2 = 0;
 
         const s1 = this.buffer[i1];
         const s2 = this.buffer[i2];
