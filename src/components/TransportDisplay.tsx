@@ -36,13 +36,11 @@ export const TransportDisplay: React.FC = () => {
              </span>
           </div>
           <div className="relative h-6 group flex items-center">
-             {/* Custom Range Track */}
-             <div className="absolute left-0 right-0 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                 <div
-                    className="h-full bg-primary transition-all duration-75"
-                    style={{ width: `${(currentTime / (sourceDuration || 1)) * 100}%` }}
-                 />
-             </div>
+             {/*
+                Accessibility Improvement:
+                Input comes BEFORE the visual track in DOM so we can use the 'peer' selector.
+                This allows the custom track to show a focus ring when the invisible input is focused.
+             */}
              <input
                   type="range"
                   aria-label="Seek"
@@ -52,8 +50,15 @@ export const TransportDisplay: React.FC = () => {
                   value={currentTime}
                   onChange={handleSeek}
                   disabled={!hasSource}
-                  className="absolute inset-0 w-full opacity-0 cursor-pointer z-10"
+                  className="peer absolute inset-0 w-full opacity-0 cursor-pointer z-10"
               />
+             {/* Custom Range Track */}
+             <div className="absolute left-0 right-0 h-1.5 bg-slate-800 rounded-full overflow-hidden peer-focus-visible:ring-2 peer-focus-visible:ring-blue-500 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-slate-900 transition-shadow">
+                 <div
+                    className="h-full bg-primary transition-all duration-75"
+                    style={{ width: `${(currentTime / (sourceDuration || 1)) * 100}%` }}
+                 />
+             </div>
           </div>
       </div>
     );
