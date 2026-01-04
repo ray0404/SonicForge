@@ -242,7 +242,12 @@ export class DelayLine {
      */
     write(input) {
         this.buffer[this.writeIndex] = input;
-        this.writeIndex = (this.writeIndex + 1) % this.size;
+
+        // Optimization: Conditional subtraction is faster than modulo (%)
+        this.writeIndex++;
+        if (this.writeIndex >= this.size) {
+            this.writeIndex = 0;
+        }
     }
 
     /**
@@ -253,13 +258,20 @@ export class DelayLine {
     read(delaySamples) {
         // Calculate read index
         let readPtr = this.writeIndex - delaySamples;
+
+        // Wrap read pointer
         while (readPtr < 0) readPtr += this.size;
+        while (readPtr >= this.size) readPtr -= this.size;
 
         const i = Math.floor(readPtr);
         const f = readPtr - i; // Fractional part
 
-        const i1 = i % this.size;
-        const i2 = (i + 1) % this.size;
+        // Optimization: Avoid modulo for index wrapping
+        // i is guaranteed to be within [0, size-1] due to wrapping readPtr
+        const i1 = i;
+
+        let i2 = i + 1;
+        if (i2 >= this.size) i2 = 0;
 
         const s1 = this.buffer[i1];
         const s2 = this.buffer[i2];
@@ -318,4 +330,3 @@ export class OnePoleAllPass {
         return output;
     }
 }
-
