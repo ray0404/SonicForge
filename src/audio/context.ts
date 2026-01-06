@@ -316,7 +316,7 @@ class AudioEngine {
     const activeIds: string[] = [];
 
     rack.forEach(module => {
-        let node = this.getOrCreateNode(module);
+        const node = this.getOrCreateNode(module);
         // Note: Params are updated inside getOrCreateNode via createModuleNode,
         // but we can call it again to be sure if reusing nodes.
         // Actually getOrCreateNode only calls createModuleNode if NEW.
