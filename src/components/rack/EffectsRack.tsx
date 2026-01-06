@@ -13,57 +13,11 @@ import {
 import {
   SortableContext,
   sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  useSortable
+  verticalListSortingStrategy
 } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 
-import { DynamicEQUnit } from './DynamicEQUnit';
-import { LimiterUnit } from './LimiterUnit';
-import { MidSideEQUnit } from './MidSideEQUnit';
-import { CabSimUnit } from './CabSimUnit';
-import { MeteringUnit } from './MeteringUnit';
-import { TransientShaperUnit } from './TransientShaperUnit';
-import { SaturationUnit } from './SaturationUnit';
-import { DitheringUnit } from './DitheringUnit';
-import { ParametricEQUnit } from './ParametricEQUnit';
-import { DistortionUnit } from './DistortionUnit';
-import { BitCrusherUnit } from './BitCrusherUnit';
-import { ChorusUnit } from './ChorusUnit';
-import { PhaserUnit } from './PhaserUnit';
-import { TremoloUnit } from './TremoloUnit';
-import { AutoWahUnit } from './AutoWahUnit';
-import { FeedbackDelayUnit } from './FeedbackDelayUnit';
-import { CompressorUnit } from './CompressorUnit';
-import { DeEsserUnit } from './DeEsserUnit';
-import { StereoImagerUnit } from './StereoImagerUnit';
-import { MultibandCompressorUnit } from './MultibandCompressorUnit';
-
-
-function SortableItem({ id, children }: { id: string, children: (dragHandleProps: any) => React.ReactNode }) {
-    const {
-        attributes,
-        listeners,
-        setNodeRef,
-        transform,
-        transition,
-        isDragging
-    } = useSortable({ id });
-
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.5 : 1,
-        zIndex: isDragging ? 100 : 1,
-        position: 'relative' as 'relative',
-    };
-
-    return (
-        <div ref={setNodeRef} style={style} className="w-full">
-            {children({ ...attributes, ...listeners })}
-        </div>
-    );
-}
+import { SortableItem } from './SortableItem';
+import { RackModuleContainer } from './RackModuleContainer';
 
 export const EffectsRack: React.FC = () => {
   const { rack, removeModule, updateModuleParam, toggleModuleBypass, reorderRack } = useAudioStore(
@@ -112,40 +66,15 @@ export const EffectsRack: React.FC = () => {
                  >
                     {rack.map((module) => (
                         <SortableItem key={module.id} id={module.id}>
-                            {(dragHandleProps) => {
-                                const commonProps = {
-                                    module,
-                                    onRemove: () => removeModule(module.id),
-                                    onBypass: () => toggleModuleBypass(module.id),
-                                    dragHandleProps
-                                };
-                                const onUpdate = (p: string, v: any) => updateModuleParam(module.id, p, v);
-
-                                switch (module.type) {
-                                    case 'DYNAMIC_EQ': return <DynamicEQUnit {...commonProps} onUpdate={onUpdate} />;
-                                    case 'LIMITER': return <LimiterUnit {...commonProps} onUpdate={onUpdate} />;
-                                    case 'MIDSIDE_EQ': return <MidSideEQUnit {...commonProps} onUpdate={onUpdate} />;
-                                    case 'CAB_SIM': return <CabSimUnit {...commonProps} onUpdate={onUpdate} />;
-                                    case 'TRANSIENT_SHAPER': return <TransientShaperUnit {...commonProps} onUpdate={onUpdate} />;
-                                    case 'SATURATION': return <SaturationUnit {...commonProps} onUpdate={onUpdate} />;
-                                    case 'DITHERING': return <DitheringUnit {...commonProps} onUpdate={onUpdate} />;
-                                    case 'LOUDNESS_METER': return <MeteringUnit {...commonProps} />;
-                                    case 'PARAMETRIC_EQ': return <ParametricEQUnit {...commonProps} onUpdate={onUpdate} />;
-                                    case 'DISTORTION': return <DistortionUnit {...commonProps} onUpdate={onUpdate} />;
-                                    case 'BITCRUSHER': return <BitCrusherUnit {...commonProps} onUpdate={onUpdate} />;
-                                    case 'CHORUS': return <ChorusUnit {...commonProps} onUpdate={onUpdate} />;
-                                    case 'PHASER': return <PhaserUnit {...commonProps} onUpdate={onUpdate} />;
-                                    case 'TREMOLO': return <TremoloUnit {...commonProps} onUpdate={onUpdate} />;
-                                    case 'AUTOWAH': return <AutoWahUnit {...commonProps} onUpdate={onUpdate} />;
-                                    case 'FEEDBACK_DELAY': return <FeedbackDelayUnit {...commonProps} onUpdate={onUpdate} />;
-                                    case 'COMPRESSOR': return <CompressorUnit {...commonProps} onUpdate={onUpdate} />;
-                                    case 'DE_ESSER': return <DeEsserUnit {...commonProps} onUpdate={onUpdate} />;
-                                    case 'STEREO_IMAGER': return <StereoImagerUnit {...commonProps} onUpdate={onUpdate} />;
-                                    case 'MULTIBAND_COMPRESSOR': return <MultibandCompressorUnit {...commonProps} onUpdate={onUpdate} />;
-                                    default:
-                                        return <div className="p-4 bg-red-900/50 text-red-200 rounded">Unknown Module: {module.type}</div>;
-                                }
-                            }}
+                            {(dragHandleProps) => (
+                                <RackModuleContainer
+                                    module={module}
+                                    removeModule={removeModule}
+                                    toggleModuleBypass={toggleModuleBypass}
+                                    updateModuleParam={updateModuleParam}
+                                    dragHandleProps={dragHandleProps}
+                                />
+                            )}
                         </SortableItem>
                     ))}
                  </SortableContext>
