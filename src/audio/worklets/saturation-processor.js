@@ -1,9 +1,10 @@
-import { Saturator } from './lib/saturation.js';
+// Remove import as we inline logic
+// import { Saturator } from './lib/saturation.js';
 
 class SaturationProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
-    this.saturator = new Saturator();
+    // this.saturator = new Saturator(); // Removed wrapper
   }
 
   static get parameterDescriptors() {
@@ -27,6 +28,10 @@ class SaturationProcessor extends AudioWorkletProcessor {
 
     const channelCount = input.length;
 
+    // Pre-calculate constants for optimization
+    // ln(10) / 20 ≈ 0.115129
+    const DB_TO_LINEAR_COEFF = 0.11512925464970228;
+
     for (let channel = 0; channel < channelCount; channel++) {
       const inputChannel = input[channel];
       const outputChannel = output[channel];
@@ -46,12 +51,17 @@ class SaturationProcessor extends AudioWorkletProcessor {
       // Pre-calculate constants outside the loop
       let linearGain = 1.0;
       if (isGainConst) {
-        linearGain = Math.pow(10, currentGainDb / 20);
+        // Optimization: Use Math.exp instead of Math.pow(10, x/20)
+        linearGain = Math.exp(currentGainDb * DB_TO_LINEAR_COEFF);
       }
 
       if (isTypeConst) {
          currentTypeInt = Math.round(typeParam[0]);
       }
+
+      // Optimization: Hoist mode check if constant to specialized loops?
+      // For now, inlining inside one loop is a big enough win over function call overhead.
+      // Doing 3 separate loops might be faster but increases code size significantly.
 
       for (let i = 0; i < length; i++) {
         // Update per-sample parameters if not constant
@@ -60,8 +70,8 @@ class SaturationProcessor extends AudioWorkletProcessor {
         
         if (!isGainConst) {
            currentGainDb = outGain[i];
-           // Only calculate pow inside loop if gain is changing
-           linearGain = Math.pow(10, currentGainDb / 20);
+           // Optimization: Math.exp is faster than Math.pow
+           linearGain = Math.exp(currentGainDb * DB_TO_LINEAR_COEFF);
         }
 
         if (!isTypeConst) {
@@ -69,9 +79,24 @@ class SaturationProcessor extends AudioWorkletProcessor {
         }
 
         // Apply input gain (Drive)
-        // Saturator.process(input, drive, type)
-        // We pass 1.0 + currentDrive so that drive 0.0 = unity gain.
-        const saturated = this.saturator.process(inputChannel[i], 1.0 + currentDrive, currentTypeInt);
+        // input * (1.0 + drive) so 0 drive = unity gain
+        const x = inputChannel[i] * (1.0 + currentDrive);
+        let saturated;
+
+        // Inlined Saturation Logic (replaces Saturator.process)
+        if (currentTypeInt === 1) { // Tube
+            if (x >= 0) {
+                saturated = Math.tanh(x);
+            } else {
+                saturated = x / (1 + Math.abs(x));
+            }
+        } else if (currentTypeInt === 2) { // Fuzz
+            if (x > 1.0) saturated = 1.0;
+            else if (x < -1.0) saturated = -1.0;
+            else saturated = x;
+        } else { // Tape (0) or default
+            saturated = Math.tanh(x);
+        }
 
         const wet = saturated * linearGain;
         outputChannel[i] = inputChannel[i] * (1 - currentMix) + wet * currentMix;
