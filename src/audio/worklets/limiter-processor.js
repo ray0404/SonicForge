@@ -1,4 +1,4 @@
-import { DelayLine, EnvelopeFollower } from './lib/dsp-helpers.js';
+import { DelayLine, EnvelopeFollower, dbToLinear } from './lib/dsp-helpers.js';
 
 class LimiterProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
@@ -37,8 +37,8 @@ class LimiterProcessor extends AudioWorkletProcessor {
       }
     }
 
-    const thresholdLinear = Math.pow(10, thresholdDb / 20);
-    const ceilingLinear = Math.pow(10, ceilingDb / 20);
+    const thresholdLinear = dbToLinear(thresholdDb);
+    const ceilingLinear = dbToLinear(ceilingDb);
     
     // Lookahead in samples
     const lookaheadSamples = Math.floor((lookaheadMs / 1000) * sampleRate);
