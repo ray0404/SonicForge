@@ -1,4 +1,5 @@
 import { LinkwitzRiley4 } from './lib/crossover.js';
+import { dbToLinear } from './lib/dsp-helpers.js';
 
 // Internal VCA Class to handle per-band compression logic
 class VCA {
@@ -31,8 +32,8 @@ class VCA {
         }
 
         // 4. Apply
-        const gain = Math.pow(10, -this.gr / 20);
-        const mk = Math.pow(10, makeup / 20);
+        const gain = dbToLinear(-this.gr);
+        const mk = dbToLinear(makeup);
         
         return { output: sample * gain * mk, reduction: this.gr };
     }

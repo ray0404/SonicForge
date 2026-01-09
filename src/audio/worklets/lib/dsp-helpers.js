@@ -3,6 +3,19 @@
  * Pure JS implementation of common DSP components.
  */
 
+// Constants for math optimization
+const LN10_DIV_40 = 0.05756462732485114;
+const LN10_DIV_20 = 0.11512925464970228;
+
+/**
+ * Converts Decibels to Linear gain factor using optimized Math.exp.
+ * @param {number} db - Value in Decibels.
+ * @returns {number} Linear gain factor.
+ */
+export function dbToLinear(db) {
+    return Math.exp(db * LN10_DIV_20);
+}
+
 /**
  * Standard RBJ Biquad Filter implementation.
  */
@@ -53,7 +66,8 @@ export class BiquadFilter {
      * @param {number} gain - Gain in dB.
      */
     setGain(gain) {
-        const A = Math.pow(10, gain / 40);
+        // Optimized: Math.exp(gain * (Math.LN10 / 40))
+        const A = Math.exp(gain * LN10_DIV_40);
         const { cosw0, alpha, type } = this.cache;
         
         let b0, b1, b2, a0, a1, a2;
