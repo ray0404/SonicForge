@@ -27,18 +27,24 @@ export const ModuleShell: React.FC<ModuleShellProps> = ({
       <div className="flex items-center justify-between px-3 py-2 bg-slate-950 border-b border-slate-800">
         <div className="flex items-center gap-2">
            {/* Drag Handle */}
-           <div
-             className="cursor-grab active:cursor-grabbing text-slate-600 hover:text-slate-400 focus:outline-none touch-none p-1"
+           <button
+             type="button"
+             aria-label="Drag to reorder"
+             className="cursor-grab active:cursor-grabbing text-slate-600 hover:text-slate-400 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400 touch-none p-1 rounded"
              {...dragHandleProps}
            >
              <GripVertical size={16} />
-           </div>
+           </button>
 
            {/* Bypass Switch */}
            <button
+             type="button"
+             role="switch"
+             aria-checked={!isBypassed}
+             aria-label="Power"
              onClick={onBypass}
              className={clsx(
-               "w-3 h-3 rounded-full border transition-all shadow-[0_0_8px_rgba(0,0,0,0.5)] mx-1",
+               "w-3 h-3 rounded-full border transition-all shadow-[0_0_8px_rgba(0,0,0,0.5)] mx-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-950",
                isBypassed
                  ? "bg-slate-800 border-slate-600"
                  : "bg-active-led border-green-400 shadow-[0_0_8px_rgba(34,197,94,0.6)]"
@@ -52,8 +58,10 @@ export const ModuleShell: React.FC<ModuleShellProps> = ({
         </div>
 
         <button
+          type="button"
           onClick={onRemove}
-          className="text-slate-600 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+          aria-label={`Remove ${title}`}
+          className="text-slate-600 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus-visible:ring-1 focus-visible:ring-red-500 rounded p-0.5"
           title="Remove Module"
         >
           <X size={16} />
