@@ -3,6 +3,31 @@
  * Pure JS implementation of common DSP components.
  */
 
+export const DB_TO_LINEAR_CONST = Math.LN10 / 20;
+export const LINEAR_TO_DB_CONST = 20 / Math.LN10;
+
+/**
+ * Converts decibels to linear gain.
+ * Optimized replacement for Math.pow(10, db / 20).
+ * Uses Math.exp(db * 0.11512925464970228).
+ * @param {number} db - Value in decibels.
+ * @returns {number} Linear gain.
+ */
+export function dbToLinear(db) {
+    return Math.exp(db * DB_TO_LINEAR_CONST);
+}
+
+/**
+ * Converts linear gain to decibels.
+ * Optimized replacement for 20 * Math.log10(linear).
+ * Uses 8.685889638065037 * Math.log(linear).
+ * @param {number} linear - Linear gain.
+ * @returns {number} Value in decibels.
+ */
+export function linearToDb(linear) {
+    return LINEAR_TO_DB_CONST * Math.log(linear);
+}
+
 /**
  * Standard RBJ Biquad Filter implementation.
  */
@@ -53,7 +78,8 @@ export class BiquadFilter {
      * @param {number} gain - Gain in dB.
      */
     setGain(gain) {
-        const A = Math.pow(10, gain / 40);
+        // A = 10^(gain/40) = 10^((gain/2)/20) = dbToLinear(gain/2)
+        const A = dbToLinear(gain * 0.5);
         const { cosw0, alpha, type } = this.cache;
         
         let b0, b1, b2, a0, a1, a2;
