@@ -4,6 +4,29 @@
  */
 
 /**
+ * Optimized dB to Linear conversion.
+ * Approximation of 10^(db/20).
+ * Uses pre-calculated constant ln(10)/20 ~= 0.11512925464970228
+ * @param {number} db
+ * @returns {number} linear gain
+ */
+export function dbToLinear(db) {
+    return Math.exp(db * 0.11512925464970228);
+}
+
+/**
+ * Optimized Linear to dB conversion.
+ * Approximation of 20*log10(linear).
+ * Uses pre-calculated constant 20/ln(10) ~= 8.685889638065037
+ * @param {number} linear
+ * @returns {number} db
+ */
+export function linearToDb(linear) {
+    if (linear <= 0) return -1000; // safe floor
+    return Math.log(linear) * 8.685889638065037;
+}
+
+/**
  * Standard RBJ Biquad Filter implementation.
  */
 export class BiquadFilter {
@@ -318,4 +341,3 @@ export class OnePoleAllPass {
         return output;
     }
 }
-
