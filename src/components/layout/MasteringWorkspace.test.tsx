@@ -63,4 +63,13 @@ describe('MasteringWorkspace Layout Integration', () => {
         // For now, let's verify the structure allows for it
         expect(mainContent).toBeInTheDocument();
     });
+
+    it('should have accessible labels for all primary actions', () => {
+        render(<MasteringWorkspace />);
+
+        expect(screen.getByLabelText('Save Project')).toBeInTheDocument();
+        expect(screen.getByLabelText('Import Audio')).toBeInTheDocument();
+        // Clear Audio is only visible when sourceDuration > 0
+        expect(screen.getByLabelText('Open Side Panel')).toBeInTheDocument();
+    });
 });
