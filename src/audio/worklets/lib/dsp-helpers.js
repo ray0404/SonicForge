@@ -3,6 +3,29 @@
  * Pure JS implementation of common DSP components.
  */
 
+export const DB_TO_LINEAR_CONST = Math.LN10 / 20;
+export const LINEAR_TO_DB_CONST = 20 / Math.LN10;
+
+/**
+ * Optimized dB to Linear conversion.
+ * Uses Math.exp(db * 0.1151...) instead of Math.pow(10, db/20).
+ * @param {number} db - Value in decibels.
+ * @returns {number} Linear gain.
+ */
+export function dbToLinear(db) {
+    return Math.exp(db * DB_TO_LINEAR_CONST);
+}
+
+/**
+ * Optimized Linear to dB conversion.
+ * Uses Math.log(linear) * 8.685... instead of 20 * Math.log10(linear).
+ * @param {number} linear - Linear gain.
+ * @returns {number} Value in decibels (returns -1000 for <= 0).
+ */
+export function linearToDb(linear) {
+    return linear > 0 ? Math.log(linear) * LINEAR_TO_DB_CONST : -1000;
+}
+
 /**
  * Standard RBJ Biquad Filter implementation.
  */
@@ -53,7 +76,10 @@ export class BiquadFilter {
      * @param {number} gain - Gain in dB.
      */
     setGain(gain) {
-        const A = Math.pow(10, gain / 40);
+        // Calculate A = 10^(gain/40)
+        // dbToLinear calculates 10^(x/20), so we pass gain/2.
+        const A = dbToLinear(gain / 2);
+
         const { cosw0, alpha, type } = this.cache;
         
         let b0, b1, b2, a0, a1, a2;
@@ -318,4 +344,3 @@ export class OnePoleAllPass {
         return output;
     }
 }
-
