@@ -63,4 +63,11 @@ describe('MasteringWorkspace Layout Integration', () => {
         // For now, let's verify the structure allows for it
         expect(mainContent).toBeInTheDocument();
     });
+
+    it('should have accessible labels for key actions', () => {
+        render(<MasteringWorkspace />);
+        expect(screen.getByLabelText('Save Project')).toBeInTheDocument();
+        expect(screen.getByLabelText('Import Audio')).toBeInTheDocument();
+        expect(screen.getByLabelText('Open Side Panel')).toBeInTheDocument();
+    });
 });
