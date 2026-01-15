@@ -1,3 +1,5 @@
+import { dbToLinear, linearToDb } from './lib/dsp-helpers.js';
+
 class CompressorProcessor extends AudioWorkletProcessor {
     static get parameterDescriptors() {
         return [
@@ -58,7 +60,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
             const ratioBase = ratioP.length === 1 ? ratioP[0] : ratioP[0];
             const knee = kneeP.length === 1 ? kneeP[0] : kneeP[0]; // Used as Knee Factor for VarMu
             const makeupDb = gainP.length === 1 ? gainP[0] : gainP[0];
-            const makeup = Math.pow(10, makeupDb / 20);
+            const makeup = dbToLinear(makeupDb);
 
             // Ballistics Coeffs
             const att = attP.length === 1 ? attP[0] : attP[0];
@@ -80,7 +82,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
 
                 // 2. Level Detection (Peak)
                 const absIn = Math.abs(detectorIn);
-                const envDb = 20 * Math.log10(absIn + 1e-6);
+                const envDb = linearToDb(absIn + 1e-6);
 
                 // 3. Gain Calculation
                 let overshoot = envDb - thresh;
@@ -139,7 +141,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
 
                 // 5. Apply
                 // Gain = -GR dB
-                const gain = Math.pow(10, -state.gr / 20);
+                const gain = dbToLinear(-state.gr);
                 
                 const processed = x * gain * makeup;
                 outCh[i] = x * (1 - mix) + processed * mix;
