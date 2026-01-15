@@ -319,3 +319,24 @@ export class OnePoleAllPass {
     }
 }
 
+/**
+ * Converts Decibels to Linear gain.
+ * Optimized using Math.exp to avoid expensive Math.pow(10, x/20).
+ * @param {number} db - Value in decibels.
+ * @returns {number} Linear gain.
+ */
+export function dbToLinear(db) {
+    return Math.exp(db * 0.11512925464970228); // 0.1151... = Math.LN10 / 20
+}
+
+/**
+ * Converts Linear gain to Decibels.
+ * Optimized using Math.log to avoid expensive Math.log10.
+ * @param {number} linear - Linear gain (must be > 0).
+ * @returns {number} Value in decibels.
+ */
+export function linearToDb(linear) {
+    // Prevent log(0) or log(negative)
+    if (linear <= 0) return -1000;
+    return Math.log(linear) * 8.685889638065037; // 8.685... = 20 / Math.LN10
+}
