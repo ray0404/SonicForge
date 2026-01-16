@@ -1,9 +1,10 @@
 import React from 'react';
 import { useAudioStore } from '@/store/useAudioStore';
+import { useShallow } from 'zustand/react/shallow';
 import { Music, Clock, FileAudio } from 'lucide-react';
 
 export const AssetManagerView: React.FC = () => {
-    const { assets } = useAudioStore();
+    const { assets } = useAudioStore(useShallow(state => ({ assets: state.assets })));
     const assetIds = Object.keys(assets);
 
     return (

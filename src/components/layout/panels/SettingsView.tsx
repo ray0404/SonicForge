@@ -1,9 +1,14 @@
 import React from 'react';
 import { useAudioStore } from '@/store/useAudioStore';
+import { useShallow } from 'zustand/react/shallow';
 import { Volume2, Power } from 'lucide-react';
 
 export const SettingsView: React.FC = () => {
-    const { isInitialized, masterVolume, setMasterVolume } = useAudioStore();
+    const { isInitialized, masterVolume, setMasterVolume } = useAudioStore(useShallow(state => ({
+        isInitialized: state.isInitialized,
+        masterVolume: state.masterVolume,
+        setMasterVolume: state.setMasterVolume
+    })));
 
     return (
         <div className="space-y-6">
