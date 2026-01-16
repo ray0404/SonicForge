@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import { audioEngine } from '@/audio/context';
 import { useAudioStore } from '@/store/useAudioStore';
+import { useShallow } from 'zustand/react/shallow';
 import { Download, CheckCircle, Loader2 } from 'lucide-react';
 
 export const ExportView: React.FC = () => {
-    const { rack, assets } = useAudioStore();
+    const { rack, assets } = useAudioStore(useShallow(state => ({
+        rack: state.rack,
+        assets: state.assets
+    })));
     const [isExporting, setIsExporting] = useState(false);
     const [isComplete, setIsComplete] = useState(false);
 

@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Save, AlertTriangle, Layers, Activity, FileAudio, Trash2, Menu, X } from 'lucide-react';
 import { useProjectPersistence } from '@/hooks/useProjectPersistence';
 import { useAudioStore } from '@/store/useAudioStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useUIStore } from '@/store/useUIStore';
 import { usePanelRouting } from '@/hooks/usePanelRouting';
 import { EffectsRack } from '@/components/rack/EffectsRack';
@@ -15,7 +16,13 @@ type Tab = 'rack' | 'visualizer';
 
 export const MasteringWorkspace: React.FC = () => {
   const { saveProject, isPersistedToDisk } = useProjectPersistence();
-  const { loadSourceFile, clearSource, sourceDuration } = useAudioStore();
+  // Optimization: useShallow ensures we only re-render when these specific props change,
+  // preventing re-renders on every currentTime update (100ms) from the store.
+  const { loadSourceFile, clearSource, sourceDuration } = useAudioStore(useShallow(state => ({
+    loadSourceFile: state.loadSourceFile,
+    clearSource: state.clearSource,
+    sourceDuration: state.sourceDuration
+  })));
   const { isPanelOpen, togglePanel } = useUIStore();
   
   // Enable URL <-> Store synchronization
