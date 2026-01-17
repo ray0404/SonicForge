@@ -129,3 +129,8 @@ GEMINI.md
 docs/
 nanobanana-output/
 dist/
+.contexter_cache/
+.repomixignore
+docsummary_SonicForge.md
+repomix_SonicForge.md
+repomix_SonicForge.xml
