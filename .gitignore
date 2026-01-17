@@ -126,3 +126,6 @@ conductor/
 # Generated Documentation
 public/docs/
 GEMINI.md
+docs/
+nanobanana-output/
+dist/
