@@ -37,6 +37,9 @@ export const ModuleShell: React.FC<ModuleShellProps> = ({
            {/* Bypass Switch */}
            <button
              onClick={onBypass}
+             role="switch"
+             aria-checked={!isBypassed}
+             aria-label={`Toggle ${title} active state`}
              className={clsx(
                "w-3 h-3 rounded-full border transition-all shadow-[0_0_8px_rgba(0,0,0,0.5)] mx-1",
                isBypassed
@@ -53,7 +56,8 @@ export const ModuleShell: React.FC<ModuleShellProps> = ({
 
         <button
           onClick={onRemove}
-          className="text-slate-600 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+          aria-label={`Remove ${title} module`}
+          className="text-slate-600 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
           title="Remove Module"
         >
           <X size={16} />
