@@ -453,6 +453,32 @@ class AudioEngine {
       }
   }
 
+  public getRMSLevel(): { input: number, output: number } {
+      if (!this.analyserL || !this.analyserR) return { input: -100, output: -100 };
+      
+      const bufferLength = this.analyserL.frequencyBinCount;
+      const dataArrayL = new Float32Array(bufferLength);
+      const dataArrayR = new Float32Array(bufferLength);
+      
+      this.analyserL.getFloatTimeDomainData(dataArrayL);
+      this.analyserR.getFloatTimeDomainData(dataArrayR);
+      
+      let sumL = 0;
+      let sumR = 0;
+      for (let i = 0; i < bufferLength; i++) {
+          sumL += dataArrayL[i] * dataArrayL[i];
+          sumR += dataArrayR[i] * dataArrayR[i];
+      }
+      
+      const rmsL = Math.sqrt(sumL / bufferLength);
+      const rmsR = Math.sqrt(sumR / bufferLength);
+      
+      const dbL = 20 * Math.log10(Math.max(rmsL, 0.00001));
+      const dbR = 20 * Math.log10(Math.max(rmsR, 0.00001));
+      
+      return { input: dbL, output: dbR }; // Using input/output as L/R for now in the simple meter bar
+  }
+
   async renderOffline(rack: RackModule[], assets: Record<string, AudioBuffer>): Promise<AudioBuffer | null> {
       if (!this.sourceBuffer) return null;
 
