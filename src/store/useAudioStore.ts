@@ -21,6 +21,7 @@ interface AudioState {
   masterVolume: number;
   rack: RackModule[];
   assets: Record<string, AudioBuffer>;
+  history: AudioBuffer[];
 
   initializeEngine: () => Promise<void>;
   togglePlay: () => void;
@@ -38,6 +39,10 @@ interface AudioState {
   loadAsset: (file: File) => Promise<string>;
   saveProject: () => Promise<void>;
   loadProject: () => Promise<void>;
+
+  pushHistory: () => void;
+  undo: () => void;
+  updateSourceBuffer: (buffer: AudioBuffer) => void;
 }
 
 export const useAudioStore = create<AudioState>((set, get) => ({
@@ -48,6 +53,7 @@ export const useAudioStore = create<AudioState>((set, get) => ({
   masterVolume: 1.0,
   rack: [],
   assets: {},
+  history: [],
 
   initializeEngine: async () => {
     if (get().isInitialized) return;
@@ -73,8 +79,10 @@ export const useAudioStore = create<AudioState>((set, get) => ({
        audioEngine.pause();
        set({ isPlaying: false });
     } else {
-       audioEngine.play();
-       set({ isPlaying: true });
+       if (audioEngine.sourceBuffer) {
+         audioEngine.play();
+         set({ isPlaying: true });
+       }
     }
   },
 
@@ -90,7 +98,8 @@ export const useAudioStore = create<AudioState>((set, get) => ({
           set({ 
               sourceDuration: buffer.duration,
               currentTime: 0,
-              isPlaying: false 
+              isPlaying: false,
+              history: [] // Clear history on new file
           });
           logger.info("Source file loaded.");
       } catch (e) {
@@ -106,12 +115,57 @@ export const useAudioStore = create<AudioState>((set, get) => ({
           set({ 
               sourceDuration: 0,
               currentTime: 0,
-              isPlaying: false 
+              isPlaying: false,
+              history: []
           });
           logger.info("Source cleared.");
       } catch (e) {
           logger.error("Failed to clear source", e);
       }
+  },
+
+  pushHistory: () => {
+    const currentBuffer = audioEngine.sourceBuffer;
+    if (currentBuffer) {
+      // Simple copy of the buffer to preserve state
+      const copy = audioEngine.context!.createBuffer(
+        currentBuffer.numberOfChannels,
+        currentBuffer.length,
+        currentBuffer.sampleRate
+      );
+      for (let i = 0; i < currentBuffer.numberOfChannels; i++) {
+        copy.copyToChannel(currentBuffer.getChannelData(i), i);
+      }
+      set(state => ({
+        history: [...state.history.slice(-9), copy as any] // Keep last 10 steps
+      }));
+    }
+  },
+
+  undo: () => {
+    const { history } = get();
+    if (history.length === 0) return;
+
+    const previousBuffer = history[history.length - 1];
+    set(state => ({
+      history: state.history.slice(0, -1)
+    }));
+
+    get().updateSourceBuffer(previousBuffer);
+  },
+
+  updateSourceBuffer: (buffer: AudioBuffer) => {
+    const wasPlaying = get().isPlaying;
+    if (wasPlaying) audioEngine.pause();
+
+    audioEngine.sourceBuffer = buffer;
+    set({ 
+      sourceDuration: buffer.duration,
+      isPlaying: false
+    });
+
+    if (wasPlaying) audioEngine.play();
+    set({ isPlaying: wasPlaying });
   },
 
   setMasterVolume: (val: number) => {

@@ -1,13 +1,13 @@
 import React from 'react';
 import { useUIStore, PanelView } from '@/store/useUIStore';
-import { Settings, BookOpen, Sliders, AudioWaveform, Library, Download } from 'lucide-react';
+import { Settings, BookOpen, Sliders, Library, Download, Wand2 } from 'lucide-react';
 import { clsx } from 'clsx';
 
 const NAV_ITEMS: { id: PanelView; label: string; icon: React.ElementType; href?: string }[] = [
+    { id: 'TOOLS', label: 'Smart Tools', icon: Wand2 },
     { id: 'SETTINGS', label: 'Settings', icon: Settings },
     { id: 'DOCS', label: 'Documentation', icon: BookOpen, href: '/docs/index.html' },
     { id: 'MIXER', label: 'Mixer', icon: Sliders },
-    { id: 'TIMELINE', label: 'Timeline', icon: AudioWaveform },
     { id: 'ASSETS', label: 'Assets', icon: Library },
     { id: 'EXPORT', label: 'Export', icon: Download },
 ];
