@@ -4,6 +4,26 @@
  */
 
 /**
+ * Fast dB to Linear conversion.
+ * Approximation of 10^(db/20) using exp.
+ * @param {number} db
+ * @returns {number} linear gain
+ */
+export function dbToLinear(db) {
+    return Math.exp(db * 0.11512925464970228);
+}
+
+/**
+ * Fast Linear to dB conversion.
+ * Approximation of 20*log10(linear) using log.
+ * @param {number} linear
+ * @returns {number} db
+ */
+export function linearToDb(linear) {
+    return Math.log(linear) * 8.685889638065037;
+}
+
+/**
  * Standard RBJ Biquad Filter implementation.
  */
 export class BiquadFilter {
