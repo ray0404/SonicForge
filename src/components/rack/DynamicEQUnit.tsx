@@ -4,6 +4,7 @@ import { audioEngine } from '@/audio/context';
 import { DynamicEQNode } from '@/audio/worklets/DynamicEQNode';
 import { ModuleShell } from '@/components/ui/ModuleShell';
 import { Knob } from '@/components/ui/Knob';
+import { getPeakingCoefficients, getMagnitudeResponse } from '@/utils/filter-coeffs';
 
 interface DynamicEQUnitProps {
   module: RackModule;
@@ -35,7 +36,7 @@ export const DynamicEQUnit: React.FC<DynamicEQUnitProps> = ({ module, onRemove, 
     let animationId: number;
 
     const render = () => {
-      // @ts-ignore
+      // @ts-expect-error - nodeMap access is loose
       const node = audioEngine.nodeMap.get(module.id) as DynamicEQNode | undefined;
       const gr = node ? node.currentGainReduction : 0;
 
@@ -71,9 +72,12 @@ export const DynamicEQUnit: React.FC<DynamicEQUnitProps> = ({ module, onRemove, 
 
       const dynamicGain = params.gain - gr;
       
+      // Calculate coefficients once per frame (optimization)
+      const dynamicCoeffs = getPeakingCoefficients(params.frequency, params.Q, dynamicGain, 44100);
+
       for (let i = 0; i < width; i++) {
         const freq = getFreq(i, width);
-        const mag = getPeakingMag(freq, params.frequency, params.Q, dynamicGain, 44100);
+        const mag = getMagnitudeResponse(freq, 44100, dynamicCoeffs);
         const y = getY(mag, canvas.height);
         if (i === 0) ctx.moveTo(i, y);
         else ctx.lineTo(i, y);
@@ -84,9 +88,13 @@ export const DynamicEQUnit: React.FC<DynamicEQUnitProps> = ({ module, onRemove, 
           ctx.beginPath();
           ctx.strokeStyle = 'rgba(59, 130, 246, 0.3)';
           ctx.lineWidth = 1;
+
+          // Calculate static coefficients once
+          const staticCoeffs = getPeakingCoefficients(params.frequency, params.Q, params.gain, 44100);
+
           for (let i = 0; i < width; i++) {
             const freq = getFreq(i, width);
-            const mag = getPeakingMag(freq, params.frequency, params.Q, params.gain, 44100);
+            const mag = getMagnitudeResponse(freq, 44100, staticCoeffs);
             const y = getY(mag, canvas.height);
             if (i === 0) ctx.moveTo(i, y);
             else ctx.lineTo(i, y);
@@ -191,34 +199,4 @@ function getY(db: number, height: number): number {
     const range = maxDb - minDb;
     const norm = 1 - (db - minDb) / range;
     return norm * height;
-}
-
-function getPeakingMag(f: number, f0: number, Q: number, gainDb: number, fs: number): number {
-    const w0 = (2 * Math.PI * f0) / fs;
-    const w = (2 * Math.PI * f) / fs;
-    const A = Math.pow(10, gainDb / 40);
-    const alpha = Math.sin(w0) / (2 * Q);
-    
-    const b0 = 1 + alpha * A;
-    const b1 = -2 * Math.cos(w0);
-    const b2 = 1 - alpha * A;
-    const a0 = 1 + alpha / A;
-    const a1 = -2 * Math.cos(w0);
-    const a2 = 1 - alpha / A;
-
-    const cosw = Math.cos(w);
-    const cos2w = Math.cos(2*w);
-    const sinw = Math.sin(w);
-    const sin2w = Math.sin(2*w);
-
-    const numReal = b0 + b1*cosw + b2*cos2w;
-    const numImag = -b1*sinw - b2*sin2w;
-    const denReal = a0 + a1*cosw + a2*cos2w;
-    const denImag = -a1*sinw - a2*sin2w;
-
-    const numMagSq = numReal*numReal + numImag*numImag;
-    const denMagSq = denReal*denReal + denImag*denImag;
-    
-    const mag = Math.sqrt(numMagSq / denMagSq);
-    return 20 * Math.log10(mag);
 }
