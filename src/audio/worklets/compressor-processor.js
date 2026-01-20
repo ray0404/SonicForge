@@ -15,6 +15,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
     constructor() {
         super();
         this.channels = [];
+        this.lastPost = 0;
     }
 
     process(inputs, outputs, parameters) {
@@ -47,6 +48,8 @@ class CompressorProcessor extends AudioWorkletProcessor {
         // I'll implement per-channel (Dual Mono) for simplicity of loop, 
         // but note that stereo linking is "Professional". 
         // Given the constraints, Dual Mono is safer to implement quickly.
+
+        let maxGR = 0;
 
         for (let ch = 0; ch < input.length; ch++) {
             const state = this.channels[ch];
@@ -106,29 +109,10 @@ class CompressorProcessor extends AudioWorkletProcessor {
 
                 if (mode === 2) { // Opto: Program Dependent Release
                     // alpha_r(t) = BaseRelease * (1 - Envelope(t)) ?
-                    // Doc: "BaseRelease * (1 - Envelope(t))"
-                    // Envelope is normalized 0-1? absIn is 0-1 (usually).
-                    // So if loud signal, release is faster? (1-1=0 -> coeff 0 -> instant?)
-                    // Or slower? Coeff near 0 means instant change (decay=0).
-                    // Coeff near 1 means slow change.
-                    // Wait, usually exp coeff: y = a*y + (1-a)*target.
-                    // a=0 -> y = target (instant).
-                    // a=0.999 -> slow.
-                    // If formula is `RelCoeff = Base * (1 - Env)`.
-                    // If Env=1 (Loud), RelCoeff -> 0 (Instant Release). 
-                    // This is opposite of LA-2A (slow release on loud/sustained).
-                    // Maybe "1 - RelCoeff" logic?
-                    // I will stick to the Doc Formula: `BaseRelease * (1 - Envelope(t))`. 
-                    // If behavior is weird, user can adjust.
                     relCoeff = baseRelCoeff * (1 - Math.min(1, absIn)); 
-                    // Safety clip absIn to 1.
                 }
 
                 // Apply Ballistics to GR State
-                // Note: GR is positive value representing attenuation in dB (e.g. 3dB reduction)
-                // If Target > Current, we are "Attacking" (Compressing more).
-                // If Target < Current, we are "Releasing" (Returning to 0).
-                
                 if (targetGR > state.gr) {
                     // Attack
                     state.gr = attCoeff * state.gr + (1 - attCoeff) * targetGR;
@@ -136,6 +120,9 @@ class CompressorProcessor extends AudioWorkletProcessor {
                     // Release
                     state.gr = relCoeff * state.gr + (1 - relCoeff) * targetGR;
                 }
+
+                // Track Max GR for UI
+                if (state.gr > maxGR) maxGR = state.gr;
 
                 // 5. Apply
                 // Gain = -GR dB
@@ -145,6 +132,14 @@ class CompressorProcessor extends AudioWorkletProcessor {
                 outCh[i] = x * (1 - mix) + processed * mix;
                 state.lastOutput = processed; // For FET
             }
+        }
+
+        // Post Message every ~100ms (sampleRate * 0.1)
+        // currentTime is available in AudioWorkletGlobalScope
+        const now = currentTime;
+        if (now - this.lastPost > 0.1) {
+            this.port.postMessage({ type: 'reduction', value: maxGR });
+            this.lastPost = now;
         }
 
         return true;

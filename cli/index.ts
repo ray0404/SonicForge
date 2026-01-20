@@ -15,50 +15,43 @@ program
 program
   .command('start')
   .description('Start the Interactive TUI')
-  .action(async () => {
+  .option('-d, --debug', 'Enable debug logging')
+  .action(async (options) => {
     console.log('Starting Sonic Forge TUI...');
 
-    // Resolve the absolute path to headless.html in dist/
-    // Whether running from cli/ (source) or dist/cli/ (built), we want the built dist/headless.html
-    const headlessPath = path.resolve(__dirname, '..', 'dist', 'headless.html');
+    // Simplified path logic
+    const isRunningFromDist = __dirname.includes(path.join('dist', 'cli'));
+    // If running from dist/cli/index.js, the headless file is in dist/cli/headless.html (or dist/headless.html copied there)
+    // If running via tsx from cli/index.ts, the built headless file is in dist/headless.html
     
-    // Fallback: If running from dist/cli/, '..' is dist/, so we might need just 'headless.html'
-    // But __dirname in dist/cli/ is .../sonicforge/dist/cli
-    // path.resolve(..., '..', 'dist', 'headless.html') -> .../sonicforge/dist/dist/headless.html (WRONG if in dist)
-    
-    // Better logic:
-    // If we are in 'dist/cli', we want '../headless.html'.
-    // If we are in 'cli' (source), we want '../dist/headless.html'.
-    
-    let targetPath = path.resolve(__dirname, '..', 'dist', 'headless.html');
-    
-    // Check if we are running from dist
-    if (__dirname.includes(path.join('dist', 'cli'))) {
-        targetPath = path.resolve(__dirname, '..', 'headless.html');
+    let staticDir: string;
+    let fileName = 'headless.html';
+
+    if (isRunningFromDist) {
+        // We are in dist/cli. We want to serve dist/ which is one level up.
+        staticDir = path.resolve(__dirname, '..');
+    } else {
+        // We are in cli/. We want to serve dist/ which is ../dist
+        staticDir = path.resolve(__dirname, '..', 'dist');
     }
+
+    const headlessPath = path.join(staticDir, fileName);
 
     // Verify existence
     const fs = await import('fs');
-    if (!fs.existsSync(targetPath)) {
-        // Try one more fallback for safety (if running tsx from root, __dirname is .../cli)
-        const altPath = path.resolve(__dirname, '..', 'headless.html');
-        // If dist doesn't exist but root does, warn user they need to build
-        if (fs.existsSync(altPath)) {
-             console.error('Error: "dist/headless.html" not found.');
-             console.error('Please run "npm run build" to generate the headless engine before running the CLI.');
-             process.exit(1);
+    if (!fs.existsSync(headlessPath)) {
+        console.error(`Error: Could not find headless engine at "${headlessPath}".`);
+        if (!isRunningFromDist) {
+            console.error('Hint: You might need to run "npm run build" first.');
         }
-        console.error(`Error: Could not find headless.html at ${targetPath}`);
         process.exit(1);
     }
 
-    const fileUrl = `file://${targetPath}`;
-
     try {
-      // 1. Launch the Headless Bridge via File Protocol
-      const bridge = new AudioBridge(fileUrl);
+      // 1. Launch the Headless Bridge with static serving
+      const bridge = new AudioBridge(staticDir, fileName, options.debug);
       await bridge.init();
-      console.log('Engine Connected.');
+      if (options.debug) console.log('Engine Connected.');
 
       // 2. Launch TUI
       await runTUI(bridge);
@@ -71,6 +64,40 @@ program
       console.error('Fatal Error:', error);
       process.exit(1);
     }
+  });
+
+const modules = [
+  'compressor',
+  'tremolo',
+  'transient-shaper',
+  'stereo-imager',
+  'saturation',
+  'phaser',
+  'parametric-eq',
+  'multiband-compressor',
+  'midside-eq',
+  'metering',
+  'limiter',
+  'feedback-delay',
+  'dynamic-eq',
+  'dithering',
+  'distortion',
+  'deesser',
+  'convolution',
+  'chorus',
+  'bitcrusher',
+  'autowah',
+];
+
+const modulesCommand = program.command('modules')
+  .description('Interact with audio effect modules.');
+
+modulesCommand
+  .command('list')
+  .description('List all available audio modules.')
+  .action(() => {
+    console.log('Available SonicForge Modules:');
+    modules.forEach(m => console.log(`- ${m}`));
   });
 
 program.parse();

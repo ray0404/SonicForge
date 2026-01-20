@@ -1,20 +1,60 @@
 import puppeteer from 'puppeteer-core';
 import { EventEmitter } from 'events';
 import fs from 'fs';
+import express from 'express';
+import { Server } from 'http';
+import { AddressInfo } from 'net';
+import { useTUIStore, TUIState } from '../ui/store.js';
 
 export class AudioBridge extends EventEmitter {
   private browser: any;
   private page: any;
-  private url: string;
+  private server: Server | null = null;
+  private staticDir: string;
+  private fileName: string;
+  private port: number = 0;
+  private debug: boolean;
 
-  constructor(url: string) {
+  constructor(staticDir: string, fileName: string, debug: boolean = false) {
     super();
-    this.url = url;
+    this.staticDir = staticDir;
+    this.fileName = fileName;
+    this.debug = debug;
+  }
+
+  private log(message: string) {
+      if (this.debug) {
+          console.log(message);
+      }
+  }
+
+  private error(message: string, err?: any) {
+      if (this.debug) {
+          console.error(message, err);
+      }
+  }
+
+  private async startServer(): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const app = express();
+      app.use(express.static(this.staticDir));
+      
+      this.server = app.listen(0, '127.0.0.1', () => {
+        const address = this.server?.address() as AddressInfo;
+        this.port = address.port;
+        this.log(`[CLI] Internal server started on port ${this.port}`);
+        resolve(`http://127.0.0.1:${this.port}/${this.fileName}`);
+      });
+
+      this.server.on('error', (err) => reject(err));
+    });
   }
 
   async init() {
-    // Attempt to locate Chromium. 
-    // On Termux it is typically at /data/data/com.termux/files/usr/bin/chromium-browser or .../chromium
+    // 1. Start the local server
+    const url = await this.startServer();
+
+    // 2. Launch Puppeteer
     const possiblePaths = [
       process.env.CHROME_BIN,
       '/bin/chromium',
@@ -28,63 +68,64 @@ export class AudioBridge extends EventEmitter {
 
     if (!executablePath) {
       throw new Error(
-        'Could not find Chromium executable. Please install it (e.g., `pkg install chromium` on Termux) or set CHROME_BIN environment variable.'
+        'Could not find Chromium executable. Please install it or set CHROME_BIN.'
       );
     }
 
-    console.log(`[CLI] Launching Engine with: ${executablePath}`);
-
     this.browser = await puppeteer.launch({
       executablePath,
-      headless: false, // Must be false for audio output on many Linux setups
+      headless: true,
+      dumpio: this.debug, // Only dump stdout/stderr in debug mode
+      ignoreDefaultArgs: ['--mute-audio'],
       args: [
-        '--window-size=100,100', // Small window
-        '--window-position=-1000,-1000', // Move off-screen
-        '--no-sandbox', 
-        '--disable-setuid-sandbox', 
-        '--disable-gpu',
-        '--disable-dev-shm-usage',
-        '--disable-software-rasterizer',
-        '--remote-debugging-port=9222',
-        '--disable-web-security',
-        '--disable-features=IsolateOrigins,site-per-process',
-        '--allow-running-insecure-content',
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-gpu', // Helper for some environments
         '--autoplay-policy=no-user-gesture-required',
-        '--allow-file-access-from-files',
+        '--use-fake-ui-for-media-stream',
         '--disable-background-timer-throttling',
-        '--disable-backgrounding-occluded-windows',
         '--disable-renderer-backgrounding'
       ]
     });
 
     this.page = await this.browser.newPage();
     
-    // Expose log function to see browser logs in node, but filter verbose/clamped messages
     this.page.on('console', (msg: any) => {
+        if (!this.debug) return;
         const text = msg.text();
-        if (text.includes('clamped') || text.includes('outside the range') || text.includes('AudioParam')) return;
-        if (text.startsWith('[Headless]')) {
-             console.log(text);
+        if (text.includes('clamped') || text.includes('AudioParam')) return;
+        console.log(`[Browser] ${text}`);
+    });
+
+    this.page.on('pageerror', (err: any) => {
+        // Always log page errors? Maybe only in debug?
+        // Let's stick to debug for clean TUI
+        if (this.debug) {
+            console.error(`[Browser Page Error] ${err.message}`);
         }
     });
 
-    console.log(`[CLI] Navigating to: ${this.url}`);
-    await this.page.goto(this.url, { timeout: 60000 });
+    await this.page.exposeFunction('__TUI_DISPATCH__', (payload: Partial<TUIState>) => {
+        useTUIStore.setState(payload);
+    });
+
+    this.log(`[CLI] Navigating to: ${url}`);
+    await this.page.goto(url, { timeout: 60000 });
     
-    // Wait for the bridge to be ready
     try {
         await this.page.waitForFunction('!!window.__SONICFORGE_BRIDGE__', { timeout: 10000 });
-        // Initialize the engine inside the browser
-        await this.page.evaluate(() => window.__SONICFORGE_BRIDGE__.init());
+        await this.page.evaluate(() => window.__SONICFORGE_BRIDGE__.init(true));
     } catch (e) {
         console.error("Failed to connect to SonicForge Bridge via Headless Browser.");
         throw e;
     }
   }
 
+  async getModuleDescriptors() {
+    return this.page.evaluate(() => window.__SONICFORGE_BRIDGE__.getModuleDescriptors());
+  }
+
   async loadAudio(buffer: Buffer) {
-    // Pass buffer as array (Puppeteer serialization)
-    // In a real app we might use a more efficient transfer or serve the file via URL
     const data = [...buffer];
     return this.page.evaluate(async (buf: number[]) => {
         const arrayBuf = new Uint8Array(buf).buffer;
@@ -141,7 +182,7 @@ export class AudioBridge extends EventEmitter {
   }
 
   async exportAudio(outputPath: string) {
-    console.log(`[CLI] Exporting audio to ${outputPath}...`);
+    this.log(`[CLI] Exporting audio to ${outputPath}...`);
     const result = await this.page.evaluate(async () => {
         return await window.__SONICFORGE_BRIDGE__.exportAudio();
     });
@@ -152,18 +193,22 @@ export class AudioBridge extends EventEmitter {
 
     const buffer = Buffer.from(result.data);
     fs.writeFileSync(outputPath, buffer);
-    console.log(`[CLI] Export saved to ${outputPath}`);
+    this.log(`[CLI] Export saved to ${outputPath}`);
     return true;
   }
 
   async close() {
     if (this.browser) await this.browser.close();
+    if (this.server) {
+        this.server.close();
+        this.log('[CLI] Server stopped.');
+    }
   }
 }
 
-// Type definition helper for the browser context
 declare global {
   interface Window {
     __SONICFORGE_BRIDGE__: any;
+    __TUI_DISPATCH__: (payload: Partial<TUIState>) => void;
   }
 }
