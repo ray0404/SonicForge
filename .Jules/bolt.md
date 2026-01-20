@@ -1,0 +1,3 @@
+## 2026-01-20 - Optimize DynamicEQ Visualization
+**Learning:** In canvas-based EQ visualizers (e.g. `DynamicEQUnit`), calculating filter coefficients (b0, b1, b2, a0, a1, a2) inside the loop that iterates over frequencies (0 to width) is extremely inefficient. These coefficients depend only on `f0`, `Q`, and `gain`, which are constant for the frame (or the curve being drawn).
+**Action:** Lift the coefficient calculation out of the loop. Calculate coefficients once per frame (or per curve type), then pass them to a lighter `getMagnitudeResponse` function inside the loop. This saved ~600 redundant `Math.pow`, `Math.sin`, and `Math.cos` calls per frame per curve.
