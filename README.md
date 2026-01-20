@@ -55,6 +55,25 @@ Sonic Forge is built on a strict **Three-Layer Architecture** designed to respec
 *   **Context:** Audio Thread (Real-time priority).
 *   **Responsibility:** Executes pure JavaScript math on audio buffers. Isolated from the DOM and Garbage Collector to prevent audio glitches.
 
+## 📂 Project Structure
+
+```bash
+/
+├── cli/                # Headless CLI tool implementation
+├── docs/               # Architecture and User documentation
+├── public/             # Static assets (images, manifest)
+├── src/
+│   ├── audio/          # The Audio Engine Core
+│   │   ├── worklets/   # AudioWorkletProcessors (DSP logic)
+│   │   ├── lib/        # Shared DSP math libraries
+│   │   └── context.ts  # AudioContext orchestration
+│   ├── components/     # React UI Components
+│   ├── hooks/          # Custom React Hooks
+│   ├── store/          # Zustand State Stores
+│   └── utils/          # Shared Utilities (logging, formatting)
+└── ...
+```
+
 ## 📦 Getting Started
 
 ### Prerequisites
@@ -74,10 +93,18 @@ npm install
 
 ### Development
 
+#### Web Application
 ```bash
 # Start the development server (Vite)
 npm run dev
 # Open http://localhost:5173
+```
+
+#### CLI Tool
+Sonic Forge includes a CLI for headless processing and automation.
+```bash
+# Run CLI in dev mode
+npm run dev:cli
 ```
 
 ### Testing
@@ -111,6 +138,14 @@ Sonic Forge is designed to be extensible. To add a new effect, you must implemen
 4.  **Register:** Add the module to the `AudioEngine` factory and the `useAudioStore` types.
 
 See `docs/trinity-pattern.md` for a step-by-step tutorial.
+
+## 🌐 Browser Support
+
+Sonic Forge relies on modern Web Audio API features, specifically `AudioWorklet`.
+
+*   **Chrome / Edge:** 66+ (Best Performance)
+*   **Firefox:** 76+
+*   **Safari:** 14.1+
 
 ## 📄 License
 
