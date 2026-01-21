@@ -319,3 +319,27 @@ export class OnePoleAllPass {
     }
 }
 
+
+/**
+ * Optimized dB to Linear conversion.
+ * Uses Math.exp approx for 10^(x/20)
+ * 10^(x/20) = e^(x * ln(10)/20)
+ * ln(10)/20 ~= 0.11512925464970228
+ * @param {number} db
+ * @returns {number} linear gain
+ */
+export function dbToLinear(db) {
+    return Math.exp(db * 0.11512925464970228);
+}
+
+/**
+ * Optimized Linear to dB conversion.
+ * Uses Math.log approx for 20*log10(x)
+ * 20*log10(x) = 20 * ln(x) / ln(10)
+ * 20/ln(10) ~= 8.685889638065037
+ * @param {number} linear
+ * @returns {number} db
+ */
+export function linearToDb(linear) {
+    return Math.log(linear) * 8.685889638065037;
+}
