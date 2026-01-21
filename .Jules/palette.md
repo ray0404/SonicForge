@@ -5,3 +5,7 @@ This journal documents CRITICAL UX and accessibility learnings for the Sonic For
 ## 2024-05-23 - Accessibility Patterns
 **Learning:** The project relies heavily on `div` elements with `onClick` handlers for interactive "cards" (like the file loader), which creates significant keyboard accessibility barriers.
 **Action:** Always verify interactive elements are semantic `<button>`s or have full ARIA roles (`role="button"`, `tabIndex={0}`) and keyboard handlers (`onKeyDown`).
+
+## 2024-05-24 - Focus Visibility on Dark Themes
+**Learning:** Default focus rings often blend into dark backgrounds or lack sufficient contrast.
+**Action:** Use `focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900` (or matching background color) to create a clear separation layer for the focus indicator.
