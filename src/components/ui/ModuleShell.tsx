@@ -38,12 +38,15 @@ export const ModuleShell: React.FC<ModuleShellProps> = ({
            <button
              onClick={onBypass}
              className={clsx(
-               "w-3 h-3 rounded-full border transition-all shadow-[0_0_8px_rgba(0,0,0,0.5)] mx-1",
+               "w-3 h-3 rounded-full border transition-all shadow-[0_0_8px_rgba(0,0,0,0.5)] mx-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-green-400 focus-visible:ring-offset-slate-900",
                isBypassed
                  ? "bg-slate-800 border-slate-600"
                  : "bg-active-led border-green-400 shadow-[0_0_8px_rgba(34,197,94,0.6)]"
              )}
              title={isBypassed ? "Engage" : "Bypass"}
+             aria-label={`${isBypassed ? "Enable" : "Bypass"} ${title}`}
+             role="switch"
+             aria-checked={!isBypassed}
            />
 
            <span className={clsx("font-bold text-sm tracking-wide uppercase select-none", color)}>
@@ -53,8 +56,9 @@ export const ModuleShell: React.FC<ModuleShellProps> = ({
 
         <button
           onClick={onRemove}
-          className="text-slate-600 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+          className="text-slate-600 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 rounded-sm"
           title="Remove Module"
+          aria-label={`Remove ${title}`}
         >
           <X size={16} />
         </button>
