@@ -319,3 +319,31 @@ export class OnePoleAllPass {
     }
 }
 
+
+/**
+ * Fast db to linear conversion using Math.exp
+ */
+export const DB_TO_LINEAR_FAST = Math.LN10 / 20;
+
+/**
+ * Fast linear to db conversion using Math.log
+ */
+export const LINEAR_TO_DB_FAST = 20 / Math.LN10;
+
+/**
+ * Converts dB to linear gain using optimized Math.exp
+ * @param {number} db
+ * @returns {number} linear gain
+ */
+export function dbToLinear(db) {
+    return Math.exp(db * DB_TO_LINEAR_FAST);
+}
+
+/**
+ * Converts linear gain to dB using optimized Math.log
+ * @param {number} linear
+ * @returns {number} dB
+ */
+export function linearToDb(linear) {
+    return Math.log(linear) * LINEAR_TO_DB_FAST;
+}
