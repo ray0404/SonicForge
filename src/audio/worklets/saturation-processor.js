@@ -1,4 +1,5 @@
 import { Saturator } from './lib/saturation.js';
+import { dbToLinear } from './lib/dsp-helpers.js';
 
 class SaturationProcessor extends AudioWorkletProcessor {
   constructor() {
@@ -46,7 +47,7 @@ class SaturationProcessor extends AudioWorkletProcessor {
       // Pre-calculate constants outside the loop
       let linearGain = 1.0;
       if (isGainConst) {
-        linearGain = Math.pow(10, currentGainDb / 20);
+        linearGain = dbToLinear(currentGainDb);
       }
 
       if (isTypeConst) {
@@ -61,7 +62,7 @@ class SaturationProcessor extends AudioWorkletProcessor {
         if (!isGainConst) {
            currentGainDb = outGain[i];
            // Only calculate pow inside loop if gain is changing
-           linearGain = Math.pow(10, currentGainDb / 20);
+           linearGain = dbToLinear(currentGainDb);
         }
 
         if (!isTypeConst) {
