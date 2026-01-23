@@ -1,4 +1,4 @@
-import { DelayLine, EnvelopeFollower } from './lib/dsp-helpers.js';
+import { DelayLine, EnvelopeFollower, dbToLinear, linearToDb } from './lib/dsp-helpers.js';
 
 class LimiterProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
@@ -37,8 +37,8 @@ class LimiterProcessor extends AudioWorkletProcessor {
       }
     }
 
-    const thresholdLinear = Math.pow(10, thresholdDb / 20);
-    const ceilingLinear = Math.pow(10, ceilingDb / 20);
+    const thresholdLinear = dbToLinear(thresholdDb);
+    const ceilingLinear = dbToLinear(ceilingDb);
     
     // Lookahead in samples
     const lookaheadSamples = Math.floor((lookaheadMs / 1000) * sampleRate);
@@ -147,7 +147,7 @@ class LimiterProcessor extends AudioWorkletProcessor {
         // Let's just track the raw gain factor for the "Limiting" part (before makeup)
         // limitingGain = (env > thresh) ? thresh/env : 1.0
         let limitingGain = (envLevel > thresholdLinear) ? (thresholdLinear / envLevel) : 1.0;
-        let gr = -20 * Math.log10(limitingGain); 
+        let gr = -linearToDb(limitingGain);
         if (gr > maxGainReduction) maxGainReduction = gr;
       }
     }

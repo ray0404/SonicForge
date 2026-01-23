@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { BiquadFilter, EnvelopeFollower } from './dsp-helpers';
+import { BiquadFilter, EnvelopeFollower, dbToLinear, linearToDb } from './dsp-helpers';
 
 describe('DSP Helpers', () => {
     describe('BiquadFilter', () => {
@@ -48,6 +48,25 @@ describe('DSP Helpers', () => {
              const out = env.process(0.0);
              expect(out).toBeLessThan(1.0); // Should decay
              expect(out).toBeGreaterThan(0.9); // Should decay slowly (release > attack)
+        });
+    });
+
+    describe('Conversions', () => {
+        it('should convert dB to linear correctly', () => {
+            expect(dbToLinear(0)).toBeCloseTo(1.0, 5);
+            expect(dbToLinear(-20)).toBeCloseTo(0.1, 5);
+            expect(dbToLinear(6)).toBeCloseTo(1.99526, 5);
+        });
+
+        it('should convert linear to dB correctly', () => {
+            expect(linearToDb(1.0)).toBeCloseTo(0, 5);
+            expect(linearToDb(0.1)).toBeCloseTo(-20, 5);
+            expect(linearToDb(2.0)).toBeCloseTo(6.0206, 4);
+        });
+
+        it('should handle silence (0 or negative) in linearToDb', () => {
+             expect(linearToDb(0)).toBe(-1000);
+             expect(linearToDb(-1)).toBe(-1000);
         });
     });
 });
