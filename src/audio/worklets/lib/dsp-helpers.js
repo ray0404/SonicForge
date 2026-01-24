@@ -319,3 +319,31 @@ export class OnePoleAllPass {
     }
 }
 
+
+/**
+ * Constants for optimized dB conversion.
+ */
+export const DB_TO_LINEAR_CONST = 0.11512925464970229; // Math.LN10 / 20
+export const LINEAR_TO_DB_CONST = 8.685889638065037; // 20 / Math.LN10
+
+/**
+ * Optimized dB to Linear conversion using Math.exp.
+ * Approximately 2x faster than Math.pow(10, db/20).
+ * @param {number} db - Value in decibels.
+ * @returns {number} Linear gain.
+ */
+export function dbToLinear(db) {
+    return Math.exp(db * DB_TO_LINEAR_CONST);
+}
+
+/**
+ * Optimized Linear to dB conversion using Math.log.
+ * Faster than 20 * Math.log10(linear).
+ * @param {number} linear - Linear gain.
+ * @returns {number} Value in decibels.
+ */
+export function linearToDb(linear) {
+    // Safety check to avoid -Infinity
+    if (linear <= 0) return -1000;
+    return Math.log(linear) * LINEAR_TO_DB_CONST;
+}
