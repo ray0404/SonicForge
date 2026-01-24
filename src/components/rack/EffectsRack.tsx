@@ -66,15 +66,20 @@ function SortableItem({ id, children }: { id: string, children: (dragHandleProps
 }
 
 export const EffectsRack: React.FC = () => {
-  const { rack, removeModule, updateModuleParam, toggleModuleBypass, reorderRack } = useAudioStore(
+  const { activeTrackId, tracks, master, removeModule, updateModuleParam, toggleModuleBypass, reorderRack } = useAudioStore(
     useShallow((state) => ({
-      rack: state.rack,
+      activeTrackId: state.activeTrackId,
+      tracks: state.tracks,
+      master: state.master,
       removeModule: state.removeModule,
       updateModuleParam: state.updateModuleParam,
       toggleModuleBypass: state.toggleModuleBypass,
       reorderRack: state.reorderRack
     }))
   );
+
+  const activeTrack = activeTrackId === 'MASTER' ? master : tracks[activeTrackId];
+  const rack = activeTrack?.rack || [];
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -89,7 +94,7 @@ export const EffectsRack: React.FC = () => {
     if (active.id !== over?.id) {
         const oldIndex = rack.findIndex((item) => item.id === active.id);
         const newIndex = rack.findIndex((item) => item.id === over?.id);
-        reorderRack(oldIndex, newIndex);
+        reorderRack(activeTrackId, oldIndex, newIndex);
     }
   };
 
@@ -115,11 +120,11 @@ export const EffectsRack: React.FC = () => {
                             {(dragHandleProps) => {
                                 const commonProps = {
                                     module,
-                                    onRemove: () => removeModule(module.id),
-                                    onBypass: () => toggleModuleBypass(module.id),
+                                    onRemove: () => removeModule(activeTrackId, module.id),
+                                    onBypass: () => toggleModuleBypass(activeTrackId, module.id),
                                     dragHandleProps
                                 };
-                                const onUpdate = (p: string, v: any) => updateModuleParam(module.id, p, v);
+                                const onUpdate = (p: string, v: any) => updateModuleParam(activeTrackId, module.id, p, v);
 
                                 switch (module.type) {
                                     case 'DYNAMIC_EQ': return <DynamicEQUnit {...commonProps} onUpdate={onUpdate} />;

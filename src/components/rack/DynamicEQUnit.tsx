@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { RackModule } from '@/store/useAudioStore';
-import { audioEngine } from '@/audio/context';
+import { mixerEngine } from '@/audio/mixer';
 import { DynamicEQNode } from '@/audio/worklets/DynamicEQNode';
 import { ModuleShell } from '@/components/ui/ModuleShell';
 import { Knob } from '@/components/ui/Knob';
@@ -36,7 +36,7 @@ export const DynamicEQUnit: React.FC<DynamicEQUnitProps> = ({ module, onRemove, 
 
     const render = () => {
       // @ts-ignore
-      const node = audioEngine.nodeMap.get(module.id) as DynamicEQNode | undefined;
+      const node = mixerEngine.getModuleNode(module.id) as DynamicEQNode | undefined;
       const gr = node ? node.currentGainReduction : 0;
 
       ctx.fillStyle = '#0f172a';

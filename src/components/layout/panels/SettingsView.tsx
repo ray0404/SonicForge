@@ -3,7 +3,7 @@ import { useAudioStore } from '@/store/useAudioStore';
 import { Volume2, Power } from 'lucide-react';
 
 export const SettingsView: React.FC = () => {
-    const { isInitialized, masterVolume, setMasterVolume } = useAudioStore();
+    const { isInitialized, master, setTrackVolume } = useAudioStore();
 
     return (
         <div className="space-y-6">
@@ -34,12 +34,12 @@ export const SettingsView: React.FC = () => {
                     min="0"
                     max="1"
                     step="0.01"
-                    value={masterVolume}
-                    onChange={(e) => setMasterVolume(parseFloat(e.target.value))}
+                    value={master.volume}
+                    onChange={(e) => setTrackVolume('MASTER', parseFloat(e.target.value))}
                     className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-primary"
                 />
                 <div className="text-right text-xs text-slate-500">
-                    {Math.round(masterVolume * 100)}%
+                    {Math.round(master.volume * 100)}%
                 </div>
             </div>
         </div>

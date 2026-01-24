@@ -6,16 +6,16 @@ import { useUIStore } from '@/store/useUIStore';
 import { usePanelRouting } from '@/hooks/usePanelRouting';
 import { EffectsRack } from '@/components/rack/EffectsRack';
 import { Transport } from '@/components/Transport';
-import { MasteringVisualizer } from '@/components/visualizers/MasteringVisualizer';
+import { MixerView } from '@/components/mixer/MixerView';
 import { AddModuleMenu } from '@/components/rack/AddModuleMenu';
 import { SidePanel } from './SidePanel';
 import { clsx } from 'clsx';
 
-type Tab = 'rack' | 'visualizer';
+type Tab = 'rack' | 'mixer';
 
 export const MasteringWorkspace: React.FC = () => {
   const { saveProject, isPersistedToDisk } = useProjectPersistence();
-  const { loadSourceFile, clearSource, sourceDuration } = useAudioStore();
+  const { loadSourceFile, activeTrackId, tracks, addTrack } = useAudioStore();
   const { isPanelOpen, togglePanel } = useUIStore();
   
   // Enable URL <-> Store synchronization
@@ -23,6 +23,9 @@ export const MasteringWorkspace: React.FC = () => {
   
   const [activeTab, setActiveTab] = useState<Tab>('rack');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const activeTrack = tracks[activeTrackId];
+  const sourceDuration = activeTrack?.sourceDuration || 0;
 
   const handleSave = async () => {
       await saveProject();
@@ -34,7 +37,23 @@ export const MasteringWorkspace: React.FC = () => {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files[0]) {
-          loadSourceFile(e.target.files[0]);
+          const file = e.target.files[0];
+          if (activeTrackId === 'MASTER') {
+              // Create new track for file
+              addTrack(file.name.replace(/\.[^/.]+$/, ""));
+              // We need to wait for state update to get ID?
+              // addModule updates sync. But we don't know the ID here easily without return.
+              // useAudioStore addTrack doesn't return ID.
+              // For now, let's just let user add track first or select a track.
+              // Or better, addTrack sets activeTrackId.
+              // But we can't call loadSourceFile immediately on the new ID because of closure.
+              // The user will see the new track and can import again.
+              // Alternatively, update store to accept file in addTrack.
+              // For now: Only load if track selected.
+              alert("Please select a track (not Master) to load audio.");
+          } else {
+              loadSourceFile(activeTrackId, file);
+          }
       }
   };
 
@@ -48,7 +67,7 @@ export const MasteringWorkspace: React.FC = () => {
                  </div>
                  <div className="leading-tight">
                      <h1 className="text-sm font-bold tracking-tight text-slate-100">Sonic Forge</h1>
-                     <span className="text-[10px] font-medium text-slate-500 uppercase tracking-widest">Mastering</span>
+                     <span className="text-[10px] font-medium text-slate-500 uppercase tracking-widest">Multi-Track</span>
                  </div>
              </div>
 
@@ -77,15 +96,7 @@ export const MasteringWorkspace: React.FC = () => {
                         <FileAudio size={16} className="sm:w-3 sm:h-3" />
                         <span className="hidden sm:inline">Audio</span>
                     </button>
-                    {sourceDuration > 0 && (
-                        <button
-                            onClick={() => clearSource()}
-                            className="p-2 hover:bg-red-900/30 text-slate-500 hover:text-red-400 transition-all"
-                            title="Clear Audio"
-                        >
-                            <Trash2 size={14} />
-                        </button>
-                    )}
+                    {/* Clear Source removed for now as it's per track */}
                  </div>
 
                  <input 
@@ -122,21 +133,24 @@ export const MasteringWorkspace: React.FC = () => {
                 isPanelOpen ? "md:mr-[400px]" : "md:mr-0"
             )}>
                 {/* Desktop: Grid Layout */}
-                <div className="hidden md:grid h-full grid-rows-[1fr_260px]">
+                <div className="hidden md:grid h-full grid-rows-[1fr_300px]">
                     {/* Rack Area */}
                     <div className="overflow-y-auto p-8 bg-rack-bg scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
                         <div className="max-w-5xl mx-auto pb-10">
+                             <div className="mb-4 text-sm font-bold text-slate-400">
+                                 {activeTrackId === 'MASTER' ? "Master Bus Effects" : `Track Effects: ${activeTrack?.name || 'Unknown'}`}
+                             </div>
                              <EffectsRack />
                         </div>
                     </div>
                     
-                    {/* Bottom Section: Transport & Visuals */}
+                    {/* Bottom Section: Transport & Mixer */}
                     <div className="bg-surface border-t border-slate-700 flex flex-col shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-40">
                         <div className="px-4 py-2 bg-background border-b border-slate-800 flex justify-center shadow-inner">
                             <Transport />
                         </div>
-                        <div className="flex-1 p-4 bg-background">
-                            <MasteringVisualizer className="w-full h-full" />
+                        <div className="flex-1 p-0 bg-background overflow-hidden">
+                            <MixerView />
                         </div>
                     </div>
                 </div>
@@ -149,15 +163,18 @@ export const MasteringWorkspace: React.FC = () => {
                             "absolute inset-0 overflow-y-auto bg-rack-bg p-4 pb-24 transition-opacity duration-300",
                             activeTab === 'rack' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
                         )}>
+                             <div className="mb-4 text-xs font-bold text-slate-400">
+                                 {activeTrackId === 'MASTER' ? "Master Bus" : activeTrack?.name}
+                             </div>
                             <EffectsRack />
                         </div>
                         
-                        {/* Visualizer Tab */}
+                        {/* Mixer Tab */}
                         <div className={clsx(
-                            "absolute inset-0 bg-background p-4 flex flex-col gap-4 transition-opacity duration-300",
-                            activeTab === 'visualizer' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
+                            "absolute inset-0 bg-background p-2 flex flex-col gap-4 transition-opacity duration-300",
+                            activeTab === 'mixer' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
                         )}>
-                            <MasteringVisualizer className="w-full h-full" />
+                            <MixerView />
                         </div>
                     </div>
 
@@ -185,15 +202,15 @@ export const MasteringWorkspace: React.FC = () => {
                              <div className="w-px bg-slate-800 my-2"></div>
 
                              <button 
-                                onClick={() => setActiveTab('visualizer')}
+                                onClick={() => setActiveTab('mixer')}
                                 className={clsx(
                                     "flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-wide transition-colors relative",
-                                    activeTab === 'visualizer' ? "text-primary bg-slate-800" : "text-slate-500 hover:bg-slate-800/50"
+                                    activeTab === 'mixer' ? "text-primary bg-slate-800" : "text-slate-500 hover:bg-slate-800/50"
                                 )}
                              >
                                 <Activity size={18} />
-                                Visuals
-                                {activeTab === 'visualizer' && <div className="absolute top-0 left-0 w-full h-0.5 bg-primary shadow-[0_0_10px_rgba(59,130,246,0.8)]" />}
+                                Mixer
+                                {activeTab === 'mixer' && <div className="absolute top-0 left-0 w-full h-0.5 bg-primary shadow-[0_0_10px_rgba(59,130,246,0.8)]" />}
                              </button>
                          </div>
                     </div>

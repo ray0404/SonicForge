@@ -1,0 +1,133 @@
+import { ContextManager } from "./core/context-manager";
+import { TrackStrip } from "./core/track-strip";
+import { BusStrip } from "./core/bus-strip";
+import { logger } from "@/utils/logger";
+
+export class MixerEngine {
+    private tracks = new Map<string, TrackStrip>();
+    private buses = new Map<string, BusStrip>();
+    public masterBus!: BusStrip;
+
+    // Transport
+    public isPlaying = false;
+    public startTime = 0;
+    public pauseTime = 0;
+
+    constructor() {
+        // Defer initialization to init()
+    }
+
+    async init() {
+        await ContextManager.init();
+        this.masterBus = new BusStrip("MASTER");
+        // Master bus output goes to context destination
+        this.masterBus.connectTo(ContextManager.context.destination);
+        logger.info("Mixer Engine Initialized");
+    }
+
+    get context() {
+        return ContextManager.context;
+    }
+
+    addTrack(id: string): TrackStrip {
+        if (this.tracks.has(id)) return this.tracks.get(id)!;
+
+        const track = new TrackStrip(id);
+        // By default, track connects to Master Bus
+        track.connectTo(this.masterBus.inputGain);
+
+        this.tracks.set(id, track);
+        return track;
+    }
+
+    removeTrack(id: string) {
+        const track = this.tracks.get(id);
+        if (track) {
+            track.disconnect();
+            this.tracks.delete(id);
+        }
+    }
+
+    getTrack(id: string) {
+        return this.tracks.get(id);
+    }
+
+    getAllTracks() {
+        return Array.from(this.tracks.values());
+    }
+
+    play() {
+        if (this.isPlaying) return;
+        ContextManager.resume();
+
+        const ctx = ContextManager.context;
+        this.startTime = ctx.currentTime - this.pauseTime;
+
+        this.tracks.forEach(track => {
+            track.play(0, this.pauseTime);
+        });
+
+        this.isPlaying = true;
+    }
+
+    pause() {
+        if (!this.isPlaying) return;
+
+        const ctx = ContextManager.context;
+        this.pauseTime = ctx.currentTime - this.startTime;
+
+        this.tracks.forEach(track => track.stop());
+        this.isPlaying = false;
+    }
+
+    seek(time: number) {
+        const wasPlaying = this.isPlaying;
+        if (wasPlaying) this.pause();
+        this.pauseTime = time;
+        if (wasPlaying) this.play();
+    }
+
+    get currentTime() {
+        if (this.isPlaying && ContextManager.context) {
+            return ContextManager.context.currentTime - this.startTime;
+        }
+        return this.pauseTime;
+    }
+
+    resume() {
+        ContextManager.resume();
+    }
+
+    getModuleNode(moduleId: string) {
+        // Check Master
+        let node = this.masterBus.getModuleNode(moduleId);
+        if (node) return node;
+
+        // Check Tracks
+        for (const track of this.tracks.values()) {
+            node = track.getModuleNode(moduleId);
+            if (node) return node;
+        }
+        return undefined;
+    }
+
+    getRMSLevel(): { input: number, output: number } {
+        const analyser = this.masterBus.analyser;
+        if (!analyser) return { input: -100, output: -100 };
+
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Float32Array(bufferLength);
+        analyser.getFloatTimeDomainData(dataArray);
+
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+            sum += dataArray[i] * dataArray[i];
+        }
+        const rms = Math.sqrt(sum / bufferLength);
+        const db = 20 * Math.log10(Math.max(rms, 0.00001));
+
+        return { input: db, output: db };
+    }
+}
+
+export const mixerEngine = new MixerEngine();

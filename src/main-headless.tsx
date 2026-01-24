@@ -1,108 +1,107 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { useAudioStore } from './store/useAudioStore';
-import { audioEngine } from './audio/context';
-import { audioBufferToWav } from './utils/wav-export';
+import { mixerEngine } from './audio/mixer';
 import { getModuleDescriptors } from './audio/module-descriptors';
-import { throttle } from 'lodash-es'; // Using a simple throttle
 
-// Minimal component that just initializes the store/engine logic
 const HeadlessApp = () => {
   return <div data-testid="headless-mount" style={{ display: 'none' }}>Sonic Forge Engine Running</div>;
 };
 
-// --- Bridge Interface ---
+function throttle(func: Function, limit: number, options?: { leading?: boolean, trailing?: boolean }) {
+    let lastFunc: any;
+    let lastRan: any;
+    return function(this: any) {
+        const context = this;
+        const args = arguments;
+        if (!lastRan) {
+            func.apply(context, args);
+            lastRan = Date.now();
+        } else {
+            clearTimeout(lastFunc);
+            lastFunc = setTimeout(function() {
+                if ((Date.now() - lastRan) >= limit) {
+                    func.apply(context, args);
+                    lastRan = Date.now();
+                }
+            }, limit - (Date.now() - lastRan));
+        }
+    }
+}
 
 const SonicForgeBridge = {
-  /**
-   * Initialize the Audio Context and optionally set up the TUI event bridge.
-   * @param tuiMode - If true, sets up a subscription to push state changes to the TUI.
-   */
   init: async (tuiMode = false) => {
     await useAudioStore.getState().initializeEngine();
     console.log('[Headless] Audio Engine Initialized.');
 
     if (tuiMode && typeof window.__TUI_DISPATCH__ === 'function') {
-      console.log('[Headless] TUI Mode Enabled. Setting up state dispatcher.');
+      console.log('[Headless] TUI Mode Enabled.');
 
-      // This function gathers and sends all relevant state to the TUI
       const dispatchStateToTUI = () => {
         const state = useAudioStore.getState();
-        const levels = audioEngine.getRMSLevel();
+        const activeTrack = state.tracks[state.activeTrackId] || state.master;
+        const rack = activeTrack.rack;
+        const levels = mixerEngine.getRMSLevel();
         const rackStatus: Record<string, any> = {};
         
-        state.rack.forEach(m => {
-            const node = audioEngine.getModuleNode(m.id) as any;
+        rack.forEach(m => {
+            const node = mixerEngine.getModuleNode(m.id) as any;
             if (node && typeof node.getReduction === 'function') {
                 rackStatus[m.id] = { reduction: node.getReduction() };
             }
         });
 
-        // Dispatch a single payload with all updates
         window.__TUI_DISPATCH__({
-          rack: state.rack,
+          rack: rack,
           playback: {
             isPlaying: state.isPlaying,
             currentTime: state.currentTime,
-            duration: state.sourceDuration,
+            duration: activeTrack.sourceDuration || 0,
           },
           metering: {
             input: levels.input,
             output: levels.output,
-            gainReduction: 0, // Legacy
+            gainReduction: 0,
             rack: rackStatus,
           },
         });
       };
       
-      // Throttle high-frequency updates (like time)
       const throttledDispatch = throttle(dispatchStateToTUI, 200, { leading: true, trailing: true });
-
-      // Subscribe to the audio store
       useAudioStore.subscribe(() => {
-        // Use the throttled version for all updates to keep it simple
         throttledDispatch();
       });
-      
-      // Send initial state immediately
       dispatchStateToTUI();
     }
-
     return true;
   },
 
-  /**
-   * Export the project to a WAV file
-   */
   exportAudio: async () => {
-      try {
-          const state = useAudioStore.getState();
-          console.log('[Headless] Starting Offline Render...');
-          const renderedBuffer = await audioEngine.renderOffline(state.rack, state.assets);
-          if (!renderedBuffer) throw new Error("Offline render returned null");
-          
-          console.log('[Headless] Render complete. Encoding WAV...');
-          const wavBuffer = audioBufferToWav(renderedBuffer, { float32: true });
-          
-          return { success: true, data: Array.from(new Uint8Array(wavBuffer)) };
-      } catch (error: any) {
-          console.error('[Headless] Export Failed', error);
-          return { success: false, error: error.message };
-      }
+      // Stub
+      return { success: false, error: "Offline export unavailable in multi-track mode yet." };
   },
 
-  /**
-   * Load an ArrayBuffer into the engine
-   */
   loadAudio: async (arrayBuffer: ArrayBuffer) => {
     try {
       console.log(`[Headless] Received ArrayBuffer: ${arrayBuffer.byteLength} bytes`);
-      const ctx = audioEngine.context;
+      const ctx = mixerEngine.context;
       if (!ctx) throw new Error("Audio Context not initialized");
 
       const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-      useAudioStore.getState().updateSourceBuffer(audioBuffer);
-      console.log(`[Headless] Audio Loaded. Duration: ${audioBuffer.duration}s.`);
+      const state = useAudioStore.getState();
+      let trackId = state.activeTrackId;
+
+      if (!trackId || trackId === 'MASTER') {
+           useAudioStore.getState().addTrack("Audio 1");
+           trackId = useAudioStore.getState().activeTrackId;
+      }
+
+      if (trackId && trackId !== 'MASTER') {
+           const track = mixerEngine.getTrack(trackId);
+           if (track) track.setSource(audioBuffer);
+      }
+
+      console.log(`[Headless] Audio Loaded.`);
       return { success: true, duration: audioBuffer.duration };
     } catch (error: any) {
       console.error('[Headless] Load Audio Failed', error);
@@ -111,22 +110,26 @@ const SonicForgeBridge = {
   },
 
   addModule: (type: any) => {
-      useAudioStore.getState().addModule(type);
+      const state = useAudioStore.getState();
+      state.addModule(state.activeTrackId, type);
       return { success: true };
   },
 
   removeModule: (id: string) => {
-      useAudioStore.getState().removeModule(id);
+      const state = useAudioStore.getState();
+      state.removeModule(state.activeTrackId, id);
       return { success: true };
   },
 
   reorderRack: (startIndex: number, endIndex: number) => {
-      useAudioStore.getState().reorderRack(startIndex, endIndex);
+      const state = useAudioStore.getState();
+      state.reorderRack(state.activeTrackId, startIndex, endIndex);
       return { success: true };
   },
 
   toggleModuleBypass: (id: string) => {
-      useAudioStore.getState().toggleModuleBypass(id);
+      const state = useAudioStore.getState();
+      state.toggleModuleBypass(state.activeTrackId, id);
       return { success: true };
   },
 
@@ -136,12 +139,13 @@ const SonicForgeBridge = {
   },
 
   setMasterVolume: (val: number) => {
-      useAudioStore.getState().setMasterVolume(val);
+      useAudioStore.getState().setTrackVolume('MASTER', val);
       return { success: true };
   },
 
   updateParam: (moduleId: string, paramId: string, value: number) => {
-    useAudioStore.getState().updateModuleParam(moduleId, paramId, value);
+    const state = useAudioStore.getState();
+    state.updateModuleParam(state.activeTrackId, moduleId, paramId, value);
     return { success: true, value };
   },
   
@@ -154,28 +158,30 @@ const SonicForgeBridge = {
     return getModuleDescriptors();
   },
 
-  // --- Getters are now mostly for redundancy/debugging ---
-
   getRack: () => {
-      return useAudioStore.getState().rack;
+      const state = useAudioStore.getState();
+      return state.activeTrackId === 'MASTER' ? state.master.rack : state.tracks[state.activeTrackId]?.rack;
   },
 
   getPlaybackState: () => {
       const state = useAudioStore.getState();
+      const activeTrack = state.tracks[state.activeTrackId] || state.master;
       return { 
           isPlaying: state.isPlaying,
           currentTime: state.currentTime,
-          duration: state.sourceDuration
+          duration: activeTrack.sourceDuration || 0
       };
   },
 
   getMeteringData: () => {
-     const levels = audioEngine.getRMSLevel();
+     const levels = mixerEngine.getRMSLevel();
      const rackStatus: Record<string, any> = {};
-     const rack = useAudioStore.getState().rack;
+     const state = useAudioStore.getState();
+     const activeTrack = state.tracks[state.activeTrackId] || state.master;
+     const rack = activeTrack.rack;
      
      rack.forEach(m => {
-         const node = audioEngine.getModuleNode(m.id) as any;
+         const node = mixerEngine.getModuleNode(m.id) as any;
          if (node && typeof node.getReduction === 'function') {
              rackStatus[m.id] = { reduction: node.getReduction() };
          }
@@ -190,7 +196,6 @@ const SonicForgeBridge = {
   }
 };
 
-// Expose to window for Puppeteer
 declare global {
   interface Window {
     __SONICFORGE_BRIDGE__: typeof SonicForgeBridge;

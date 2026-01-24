@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { RackModule } from '@/store/useAudioStore';
-import { audioEngine } from '@/audio/context';
+import { mixerEngine } from '@/audio/mixer';
 import { MeteringNode } from '@/audio/worklets/MeteringNode';
 import { ModuleShell } from '@/components/ui/ModuleShell';
 import { LEDBar } from '@/components/ui/LEDBar';
@@ -18,7 +18,7 @@ const MeterDisplay = ({ nodeId }: { nodeId: string }) => {
 
     useEffect(() => {
         const update = () => {
-            const node = audioEngine.getModuleNode(nodeId) as MeteringNode | undefined;
+            const node = mixerEngine.getModuleNode(nodeId) as MeteringNode | undefined;
             if (node) {
                 setStats({ m: node.momentary, s: node.shortTerm });
             }
