@@ -1,5 +1,6 @@
 import { logger } from "@/utils/logger";
-import { RackModule, useAudioStore } from "@/store/useAudioStore";
+import { RackModule } from "./types";
+import { workletSources } from "./worklet-registry";
 import { DynamicEQNode } from "./worklets/DynamicEQNode";
 import { TransientShaperNode } from "./worklets/TransientShaperNode";
 import { LimiterNode } from "./worklets/LimiterNode";
@@ -32,46 +33,7 @@ import {
     IAudioBufferSourceNode
 } from "standardized-audio-context";
 
-// @ts-ignore
-import dynamicEqUrl from './worklets/dynamic-eq-processor.js?worker&url';
-// @ts-ignore
-import transientUrl from './worklets/transient-processor.js?worker&url';
-// @ts-ignore
-import limiterUrl from './worklets/limiter-processor.js?worker&url';
-// @ts-ignore
-import midsideUrl from './worklets/midside-eq-processor.js?worker&url';
-// @ts-ignore
-import lufsUrl from './worklets/lufs-processor.js?worker&url';
-// @ts-ignore
-import saturationUrl from './worklets/saturation-processor.js?worker&url';
-// @ts-ignore
-import ditheringUrl from './worklets/dithering-processor.js?worker&url';
-// @ts-ignore
-import parametricEqUrl from './worklets/parametric-eq-processor.js?worker&url';
-// @ts-ignore
-import distortionUrl from './worklets/distortion-processor.js?worker&url';
-// @ts-ignore
-import bitcrusherUrl from './worklets/bitcrusher-processor.js?worker&url';
-// @ts-ignore
-import chorusUrl from './worklets/chorus-processor.js?worker&url';
-// @ts-ignore
-import phaserUrl from './worklets/phaser-processor.js?worker&url';
-// @ts-ignore
-import tremoloUrl from './worklets/tremolo-processor.js?worker&url';
-// @ts-ignore
-import autowahUrl from './worklets/autowah-processor.js?worker&url';
-// @ts-ignore
-import feedbackDelayUrl from './worklets/feedback-delay-processor.js?worker&url';
-// @ts-ignore
-import compressorUrl from './worklets/compressor-processor.js?worker&url';
-// @ts-ignore
-import deesserUrl from './worklets/deesser-processor.js?worker&url';
-// @ts-ignore
-import stereoImagerUrl from './worklets/stereo-imager-processor.js?worker&url';
-// @ts-ignore
-import multibandCompressorUrl from './worklets/multiband-compressor-processor.js?worker&url';
-
-class AudioEngine {
+export class AudioEngine {
   public context: IAudioContext | null = null;
   public masterGain: IGainNode<IAudioContext> | null = null;
   public analyser: IAnalyserNode<IAudioContext> | null = null;
@@ -88,6 +50,8 @@ class AudioEngine {
   public pauseTime: number = 0;
   public isPlaying: boolean = false;
 
+  public assets: Record<string, AudioBuffer> = {};
+
   private nodeMap = new Map<string, IAudioNode<IAudioContext | IOfflineAudioContext> | ConvolutionNode>();
   private isInitialized = false;
   private connectedIds: string[] = [];
@@ -103,33 +67,8 @@ class AudioEngine {
 
       logger.info(`Loading AudioWorklet modules...`);
       if (this.context.audioWorklet) {
-          try {
-            await Promise.all([
-                this.context.audioWorklet.addModule(dynamicEqUrl),
-                this.context.audioWorklet.addModule(transientUrl),
-                this.context.audioWorklet.addModule(limiterUrl),
-                this.context.audioWorklet.addModule(midsideUrl),
-                this.context.audioWorklet.addModule(lufsUrl),
-                this.context.audioWorklet.addModule(saturationUrl),
-                this.context.audioWorklet.addModule(ditheringUrl),
-                this.context.audioWorklet.addModule(parametricEqUrl),
-                this.context.audioWorklet.addModule(distortionUrl),
-                this.context.audioWorklet.addModule(bitcrusherUrl),
-                this.context.audioWorklet.addModule(chorusUrl),
-                this.context.audioWorklet.addModule(phaserUrl),
-                this.context.audioWorklet.addModule(tremoloUrl),
-                this.context.audioWorklet.addModule(autowahUrl),
-                this.context.audioWorklet.addModule(feedbackDelayUrl),
-                this.context.audioWorklet.addModule(compressorUrl),
-                this.context.audioWorklet.addModule(deesserUrl),
-                this.context.audioWorklet.addModule(stereoImagerUrl),
-                this.context.audioWorklet.addModule(multibandCompressorUrl)
-            ]);
-            logger.info("AudioWorklet modules loaded successfully.");
-          } catch (err) {
-            logger.error(`Failed to load AudioWorklet modules`, err);
-            throw err;
-          }
+          await this.loadWorklets(this.context.audioWorklet);
+          logger.info("AudioWorklet modules loaded successfully.");
       }
 
       this.masterGain = this.context.createGain();
@@ -165,6 +104,21 @@ class AudioEngine {
     }
   }
 
+  private async loadWorklets(worklet: any) {
+      const promises = Object.entries(workletSources).map(async ([filename, source]) => {
+          try {
+              const blob = new Blob([source], { type: 'application/javascript' });
+              const url = URL.createObjectURL(blob);
+              await worklet.addModule(url);
+              URL.revokeObjectURL(url);
+          } catch (e) {
+              logger.error(`Failed to load worklet ${filename}`, e);
+              throw e;
+          }
+      });
+      await Promise.all(promises);
+  }
+
   resume() {
     if (this.context?.state === 'suspended') {
       this.context.resume();
@@ -176,6 +130,18 @@ class AudioEngine {
       const arrayBuffer = await file.arrayBuffer();
       this.sourceBuffer = await this.context.decodeAudioData(arrayBuffer);
       return this.sourceBuffer;
+  }
+
+  setSourceBuffer(buffer: AudioBuffer) {
+      this.sourceBuffer = buffer;
+  }
+
+  setAssets(assets: Record<string, AudioBuffer>) {
+      this.assets = { ...this.assets, ...assets };
+  }
+
+  addAsset(id: string, buffer: AudioBuffer) {
+      this.assets[id] = buffer;
   }
 
   play() {
@@ -416,7 +382,7 @@ class AudioEngine {
       if (node instanceof ConvolutionNode) {
           if (module.parameters.mix !== undefined) node.setMix(module.parameters.mix);
           if (module.parameters.irAssetId) {
-              const assets = assetsOverride || useAudioStore.getState().assets;
+              const assets = assetsOverride || this.assets;
               const buffer = assets[module.parameters.irAssetId];
               if (buffer) node.setBuffer(buffer);
           }
@@ -440,7 +406,7 @@ class AudioEngine {
           if (node instanceof ConvolutionNode) {
               if (param === 'mix') node.setMix(value);
               if (param === 'irAssetId') {
-                  const assets = useAudioStore.getState().assets;
+                  const assets = this.assets;
                   const buffer = assets[value];
                   if (buffer) node.setBuffer(buffer);
               }
@@ -479,8 +445,10 @@ class AudioEngine {
       return { input: dbL, output: dbR }; // Using input/output as L/R for now in the simple meter bar
   }
 
-  async renderOffline(rack: RackModule[], assets: Record<string, AudioBuffer>): Promise<AudioBuffer | null> {
+  async renderOffline(rack: RackModule[], assets?: Record<string, AudioBuffer>): Promise<AudioBuffer | null> {
       if (!this.sourceBuffer) return null;
+
+      const assetsToUse = assets || this.assets;
 
       const length = this.sourceBuffer.length;
       const sampleRate = this.sourceBuffer.sampleRate;
@@ -488,26 +456,7 @@ class AudioEngine {
 
       try {
         if (offlineCtx.audioWorklet) {
-            await Promise.all([
-                offlineCtx.audioWorklet.addModule(dynamicEqUrl),
-                offlineCtx.audioWorklet.addModule(transientUrl),
-                offlineCtx.audioWorklet.addModule(limiterUrl),
-                offlineCtx.audioWorklet.addModule(midsideUrl),
-                offlineCtx.audioWorklet.addModule(saturationUrl),
-                offlineCtx.audioWorklet.addModule(ditheringUrl),
-                offlineCtx.audioWorklet.addModule(parametricEqUrl),
-                offlineCtx.audioWorklet.addModule(distortionUrl),
-                offlineCtx.audioWorklet.addModule(bitcrusherUrl),
-                offlineCtx.audioWorklet.addModule(chorusUrl),
-                offlineCtx.audioWorklet.addModule(phaserUrl),
-                offlineCtx.audioWorklet.addModule(tremoloUrl),
-                offlineCtx.audioWorklet.addModule(autowahUrl),
-                offlineCtx.audioWorklet.addModule(feedbackDelayUrl),
-                offlineCtx.audioWorklet.addModule(compressorUrl),
-                offlineCtx.audioWorklet.addModule(deesserUrl),
-                offlineCtx.audioWorklet.addModule(stereoImagerUrl),
-                offlineCtx.audioWorklet.addModule(multibandCompressorUrl)
-            ]);
+            await this.loadWorklets(offlineCtx.audioWorklet);
         }
       } catch (err) {
           logger.error("Failed to load worklets for offline render", err);
@@ -521,7 +470,7 @@ class AudioEngine {
 
       for (const module of rack) {
           if (module.bypass) continue;
-          const node = this.createModuleNode(module, offlineCtx, assets);
+          const node = this.createModuleNode(module, offlineCtx, assetsToUse);
           if (node) {
               if (node instanceof ConvolutionNode) {
                   previousNode.connect(node.input as unknown as IAudioNode<IOfflineAudioContext>);
