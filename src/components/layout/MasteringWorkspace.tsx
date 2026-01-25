@@ -4,6 +4,7 @@ import { useProjectPersistence } from '@/hooks/useProjectPersistence';
 import { useAudioStore } from '@/store/useAudioStore';
 import { useUIStore } from '@/store/useUIStore';
 import { usePanelRouting } from '@/hooks/usePanelRouting';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { EffectsRack } from '@/components/rack/EffectsRack';
 import { Transport } from '@/components/Transport';
 import { MasteringVisualizer } from '@/components/visualizers/MasteringVisualizer';
@@ -20,6 +21,7 @@ export const MasteringWorkspace: React.FC = () => {
   
   // Enable URL <-> Store synchronization
   usePanelRouting();
+  useKeyboardShortcuts();
   
   const [activeTab, setActiveTab] = useState<Tab>('rack');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -63,6 +65,7 @@ export const MasteringWorkspace: React.FC = () => {
                    onClick={handleSave}
                    className="p-2 sm:px-3 sm:py-1.5 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 rounded-lg text-xs font-bold transition-all border border-slate-700 flex items-center gap-2 shrink-0"
                    title="Save Project"
+                   aria-label="Save Project"
                  >
                      <Save size={16} className="sm:w-3 sm:h-3" />
                      <span className="hidden sm:inline">Save</span>
@@ -73,6 +76,7 @@ export const MasteringWorkspace: React.FC = () => {
                         onClick={handleImportClick}
                         className="p-2 sm:px-3 sm:py-1.5 hover:bg-slate-700 active:bg-slate-600 text-xs font-bold transition-all flex items-center gap-2 border-r border-slate-700"
                         title="Import Audio"
+                        aria-label="Import Audio"
                     >
                         <FileAudio size={16} className="sm:w-3 sm:h-3" />
                         <span className="hidden sm:inline">Audio</span>
@@ -82,6 +86,7 @@ export const MasteringWorkspace: React.FC = () => {
                             onClick={() => clearSource()}
                             className="p-2 hover:bg-red-900/30 text-slate-500 hover:text-red-400 transition-all"
                             title="Clear Audio"
+                            aria-label="Clear Audio"
                         >
                             <Trash2 size={14} />
                         </button>
@@ -102,6 +107,7 @@ export const MasteringWorkspace: React.FC = () => {
                  <div className="h-6 w-px bg-slate-700 mx-1 shrink-0"></div>
                  <button
                     onClick={togglePanel}
+                    aria-label={isPanelOpen ? "Close Menu" : "Open Menu"}
                     className={clsx(
                         "p-2 rounded-lg transition-all shrink-0",
                         isPanelOpen ? "bg-primary text-white shadow-glow" : "text-slate-400 hover:text-white hover:bg-slate-800"

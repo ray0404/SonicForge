@@ -63,4 +63,13 @@ describe('MasteringWorkspace Layout Integration', () => {
         // For now, let's verify the structure allows for it
         expect(mainContent).toBeInTheDocument();
     });
+
+    it('should have accessible names for all header buttons', () => {
+        render(<MasteringWorkspace />);
+
+        // These buttons now have aria-labels or accessible names
+        expect(screen.getByRole('button', { name: /save project/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /import audio/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /open menu/i })).toBeInTheDocument();
+    });
 });
