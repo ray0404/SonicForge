@@ -1,3 +1,5 @@
+import { dbToLinear, linearToDb } from './lib/dsp-helpers.js';
+
 class CompressorProcessor extends AudioWorkletProcessor {
     static get parameterDescriptors() {
         return [
@@ -31,6 +33,36 @@ class CompressorProcessor extends AudioWorkletProcessor {
         const modeP = parameters.mode;
         const mixP = parameters.mix;
 
+        // Check for constant parameters (k-rate) optimization
+        const isThreshConst = threshP.length === 1;
+        const isRatioConst = ratioP.length === 1;
+        const isAttConst = attP.length === 1;
+        const isRelConst = relP.length === 1;
+        const isKneeConst = kneeP.length === 1;
+        const isGainConst = gainP.length === 1;
+        const isMixConst = mixP.length === 1;
+
+        // Mode is treated as k-rate
+        const mode = modeP[0];
+
+        // Hoist constants
+        const threshConst = isThreshConst ? threshP[0] : 0;
+        const ratioConst = isRatioConst ? ratioP[0] : 0;
+        const kneeConst = isKneeConst ? kneeP[0] : 0;
+        const gainConst = isGainConst ? dbToLinear(gainP[0]) : 0;
+        const mixConst = isMixConst ? mixP[0] : 0;
+
+        // Pre-calculate coefficients if constant
+        let attCoeffConst = 0;
+        let baseRelCoeffConst = 0;
+
+        if (isAttConst) {
+            attCoeffConst = Math.exp(-1.0 / (Math.max(0.0001, attP[0]) * sampleRate));
+        }
+        if (isRelConst) {
+            baseRelCoeffConst = Math.exp(-1.0 / (Math.max(0.001, relP[0]) * sampleRate));
+        }
+
         // Init State
         if (this.channels.length < input.length) {
             for (let i = this.channels.length; i < input.length; i++) {
@@ -42,93 +74,67 @@ class CompressorProcessor extends AudioWorkletProcessor {
         }
 
         // Processing
-        // Simplified: Assuming stereo link usually desired for compressors to preserve image,
-        // but typically plugins implement dual mono or linked. 
-        // I'll implement per-channel (Dual Mono) for simplicity of loop, 
-        // but note that stereo linking is "Professional". 
-        // Given the constraints, Dual Mono is safer to implement quickly.
-
         for (let ch = 0; ch < input.length; ch++) {
             const state = this.channels[ch];
             const inCh = input[ch];
             const outCh = output[ch];
 
-            const mode = modeP.length === 1 ? modeP[0] : modeP[0];
-            const thresh = threshP.length === 1 ? threshP[0] : threshP[0];
-            const ratioBase = ratioP.length === 1 ? ratioP[0] : ratioP[0];
-            const knee = kneeP.length === 1 ? kneeP[0] : kneeP[0]; // Used as Knee Factor for VarMu
-            const makeupDb = gainP.length === 1 ? gainP[0] : gainP[0];
-            const makeup = Math.pow(10, makeupDb / 20);
-
-            // Ballistics Coeffs
-            const att = attP.length === 1 ? attP[0] : attP[0];
-            const rel = relP.length === 1 ? relP[0] : relP[0];
-            const mix = mixP.length === 1 ? mixP[0] : mixP[0];
-            
-            // Standard exp decay coeffs
-            const attCoeff = Math.exp(-1.0 / (Math.max(0.0001, att) * sampleRate));
-            const baseRelCoeff = Math.exp(-1.0 / (Math.max(0.001, rel) * sampleRate));
-
             for (let i = 0; i < inCh.length; i++) {
                 const x = inCh[i];
 
-                // 1. Detection Source
+                // 1. Resolve Parameters
+                const thresh = isThreshConst ? threshConst : threshP[i];
+                const ratioBase = isRatioConst ? ratioConst : ratioP[i];
+                const knee = isKneeConst ? kneeConst : kneeP[i];
+                const makeup = isGainConst ? gainConst : dbToLinear(gainP[i]);
+                const mix = isMixConst ? mixConst : mixP[i];
+
+                let attCoeff = attCoeffConst;
+                if (!isAttConst) {
+                     attCoeff = Math.exp(-1.0 / (Math.max(0.0001, attP[i]) * sampleRate));
+                }
+
+                let baseRelCoeff = baseRelCoeffConst;
+                if (!isRelConst) {
+                    baseRelCoeff = Math.exp(-1.0 / (Math.max(0.001, relP[i]) * sampleRate));
+                }
+
+                // 2. Detection Source
                 let detectorIn = x;
                 if (mode === 1) { // FET: Feedback
                     detectorIn = state.lastOutput;
                 }
 
-                // 2. Level Detection (Peak)
+                // 3. Level Detection (Peak)
                 const absIn = Math.abs(detectorIn);
-                const envDb = 20 * Math.log10(absIn + 1e-6);
+                const envDb = linearToDb(absIn + 1e-6);
 
-                // 3. Gain Calculation
+                // 4. Gain Calculation
                 let overshoot = envDb - thresh;
                 let targetGR = 0;
 
                 if (overshoot > 0) {
                     let r = ratioBase;
                     
-                    if (mode === 3) { // VarMu: Ratio increases with gain reduction/overshoot
-                        // Ratio = 1 + Overshoot * KneeFactor?
-                        // Doc: Ratio_effective = 1.0 + (Overshoot_dB * KneeFactor)
-                        // KneeFactor typically small (e.g. 0.1 to 0.5)
-                        r = 1.0 + (overshoot * (knee * 0.1)); // Scaling knee param 0-20 to 0-2 factor?
+                    if (mode === 3) { // VarMu
+                        // Ratio_effective = 1.0 + (Overshoot_dB * KneeFactor)
+                        r = 1.0 + (overshoot * (knee * 0.1));
                     }
                     
-                    // Standard compression formula
                     // GR = (Input - Thresh) * (1 - 1/R)
                     targetGR = overshoot * (1 - 1 / Math.max(1, r));
                 }
 
-                // 4. Ballistics (Attack/Release)
+                // 5. Ballistics (Attack/Release)
                 let relCoeff = baseRelCoeff;
 
                 if (mode === 2) { // Opto: Program Dependent Release
-                    // alpha_r(t) = BaseRelease * (1 - Envelope(t)) ?
-                    // Doc: "BaseRelease * (1 - Envelope(t))"
-                    // Envelope is normalized 0-1? absIn is 0-1 (usually).
-                    // So if loud signal, release is faster? (1-1=0 -> coeff 0 -> instant?)
-                    // Or slower? Coeff near 0 means instant change (decay=0).
-                    // Coeff near 1 means slow change.
-                    // Wait, usually exp coeff: y = a*y + (1-a)*target.
-                    // a=0 -> y = target (instant).
-                    // a=0.999 -> slow.
-                    // If formula is `RelCoeff = Base * (1 - Env)`.
-                    // If Env=1 (Loud), RelCoeff -> 0 (Instant Release). 
-                    // This is opposite of LA-2A (slow release on loud/sustained).
-                    // Maybe "1 - RelCoeff" logic?
-                    // I will stick to the Doc Formula: `BaseRelease * (1 - Envelope(t))`. 
-                    // If behavior is weird, user can adjust.
-                    relCoeff = baseRelCoeff * (1 - Math.min(1, absIn)); 
-                    // Safety clip absIn to 1.
+                    // relCoeff = baseRelCoeff * (1 - Envelope(t))
+                    const factor = absIn > 1 ? 1 : absIn;
+                    relCoeff = baseRelCoeff * (1 - factor);
                 }
 
-                // Apply Ballistics to GR State
-                // Note: GR is positive value representing attenuation in dB (e.g. 3dB reduction)
-                // If Target > Current, we are "Attacking" (Compressing more).
-                // If Target < Current, we are "Releasing" (Returning to 0).
-                
+                // Apply Ballistics
                 if (targetGR > state.gr) {
                     // Attack
                     state.gr = attCoeff * state.gr + (1 - attCoeff) * targetGR;
@@ -137,9 +143,9 @@ class CompressorProcessor extends AudioWorkletProcessor {
                     state.gr = relCoeff * state.gr + (1 - relCoeff) * targetGR;
                 }
 
-                // 5. Apply
+                // 6. Apply
                 // Gain = -GR dB
-                const gain = Math.pow(10, -state.gr / 20);
+                const gain = dbToLinear(-state.gr);
                 
                 const processed = x * gain * makeup;
                 outCh[i] = x * (1 - mix) + processed * mix;
