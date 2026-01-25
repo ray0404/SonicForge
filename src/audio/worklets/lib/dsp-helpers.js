@@ -319,3 +319,31 @@ export class OnePoleAllPass {
     }
 }
 
+
+/**
+ * Constants for dB conversion optimization.
+ */
+const DB_TO_LINEAR_CONST = Math.LN10 / 20;
+const LINEAR_TO_DB_CONST = 20 / Math.LN10;
+
+/**
+ * Converts Decibels to Linear gain factor.
+ * Optimized using Math.exp which is faster than Math.pow(10, x/20).
+ * @param {number} db - Value in Decibels.
+ * @returns {number} Linear gain.
+ */
+export function dbToLinear(db) {
+    return Math.exp(db * DB_TO_LINEAR_CONST);
+}
+
+/**
+ * Converts Linear gain factor to Decibels.
+ * Optimized using Math.log.
+ * @param {number} linear - Linear gain factor.
+ * @returns {number} Value in Decibels.
+ */
+export function linearToDb(linear) {
+    // Safety for log(0)
+    if (linear <= 1e-9) return -100;
+    return Math.log(linear) * LINEAR_TO_DB_CONST;
+}
