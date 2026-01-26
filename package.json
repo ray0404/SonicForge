@@ -36,6 +36,7 @@
     "ink-spinner": "^5.0.0",
     "ink-text-input": "^6.0.0",
     "jszip": "^3.10.1",
+    "jzip": "^1.0.0",
     "lamejs": "^1.2.1",
     "lucide-react": "^0.344.0",
     "puppeteer-core": "^24.35.0",
