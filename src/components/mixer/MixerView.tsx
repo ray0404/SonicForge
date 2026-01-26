@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { useAudioStore } from '@/store/useAudioStore';
 import { clsx } from 'clsx';
-import { MoveHorizontal, Trash2, Plus } from 'lucide-react';
+import { MoveHorizontal, Trash2, Plus, FileAudio } from 'lucide-react';
 
-const TrackStripUI = ({ track, isActive, onSelect, onVolume, onPan, onMute, onRemove }: any) => {
+const TrackStripUI = ({ track, isActive, onSelect, onVolume, onPan, onMute, onRemove, onLoadFile }: any) => {
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
     return (
         <div
             onClick={onSelect}
@@ -12,7 +14,43 @@ const TrackStripUI = ({ track, isActive, onSelect, onVolume, onPan, onMute, onRe
                 isActive ? "bg-slate-800 ring-1 ring-primary ring-inset" : "hover:bg-slate-800/50"
             )}
         >
-            <div className="text-xs font-bold truncate text-slate-300 mb-2 text-center" title={track.name}>{track.name}</div>
+            <div className="text-xs font-bold truncate text-slate-300 mb-1 text-center" title={track.name}>{track.name}</div>
+            
+            {/* Source Indicator / Loader */}
+            {track.id !== 'MASTER' && (
+                <div 
+                    className={clsx(
+                        "text-[9px] flex items-center justify-center gap-1 py-0.5 px-1 rounded cursor-pointer transition-colors border",
+                        track.sourceDuration > 0 
+                            ? "bg-slate-800 text-green-400 border-slate-700 hover:bg-slate-700" 
+                            : "bg-slate-800 text-slate-500 border-slate-700 hover:bg-slate-700 hover:text-primary hover:border-primary/50"
+                    )}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        fileInputRef.current?.click();
+                    }}
+                    title={track.sourceName || "Load Audio"}
+                >
+                    <FileAudio size={10} />
+                    <span className="truncate max-w-[60px]">
+                        {track.sourceName || "Load Audio"}
+                    </span>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="audio/*"
+                        className="hidden"
+                        onChange={(e) => {
+                            if (e.target.files?.[0]) {
+                                onLoadFile(e.target.files[0]);
+                            }
+                            // Reset input
+                            e.target.value = '';
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                </div>
+            )}
 
             {/* Pan Knob */}
             <div className="flex flex-col items-center gap-1">
@@ -85,7 +123,7 @@ const TrackStripUI = ({ track, isActive, onSelect, onVolume, onPan, onMute, onRe
 export const MixerView = () => {
     const {
         tracks, trackOrder, master, activeTrackId,
-        selectTrack, setTrackVolume, setTrackPan, toggleTrackMute, removeTrack, addTrack
+        selectTrack, setTrackVolume, setTrackPan, toggleTrackMute, removeTrack, addTrack, loadSourceFile
     } = useAudioStore();
 
     const orderedTracks = trackOrder.map(id => tracks[id]).filter(Boolean);
@@ -102,6 +140,7 @@ export const MixerView = () => {
                     onPan={(v: number) => setTrackPan(track.id, v)}
                     onMute={() => toggleTrackMute(track.id)}
                     onRemove={() => removeTrack(track.id)}
+                    onLoadFile={(file: File) => loadSourceFile(track.id, file)}
                 />
             ))}
 

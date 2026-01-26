@@ -24,6 +24,7 @@ export interface TrackState {
   rack: RackModule[];
   sends: Record<string, number>;
   sourceDuration: number;
+  sourceName?: string;
 }
 
 interface AudioState {
@@ -176,7 +177,8 @@ export const useAudioStore = create<AudioState>((set, get) => ({
           isSoloed: false,
           rack: [],
           sends: {},
-          sourceDuration: 0
+          sourceDuration: 0,
+          sourceName: undefined
       };
 
       mixerEngine.addTrack(id);
@@ -227,7 +229,8 @@ export const useAudioStore = create<AudioState>((set, get) => ({
                   ...state.tracks,
                   [trackId]: {
                       ...state.tracks[trackId],
-                      sourceDuration: audioBuffer.duration
+                      sourceDuration: audioBuffer.duration,
+                      sourceName: file.name
                   }
               }
           }));
