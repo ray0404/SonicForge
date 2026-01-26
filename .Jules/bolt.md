@@ -1,0 +1,3 @@
+## 2026-01-26 - AudioWorklet Modulo Optimization
+**Learning:** Replacing modulo (`%`) with conditional subtraction in inner DSP loops (`DelayLine`) yielded ~13% performance improvement. However, blindly removing modulo requires strict bounds checking. A critical lesson was that verification scripts must explicitly check for `NaN` (`Number.isNaN(val)`), as standard comparisons (e.g., `Math.abs(NaN - expected) > tolerance`) evaluate to `false`, silently passing broken code.
+**Action:** Always verify `NaN` explicitly in audio/DSP test scripts. Use conditional subtraction for wrapping indices in performance-critical loops only after proving bounds.
