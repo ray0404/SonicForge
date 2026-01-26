@@ -1,9 +1,15 @@
 
-export function audioBufferToWav(buffer: AudioBuffer, opt?: { float32?: boolean }): ArrayBuffer {
+export interface WavExportOptions {
+  bitDepth: 16 | 24 | 32;
+  float?: boolean; // Only applicable for 32-bit
+}
+
+export function audioBufferToWav(buffer: AudioBuffer, opt?: WavExportOptions): ArrayBuffer {
   const numChannels = buffer.numberOfChannels;
   const sampleRate = buffer.sampleRate;
-  const format = opt?.float32 ? 3 : 1; // 3 = IEEE Float, 1 = PCM
-  const bitDepth = opt?.float32 ? 32 : 16;
+  const bitDepth = opt?.bitDepth || 16;
+  const isFloat = bitDepth === 32;
+  const format = isFloat ? 3 : 1; // 3 = IEEE Float, 1 = PCM
 
   let result: Float32Array;
   if (numChannels === 2) {
@@ -64,9 +70,11 @@ function encodeWAV(samples: Float32Array, numChannels: number, sampleRate: numbe
   /* data chunk length */
   view.setUint32(40, samples.length * bytesPerSample, true);
 
-  if (format === 1) { // PCM
+  if (bitDepth === 16) {
       floatTo16BitPCM(view, 44, samples);
-  } else {
+  } else if (bitDepth === 24) {
+      floatTo24BitPCM(view, 44, samples);
+  } else if (bitDepth === 32) {
       writeFloat32(view, 44, samples);
   }
 
@@ -77,6 +85,16 @@ function floatTo16BitPCM(output: DataView, offset: number, input: Float32Array) 
   for (let i = 0; i < input.length; i++, offset += 2) {
     const s = Math.max(-1, Math.min(1, input[i]));
     output.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+  }
+}
+
+function floatTo24BitPCM(output: DataView, offset: number, input: Float32Array) {
+  for (let i = 0; i < input.length; i++, offset += 3) {
+    let s = Math.max(-1, Math.min(1, input[i]));
+    s = s < 0 ? s * 0x800000 : s * 0x7FFFFF;
+    output.setInt8(offset, s & 0xFF);
+    output.setInt8(offset + 1, (s >> 8) & 0xFF);
+    output.setInt8(offset + 2, (s >> 16) & 0xFF);
   }
 }
 
@@ -91,3 +109,4 @@ function writeString(view: DataView, offset: number, string: string) {
     view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
+
