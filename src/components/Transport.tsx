@@ -1,9 +1,12 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useAudioStore } from '@/store/useAudioStore';
-import { Play, Pause, FileAudio, Download, Loader2 } from 'lucide-react';
+import { Play, Pause, FileAudio, Download, Loader2, Music, FileType } from 'lucide-react';
 import { clsx } from 'clsx';
 import { TransportDisplay } from './TransportDisplay';
 import { useShallow } from 'zustand/react/shallow';
+import { OfflineRenderer } from '@/services/OfflineRenderer';
+import { logger } from '@/utils/logger';
+import { ExportFormat } from '@/services/TranscoderService';
 
 export const Transport: React.FC = () => {
   const { 
@@ -23,11 +26,47 @@ export const Transport: React.FC = () => {
   })));
   
   const [isExporting, setIsExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  const handleExport = async () => {
-      // Export temporarily disabled during refactor
-      alert("Export coming soon to Multi-Track Engine");
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowExportMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleExport = async (format: ExportFormat) => {
+      if (isExporting) return;
+      
+      setIsExporting(true);
+      setShowExportMenu(false);
+      setExportProgress(0);
+      
+      try {
+          // Default to High-Fidelity 24-bit / 48kHz for WAV
+          // For MP3, we render at 48kHz and transcode to 320kbps
+          await OfflineRenderer.render({
+              format,
+              bitDepth: format === 'mp3' ? 32 : 24, // Use 32-bit float internal for MP3 transcoding
+              sampleRate: 48000,
+              kbps: 320
+          }, (p) => {
+              setExportProgress(p.percentage);
+          });
+      } catch (e) {
+          logger.error(`Transport ${format} export failed`, e);
+          alert("Export failed. See console for details.");
+      } finally {
+          setIsExporting(false);
+          setExportProgress(0);
+      }
   };
 
   const sourceDuration = Object.values(tracks).reduce((max, track) => Math.max(max, track.sourceDuration), 0);
@@ -118,16 +157,62 @@ export const Transport: React.FC = () => {
       <TransportDisplay />
 
       {/* Export / Menu */}
-      <button 
-        type="button"
-        aria-label="Export WAV"
-        className="shrink-0 p-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition-colors disabled:opacity-50"
-        disabled={!hasSource || isExporting}
-        onClick={handleExport}
-        title="Export WAV"
-      >
-          {isExporting ? <Loader2 size={20} className="animate-spin text-blue-400" /> : <Download size={20} />}
-      </button>
+      <div className="relative" ref={menuRef}>
+          <button 
+            type="button"
+            aria-label="Export Mix"
+            className={clsx(
+                "relative shrink-0 p-3 rounded-lg border transition-all disabled:opacity-50 overflow-hidden",
+                isExporting ? "bg-slate-900 border-primary text-primary" : "bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700",
+                showExportMenu && "bg-slate-700 border-slate-500 text-slate-100"
+            )}
+            disabled={!hasSource || isExporting}
+            onClick={() => setShowExportMenu(!showExportMenu)}
+            title="Export Mix"
+          >
+              {isExporting ? (
+                  <div className="flex items-center gap-2">
+                      <Loader2 size={18} className="animate-spin" />
+                      <span className="text-[10px] font-bold tabular-nums">{Math.round(exportProgress)}%</span>
+                      <div 
+                        className="absolute bottom-0 left-0 h-1 bg-primary/20 transition-all duration-300" 
+                        style={{ width: `${exportProgress}%` }}
+                      />
+                  </div>
+              ) : (
+                  <Download size={20} />
+              )}
+          </button>
+
+          {/* Quick Export Popup */}
+          {showExportMenu && (
+              <div className="absolute bottom-full right-0 mb-2 w-48 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-2 z-[60] animate-in fade-in slide-in-from-bottom-2 duration-200">
+                  <div className="px-3 py-2 border-b border-slate-800 mb-1">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Bounce Mix</span>
+                  </div>
+                  <button
+                    onClick={() => handleExport('wav')}
+                    className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition-colors text-left group"
+                  >
+                      <FileType size={16} className="text-blue-400 group-hover:scale-110 transition-transform" />
+                      <div className="flex flex-col">
+                          <span className="text-xs font-bold">WAV Master</span>
+                          <span className="text-[9px] text-slate-500">24-bit / 48kHz (Lossless)</span>
+                      </div>
+                  </button>
+                  <button
+                    onClick={() => handleExport('mp3')}
+                    className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition-colors text-left group"
+                  >
+                      <Music size={16} className="text-emerald-400 group-hover:scale-110 transition-transform" />
+                      <div className="flex flex-col">
+                          <span className="text-xs font-bold">MP3 High-Fidelity</span>
+                          <span className="text-[9px] text-slate-500">320kbps / 48kHz (High-Res)</span>
+                      </div>
+                  </button>
+              </div>
+          )}
+      </div>
 
       <input 
         ref={fileInputRef}
