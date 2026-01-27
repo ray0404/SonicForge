@@ -4,14 +4,12 @@ import { useAudioStore } from '@/store/useAudioStore';
 export const TransportDisplay: React.FC = () => {
     // Select only what we need for the display loop
     const currentTime = useAudioStore(state => state.currentTime);
-    const sourceDuration = useAudioStore(state => state.sourceDuration);
-    const hasSource = sourceDuration > 0;
-
-    // We need seek from store, but seek function reference is stable, so it won't cause re-renders.
-    // However, Zustand hook returns a new slice if we don't return primitives/memoized objects.
-    // So we pick 'seek' separately or in a shallow object if we want.
-    // Since 'seek' is an action, it likely doesn't change.
+    const tracks = useAudioStore(state => state.tracks);
     const seek = useAudioStore(state => state.seek);
+
+    // Calculate max duration from all tracks
+    const sourceDuration = Object.values(tracks).reduce((max, track) => Math.max(max, track.sourceDuration), 0);
+    const hasSource = sourceDuration > 0;
 
     // Format helper duplicated for isolation (or could be moved to utils)
     const formatTime = (seconds: number) => {

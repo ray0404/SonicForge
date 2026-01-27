@@ -5,6 +5,7 @@ import { NavMenu } from './nav/NavMenu';
 import { SettingsView } from './panels/SettingsView';
 import { AssetManagerView } from './panels/AssetManagerView';
 import { ExportView } from './panels/ExportView';
+import { ToolsView } from './panels/ToolsView';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 
@@ -18,7 +19,8 @@ export const SidePanel: React.FC = () => {
         'MIXER': 'Mixer',
         'TIMELINE': 'Timeline',
         'ASSETS': 'Asset Manager',
-        'EXPORT': 'Export'
+        'EXPORT': 'Export',
+        'TOOLS': 'Smart Tools'
     };
 
     const renderContent = () => {
@@ -26,6 +28,7 @@ export const SidePanel: React.FC = () => {
             case 'SETTINGS': return <SettingsView />;
             case 'ASSETS': return <AssetManagerView />;
             case 'EXPORT': return <ExportView />;
+            case 'TOOLS': return <ToolsView />;
             default:
                 return (
                     <div className="flex flex-col items-center justify-center h-full text-slate-500 opacity-50">

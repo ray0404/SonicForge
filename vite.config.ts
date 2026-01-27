@@ -6,6 +6,16 @@ import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: './',
+  server: {
+    headers: {
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+      'Cross-Origin-Opener-Policy': 'same-origin',
+    },
+  },
+  optimizeDeps: {
+    exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util'],
+  },
   plugins: [
     react(),
     VitePWA({
@@ -48,6 +58,10 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        headless: path.resolve(__dirname, 'headless.html'),
+      },
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'zustand', 'standardized-audio-context', '@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],

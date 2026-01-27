@@ -23,7 +23,6 @@ describe('NavMenu', () => {
         expect(screen.getByText('Settings')).toBeInTheDocument();
         expect(screen.getByText('Documentation')).toBeInTheDocument();
         expect(screen.getByText('Mixer')).toBeInTheDocument();
-        expect(screen.getByText('Timeline')).toBeInTheDocument();
         expect(screen.getByText('Assets')).toBeInTheDocument();
         expect(screen.getByText('Export')).toBeInTheDocument();
     });

@@ -5,6 +5,16 @@
 
 This document serves as the operational manual for Autonomous AI Agents working on the Sonic Forge repository.
 
+## 🚨 CRITICAL: Context Acquisition
+
+**Before performing ANY task, you must consult the following documents to establish your operational context:**
+
+1.  **`README.md`**: Provides the high-level project overview, feature list, and getting started guide.
+2.  **`GEMINI.md`**: Contains the specific, AI-optimized project structure analysis, key file pointers, and generated instructions. **This is your primary map.**
+3.  **`docs/architecture.md`**: Must be read before any structural changes to the codebase.
+
+**Failure to adhere to the context provided in `GEMINI.md` and `README.md` will result in suboptimal code generation and potential architectural violations.**
+
 ## 1. Core Directives
 
 ### Directive Alpha: "Respect the Trinity"
@@ -46,10 +56,14 @@ This document serves as the operational manual for Autonomous AI Agents working 
 *   **DSP Tests:** `src/audio/worklets/lib/*.test.js`. Verify math logic.
 *   **Integration Tests:** `src/audio/context.test.ts`. Verify graph construction.
 *   **Benchmark:** `src/audio/benchmarks/rebuild-graph.test.ts`. Verify performance regressions.
+*   **Tooling:** Use `npm test` to run Vitest.
 
-## 4. Documentation Standards
-*   **Code:** JSDoc is mandatory for all `AudioWorkletNode` classes and `dsp-helpers` functions.
-*   **Docs:** Update `docs/modules/` when modifying DSP behavior. Ensure the "Technical Specifications" section matches the code.
+## 4. Code Quality & Style
+
+*   **Linting:** Adhere to the rules in `.eslintrc.cjs`. Run `npm run lint` before committing.
+*   **Formatting:** Maintain consistency with existing file formatting (indentation, spacing).
+*   **Comments:** Comment *why* complex DSP math is used, not *what* the code is doing (unless it's obscure).
+*   **JSDoc:** Mandatory for all exported `AudioWorkletNode` classes and `dsp-helpers` functions.
 
 ## 5. Current Priorities
 *   **Documentation Maintenance:** Keep the `docs/` folder in sync with code changes.

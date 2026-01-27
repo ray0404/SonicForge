@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { RackModule } from '@/store/useAudioStore';
-import { audioEngine } from '@/audio/context';
+import { mixerEngine } from '@/audio/mixer';
 import { LimiterNode } from '@/audio/worklets/LimiterNode';
 import { ModuleShell } from '@/components/ui/ModuleShell';
 import { Knob } from '@/components/ui/Knob';
@@ -21,7 +21,7 @@ const LimiterMeter = ({ nodeId }: { nodeId: string }) => {
   useEffect(() => {
     const update = () => {
         // @ts-ignore
-        const node = audioEngine.nodeMap.get(nodeId) as LimiterNode | undefined;
+        const node = mixerEngine.getModuleNode(nodeId) as LimiterNode | undefined;
         if (node) {
             setGr(node.currentGainReduction);
         }

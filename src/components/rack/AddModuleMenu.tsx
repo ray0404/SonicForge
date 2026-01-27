@@ -4,6 +4,7 @@ import { useAudioStore, RackModuleType } from '@/store/useAudioStore';
 
 export const AddModuleMenu: React.FC = () => {
   const addModule = useAudioStore((state) => state.addModule);
+  const activeTrackId = useAudioStore((state) => state.activeTrackId);
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -19,7 +20,7 @@ export const AddModuleMenu: React.FC = () => {
   }, [isOpen]);
 
   const handleAdd = (type: RackModuleType) => {
-      addModule(type);
+      addModule(activeTrackId, type);
       setIsOpen(false);
   };
 
