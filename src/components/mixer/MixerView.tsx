@@ -1,7 +1,7 @@
-import React, { useRef } from 'react';
+import { useRef } from 'react';
 import { useAudioStore } from '@/store/useAudioStore';
 import { clsx } from 'clsx';
-import { MoveHorizontal, Trash2, Plus, FileAudio } from 'lucide-react';
+import { Trash2, Plus, FileAudio } from 'lucide-react';
 
 const TrackStripUI = ({ track, isActive, onSelect, onVolume, onPan, onMute, onRemove, onLoadFile }: any) => {
     const fileInputRef = useRef<HTMLInputElement>(null);

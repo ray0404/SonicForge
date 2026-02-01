@@ -1,5 +1,5 @@
 import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { fetchFile, toBlobURL } from '@ffmpeg/util';
+import { toBlobURL } from '@ffmpeg/util';
 import { logger } from '../utils/logger';
 
 export type ExportFormat = 'wav' | 'mp3' | 'aac' | 'flac';
@@ -99,7 +99,7 @@ export class TranscoderService {
             await ffmpeg.deleteFile(outputName);
 
             logger.info(`Transcoding complete: ${settings.format}`);
-            return new Blob([(data as Uint8Array).buffer], { type: typeMap[settings.format] });
+            return new Blob([(data as Uint8Array).buffer as ArrayBuffer], { type: typeMap[settings.format] });
         } catch (e) {
             logger.error("Transcoding error", e);
             throw e;

@@ -5,7 +5,6 @@ import { logger } from "@/utils/logger";
 
 export class MixerEngine {
     private tracks = new Map<string, TrackStrip>();
-    private buses = new Map<string, BusStrip>();
     public masterBus!: BusStrip;
 
     // Transport

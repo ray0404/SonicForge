@@ -27,7 +27,7 @@ export interface TrackState {
   sourceName?: string;
 }
 
-interface AudioState {
+export interface AudioState {
   isInitialized: boolean;
   isPlaying: boolean;
   currentTime: number;
@@ -291,7 +291,7 @@ export const useAudioStore = create<AudioState>((set, get) => ({
       });
   },
 
-  toggleTrackSolo: (trackId) => {
+  toggleTrackSolo: (_trackId) => {
        // TODO: Implement solo logic
        logger.warn("Solo not implemented yet");
   },

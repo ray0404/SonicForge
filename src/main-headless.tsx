@@ -8,7 +8,7 @@ const HeadlessApp = () => {
   return <div data-testid="headless-mount" style={{ display: 'none' }}>Sonic Forge Engine Running</div>;
 };
 
-function throttle(func: Function, limit: number, options?: { leading?: boolean, trailing?: boolean }) {
+function throttle(func: Function, limit: number, _options?: { leading?: boolean, trailing?: boolean }) {
     let lastFunc: any;
     let lastRan: any;
     return function(this: any) {

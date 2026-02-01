@@ -5,7 +5,8 @@
 // @ts-ignore - Vite worker import
 import ProcessorWorker from './offline-processor.worker?worker';
 
-export type ProcessType = 'NORMALIZE' | 'DC_OFFSET' | 'STRIP_SILENCE' | 'ANALYZE_LUFS';
+export type ProcessType = 'NORMALIZE' | 'DC_OFFSET' | 'STRIP_SILENCE' | 'ANALYZE_LUFS' | 'DENOISE' |
+                          'LUFS_NORMALIZE' | 'PHASE_ROTATION' | 'DECLIP' | 'SPECTRAL_DENOISE' | 'MONO_BASS';
 
 export interface ProcessResult {
   leftChannel: Float32Array;
@@ -60,6 +61,44 @@ export class OfflineProcessorClient {
         }
       }, [leftChannel.buffer, rightChannel.buffer]);
     });
+  }
+
+  // --- Convenience Methods ---
+
+  /**
+   * Normalize audio to a specific target LUFS using Zig WASM.
+   */
+  async normalizeLoudness(left: Float32Array, right: Float32Array, sampleRate: number, targetLufs: number = -14) {
+    return this.process('LUFS_NORMALIZE', left, right, sampleRate, { target: targetLufs });
+  }
+
+  /**
+   * Fix phase issues using All-Pass filters (Zig WASM).
+   * Helps recover headroom.
+   */
+  async fixPhase(left: Float32Array, right: Float32Array, sampleRate: number) {
+     return this.process('PHASE_ROTATION', left, right, sampleRate);
+  }
+
+  /**
+   * Repair digital clipping using cubic interpolation (Zig WASM).
+   */
+  async repairClipping(left: Float32Array, right: Float32Array, sampleRate: number) {
+      return this.process('DECLIP', left, right, sampleRate);
+  }
+
+  /**
+   * Adaptive Spectral Denoise (Zig WASM).
+   */
+  async denoise(left: Float32Array, right: Float32Array, sampleRate: number) {
+      return this.process('SPECTRAL_DENOISE', left, right, sampleRate);
+  }
+
+  /**
+   * Make bass frequencies mono below a cutoff frequency (Zig WASM).
+   */
+  async monoBass(left: Float32Array, right: Float32Array, sampleRate: number, freq: number = 120) {
+      return this.process('MONO_BASS', left, right, sampleRate, { freq });
   }
 
   terminate() {

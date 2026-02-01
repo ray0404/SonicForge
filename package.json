@@ -7,6 +7,7 @@
     "copy-docs": "rm -rf public/docs && cp -r docs public/",
     "dev": "npm run copy-docs && vite",
     "build": "npm run copy-docs && tsc && vite build",
+    "build:wasm": "zig build-exe src/audio/dsp/zig/main.zig -target wasm32-freestanding -rdynamic -fno-entry -O ReleaseFast -femit-bin=public/wasm/dsp.wasm",
     "build:cli": "npm run build && tsc -p tsconfig.cli.json && cp dist/headless.html dist/cli/headless.html",
     "dev:cli": "tsx cli/index.ts start",
     "preview:cli": "npm run build:cli && node dist/cli/index.js start",

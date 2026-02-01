@@ -18,19 +18,36 @@ The project follows a strict **Three-Layer Architecture** to respect Web Audio A
     *   **Key Files:** `src/audio/context.ts`
 
 3.  **Processing Layer (DSP):**
-    *   **Tech:** AudioWorklet (Pure JavaScript).
+    *   **Tech:** AudioWorklet (Pure JavaScript) & **Zig (WebAssembly)**.
     *   **Role:** Executes DSP logic on audio buffers in the Audio Thread.
-    *   **Key Files:** `src/audio/worklets/`, `src/audio/lib/`
+    *   **Key Files:** `src/audio/worklets/`, `src/audio/lib/`, `src/audio/dsp/zig/`
 
 ### Key Technologies
 *   **Framework:** React + Vite
-*   **Language:** TypeScript
-*   **Audio:** Web Audio API (AudioWorklet), `standardized-audio-context`
+*   **Language:** TypeScript, **Zig**
+*   **Audio:** Web Audio API (AudioWorklet), `standardized-audio-context`, **WebAssembly (WASM)**
 *   **State Management:** Zustand
 *   **Styling:** Tailwind CSS
 *   **Testing:** Vitest
 *   **PWA:** `vite-plugin-pwa`
 *   **CLI:** `ink`, `commander`, `puppeteer-core` (for headless audio processing)
+
+## New Features: Smart Processing (Zig/WASM)
+
+A new high-performance offline processing module has been integrated, powered by Zig and WebAssembly.
+
+*   **Location:** `src/audio/dsp/zig/` (Source), `public/wasm/dsp.wasm` (Compiled)
+*   **Processors:**
+    *   **Loudness Normalization:** EBU R128 style normalization with custom target LUFS.
+    *   **Phase Rotation:** All-pass filter chain to recover headroom by smearing transients.
+    *   **De-Clipper:** Cubic interpolation to repair digital clipping.
+    *   **Adaptive Spectral Denoise:** FFT-based noise reduction.
+    *   **Mono Bass:** Linkwitz-Riley crossover to mono-sum low frequencies.
+
+### Workflow
+The Smart Processing panel (`BatchProcessMenu`) supports two modes:
+1.  **Project Track:** Processes audio directly within the Sonic Forge multi-track environment. Includes Undo/Redo history.
+2.  **External File:** Allows users to upload, process, preview (with scrubbable timeline), and download audio files independently of the project.
 
 ## Building and Running
 
@@ -47,6 +64,12 @@ The project follows a strict **Three-Layer Architecture** to respect Web Audio A
     npm run build
     ```
     Compiles TypeScript and bundles with Vite. Output is in `dist/`.
+
+*   **Build WASM DSP:**
+    ```bash
+    npm run build:wasm
+    ```
+    Compiles the Zig DSP code to WebAssembly. Requires Zig 0.13.0+ installed and in PATH.
 
 *   **Preview Production Build:**
     ```bash
@@ -97,7 +120,10 @@ To add a new audio effect, you must implement three distinct parts:
 3.  **UI Component:** `src/components/rack/[Name]Unit.tsx` (React component for user interaction).
 
 ### Code Organization
-*   **`src/audio/`**: Core audio engine. `worklets/` contains raw processors. `lib/` contains shared DSP helpers (math).
+*   **`src/audio/`**: Core audio engine.
+    *   `worklets/`: Raw JS AudioWorklet processors.
+    *   `dsp/zig/`: Zig source code for WASM modules.
+    *   `workers/`: Web Workers for offline processing.
 *   **`src/store/`**: Application state. `useAudioStore.ts` is the source of truth for the audio graph.
 *   **`src/components/rack/`**: UI components for individual effects modules.
 *   **`src/hooks/`**: Custom React hooks, including `useProjectPersistence` for IndexedDB storage.
@@ -117,3 +143,4 @@ To add a new audio effect, you must implement three distinct parts:
 *   `src/main.tsx`: Entry point for the React application.
 *   `src/sw.js`: Service Worker for PWA functionality.
 *   `headless.html`: Entry point for the headless browser used by the CLI.
+*   `src/audio/dsp/zig/main.zig`: Entry point for the Zig DSP engine.

@@ -1,71 +1,40 @@
-# AI Agent Directives: Sonic Forge
+# Agent Operational Guide - Sonic Forge
 
-**Current State:** Phase 3 (Documentation & Hardening) Complete.
-**Active Track:** `hardening_20251225`
+## 1. Project Identity
+*   **Name:** Sonic Forge
+*   **Type:** Progressive Web App (PWA) for Audio Mastering
+*   **Stack:** React, TypeScript, Vite, Zustand, Tailwind, **Zig (WASM)**.
+*   **Core Philosophy:** Zero-latency UI, AudioWorklet DSP, Local-first (IndexedDB).
 
-This document serves as the operational manual for Autonomous AI Agents working on the Sonic Forge repository.
+## 2. Key Commands
+*   **Dev:** `npm run dev`
+*   **Build:** `npm run build`
+*   **Build WASM:** `npm run build:wasm` (Requires Zig 0.13.0+)
+*   **Test:** `npm test`
+*   **CLI Dev:** `npm run dev:cli`
 
-## 🚨 CRITICAL: Context Acquisition
+## 3. Architecture Highlights
+*   **Three-Layer Audio:**
+    1.  **Store (Zustand):** Truth.
+    2.  **Engine (Context):** Orchestrator.
+    3.  **DSP (Worklets/WASM):** Processor.
+*   **Trinity Pattern:** New effects need a Processor (JS/WASM), a Node (TS), and a UI Component (React).
+*   **Smart Processing:** Offline processing is handled by a Web Worker (`offline-processor.worker.ts`) which bridges to a compiled Zig WebAssembly module (`dsp.wasm`) for heavy-duty tasks like Loudness Normalization and Spectral Denoising.
 
-**Before performing ANY task, you must consult the following documents to establish your operational context:**
+## 4. State Management
+*   **`useAudioStore`:** Manages the "Rack" (array of effects) and global playback state.
+*   **`useProjectPersistence`:** Auto-saves to IndexedDB.
 
-1.  **`README.md`**: Provides the high-level project overview, feature list, and getting started guide.
-2.  **`GEMINI.md`**: Contains the specific, AI-optimized project structure analysis, key file pointers, and generated instructions. **This is your primary map.**
-3.  **`docs/architecture.md`**: Must be read before any structural changes to the codebase.
+## 5. Testing
+*   **Vitest:** Used for unit testing DSP logic and React components.
+*   **Headless Browser:** The CLI uses Puppeteer to run the audio engine in a headless environment.
 
-**Failure to adhere to the context provided in `GEMINI.md` and `README.md` will result in suboptimal code generation and potential architectural violations.**
+## 6. Zig Integration
+*   **Source:** `src/audio/dsp/zig/`
+*   **Compilation:** `npm run build:wasm` uses `zig build-exe` to create a standalone WASM file in `public/wasm/`.
+*   **Bridge:** `WasmBridge` class in `offline-processor.worker.ts` handles memory allocation and function calls between JS and WASM.
 
-## 1. Core Directives
-
-### Directive Alpha: "Respect the Trinity"
-*   **The Law:** Every audio effect functions as a triad of **Processor (DSP)**, **Node (Interface)**, and **Unit (UI)**.
-*   **Constraint:** You MUST NOT merge these responsibilities. 
-    *   Do NOT put DSP logic in the Node.
-    *   Do NOT put DOM access in the Processor.
-    *   Do NOT put Audio API calls in the UI (use the Store).
-*   **Reference:** See `docs/trinity-pattern.md` before writing any module code.
-
-### Directive Beta: "Do No Harm"
-*   **Audio Engine:** The `src/audio/context.ts` file is critical infrastructure. Do not modify the `rebuildGraph` logic unless you understand the "Diff-Based Patching" algorithm (see `docs/architecture/audio-graph.md`).
-*   **Type Safety:** Stick to `standardized-audio-context` interfaces. Do not bypass the type checker with `any`.
-
-## 2. Architectural Integrity
-
-### The Store as Source of Truth
-*   The UI reads from `useAudioStore`.
-*   The Engine subscribes to `useAudioStore`.
-*   Therefore, **Updating the Store** is the only way to change the Audio.
-
-### Thread Isolation
-*   **Audio Thread:** `src/audio/worklets/*.js`. NO DOM ACCESS. NO ALLOCATIONS inside `process()`.
-*   **Main Thread:** Everything else. 
-*   **Communication:** Use `port.postMessage` for analysis data (meters), but throttle UI updates to 30/60fps to avoid main-thread jank.
-
-## 3. Implementation Protocols
-
-### Adding a New Effect
-1.  **DSP:** Create `src/audio/worklets/[name]-processor.js`.
-2.  **Node:** Create `src/audio/worklets/[Name]Node.ts`.
-3.  **UI:** Create `src/components/rack/[Name]Unit.tsx`.
-4.  **Register:**
-    *   `src/store/useAudioStore.ts` (Types & Defaults).
-    *   `src/audio/context.ts` (`createModuleNode` & `renderOffline`).
-    *   `src/components/rack/EffectsRack.tsx` (Menu).
-
-### Testing Strategy
-*   **DSP Tests:** `src/audio/worklets/lib/*.test.js`. Verify math logic.
-*   **Integration Tests:** `src/audio/context.test.ts`. Verify graph construction.
-*   **Benchmark:** `src/audio/benchmarks/rebuild-graph.test.ts`. Verify performance regressions.
-*   **Tooling:** Use `npm test` to run Vitest.
-
-## 4. Code Quality & Style
-
-*   **Linting:** Adhere to the rules in `.eslintrc.cjs`. Run `npm run lint` before committing.
-*   **Formatting:** Maintain consistency with existing file formatting (indentation, spacing).
-*   **Comments:** Comment *why* complex DSP math is used, not *what* the code is doing (unless it's obscure).
-*   **JSDoc:** Mandatory for all exported `AudioWorkletNode` classes and `dsp-helpers` functions.
-
-## 5. Current Priorities
-*   **Documentation Maintenance:** Keep the `docs/` folder in sync with code changes.
-*   **DSP Optimization:** Identifying heavy processors and optimizing their loops.
-*   **WASM:** Preparing the architecture for future WebAssembly modules.
+## 7. Known Constraints
+*   **AudioContext:** Must be resumed by user interaction.
+*   **SharedArrayBuffer:** Not currently used to avoid COOP/COEP complexity, but may be needed for future threading.
+*   **Zig Version:** Project is pinned to Zig 0.13.0.

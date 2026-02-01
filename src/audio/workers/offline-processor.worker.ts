@@ -1,11 +1,13 @@
 /**
  * Sonic Forge - Offline Audio Processor Worker
  * Handles heavy DSP tasks in a background thread.
+ * Now enhanced with Zig WASM for high-performance processing.
  */
 
 interface ProcessorMessage {
   id: string;
-  type: 'NORMALIZE' | 'DC_OFFSET' | 'STRIP_SILENCE' | 'ANALYZE_LUFS' | 'DENOISE';
+  type: 'NORMALIZE' | 'DC_OFFSET' | 'STRIP_SILENCE' | 'ANALYZE_LUFS' | 'DENOISE' | 
+        'LUFS_NORMALIZE' | 'PHASE_ROTATION' | 'DECLIP' | 'SPECTRAL_DENOISE' | 'MONO_BASS';
   payload: {
     leftChannel: Float32Array;
     rightChannel: Float32Array;
@@ -14,14 +16,124 @@ interface ProcessorMessage {
   };
 }
 
-self.onmessage = (event: MessageEvent<ProcessorMessage>) => {
+// --- WASM Bridge ---
+
+let wasmInstance: WebAssembly.Instance | null = null;
+let wasmReadyPromise: Promise<void> | null = null;
+
+async function initWasm() {
+    if (wasmInstance) return;
+    try {
+        // In a worker, paths are relative to the worker script or need absolute path.
+        // Assuming /wasm/dsp.wasm is served at root.
+        const response = await fetch('/wasm/dsp.wasm');
+        const bytes = await response.arrayBuffer();
+        const { instance } = await WebAssembly.instantiate(bytes, {
+             env: {}
+        });
+        wasmInstance = instance;
+    } catch (e) {
+        console.error("Failed to load WASM module:", e);
+        throw e;
+    }
+}
+
+wasmReadyPromise = initWasm();
+
+class WasmBridge {
+    private get exports() {
+        if (!wasmInstance) throw new Error("WASM not initialized");
+        return wasmInstance.exports as any;
+    }
+
+    private get memory() {
+        return this.exports.memory as WebAssembly.Memory;
+    }
+
+    alloc(len: number): number {
+        return this.exports.alloc(len);
+    }
+
+    free(ptr: number, len: number) {
+        this.exports.free(ptr, len);
+    }
+
+    processInPlace(data: Float32Array, processFn: (ptr: number, len: number, ...args: any[]) => void, ...args: any[]) {
+        const len = data.length;
+        const ptr = this.alloc(len * 4); // 4 bytes per float
+        if (ptr === 0) throw new Error("WASM allocation failed");
+
+        try {
+            // Copy data to WASM memory
+            const wasmView = new Float32Array(this.memory.buffer, ptr, len);
+            wasmView.set(data);
+
+            // Execute
+            processFn(ptr, len, ...args);
+
+            // Copy back
+            // Re-acquire view as memory might have grown (though standard alloc usually doesn't trigger grow in valid range instantly, but good practice)
+             const resView = new Float32Array(this.memory.buffer, ptr, len);
+             data.set(resView);
+        } finally {
+            this.free(ptr, len * 4);
+        }
+    }
+
+    // Process stereo channels independently (dual mono effect)
+    processStereo(left: Float32Array, right: Float32Array, fnName: string, ...args: any[]) {
+        const process = this.exports[fnName];
+        if (!process) throw new Error(`WASM function ${fnName} not found`);
+
+        this.processInPlace(left, process, ...args);
+        this.processInPlace(right, process, ...args);
+    }
+    
+    // Process stereo interleaved (for Mono Maker)
+    processInterleaved(left: Float32Array, right: Float32Array, fnName: string, ...args: any[]) {
+        const process = this.exports[fnName];
+        if (!process) throw new Error(`WASM function ${fnName} not found`);
+
+        const len = left.length;
+        const totalLen = len * 2;
+        const ptr = this.alloc(totalLen * 4);
+        if (ptr === 0) throw new Error("WASM allocation failed");
+
+        try {
+            const mem = new Float32Array(this.memory.buffer, ptr, totalLen);
+            // Interleave
+            for (let i = 0; i < len; i++) {
+                mem[i * 2] = left[i];
+                mem[i * 2 + 1] = right[i];
+            }
+
+            process(ptr, totalLen, ...args);
+
+            // De-interleave
+            const resMem = new Float32Array(this.memory.buffer, ptr, totalLen);
+            for (let i = 0; i < len; i++) {
+                left[i] = resMem[i * 2];
+                right[i] = resMem[i * 2 + 1];
+            }
+        } finally {
+             this.free(ptr, totalLen * 4);
+        }
+    }
+}
+
+const wasmBridge = new WasmBridge();
+
+self.onmessage = async (event: MessageEvent<ProcessorMessage>) => {
   const { id, type, payload } = event.data;
   const { leftChannel, rightChannel, sampleRate, params } = payload;
 
   try {
+    await wasmReadyPromise;
+
     let result: { left: Float32Array; right: Float32Array; metadata?: any };
 
     switch (type) {
+      // --- JS Native ---
       case 'NORMALIZE':
         result = processNormalize(leftChannel, rightChannel, params?.target || -0.1);
         break;
@@ -34,6 +146,39 @@ self.onmessage = (event: MessageEvent<ProcessorMessage>) => {
       case 'DENOISE':
         result = processDenoise(leftChannel, rightChannel, sampleRate);
         break;
+
+      // --- WASM Powered ---
+      case 'LUFS_NORMALIZE':
+        // process_lufs_normalize(ptr, len, target_lufs)
+        wasmBridge.processStereo(leftChannel, rightChannel, 'process_lufs_normalize', params?.target || -14.0);
+        result = { left: leftChannel, right: rightChannel };
+        break;
+      
+      case 'PHASE_ROTATION':
+        // process_phase_rotation(ptr, len)
+        wasmBridge.processStereo(leftChannel, rightChannel, 'process_phase_rotation');
+        result = { left: leftChannel, right: rightChannel };
+        break;
+
+      case 'DECLIP':
+        // process_declip(ptr, len)
+        wasmBridge.processStereo(leftChannel, rightChannel, 'process_declip');
+        result = { left: leftChannel, right: rightChannel };
+        break;
+
+      case 'SPECTRAL_DENOISE':
+         // process_spectral_denoise(ptr, len)
+         wasmBridge.processStereo(leftChannel, rightChannel, 'process_spectral_denoise');
+         result = { left: leftChannel, right: rightChannel };
+         break;
+
+      case 'MONO_BASS':
+        // process_mono_bass(ptr, len, freq)
+        // Uses Interleaved processing
+        wasmBridge.processInterleaved(leftChannel, rightChannel, 'process_mono_bass', params?.freq || 120.0);
+        result = { left: leftChannel, right: rightChannel };
+        break;
+
       default:
         throw new Error(`Unknown process type: ${type}`);
     }
@@ -50,6 +195,7 @@ self.onmessage = (event: MessageEvent<ProcessorMessage>) => {
     }, [result.left.buffer, result.right.buffer] as any);
 
   } catch (error: any) {
+    console.error("Worker Error:", error);
     self.postMessage({
       id,
       success: false,
@@ -182,9 +328,6 @@ function processDenoise(left: Float32Array, right: Float32Array, sampleRate: num
   applyFilter(right, hpFilter);
   
   // Reset state for next filter (or create new ones)
-  // Simple apply implementation resets internal state, so we can re-use logic but need new coefficients
-  // Actually, we can just process buffer in place twice.
-  
   applyFilter(left, lpFilter);
   applyFilter(right, lpFilter);
 

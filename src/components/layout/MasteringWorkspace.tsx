@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Save, AlertTriangle, Layers, Activity, FileAudio, Trash2, Menu, X } from 'lucide-react';
+import { Save, AlertTriangle, Layers, Activity, FileAudio, Menu, X } from 'lucide-react';
 import { useProjectPersistence } from '@/hooks/useProjectPersistence';
 import { useAudioStore } from '@/store/useAudioStore';
 import { useUIStore } from '@/store/useUIStore';
@@ -25,7 +25,6 @@ export const MasteringWorkspace: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const activeTrack = tracks[activeTrackId];
-  const sourceDuration = activeTrack?.sourceDuration || 0;
 
   const handleSave = async () => {
       await saveProject();

@@ -30,7 +30,7 @@ export class ProjectPackager {
 
     // Convert tracks (initially without sourceAssetId)
     for (const [id, track] of Object.entries(state.tracks)) {
-      persistentState.tracks[id] = this.convertToPersistentTrack(track);
+      persistentState.tracks[id] = this.convertToPersistentTrack(track as TrackState);
     }
 
     // 2. Gather Assets
@@ -104,7 +104,7 @@ export class ProjectPackager {
 
     await scanRack(state.master.rack);
     for (const track of Object.values(state.tracks)) {
-        await scanRack(track.rack);
+        await scanRack((track as TrackState).rack);
     }
 
     // 3. Create Manifest
