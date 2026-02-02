@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { RackModule } from '@/store/useAudioStore';
-import { mixerEngine } from '@/audio/mixer';
+import { RackModule, mixerEngine } from '@/store/useAudioStore';
 import { MeteringNode } from '@/audio/worklets/MeteringNode';
 import { ModuleShell } from '@/components/ui/ModuleShell';
 import { LEDBar } from '@/components/ui/LEDBar';

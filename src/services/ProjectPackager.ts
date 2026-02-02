@@ -2,7 +2,8 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { get as getIDB } from 'idb-keyval';
 import { PersistentProjectState, ProjectManifest, PersistentTrackState, ProjectAssetEntry } from '../types/project';
-import { AudioState, TrackState, RackModule } from '../store/useAudioStore';
+import { AudioState } from '../store/useAudioStore';
+import { TrackState, RackModule } from '../audio/types';
 
 export class ProjectPackager {
   

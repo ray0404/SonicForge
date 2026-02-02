@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { RackModule } from '@/store/useAudioStore';
-import { mixerEngine } from '@/audio/mixer';
+import { RackModule, mixerEngine } from '@/store/useAudioStore';
 import { LimiterNode } from '@/audio/worklets/LimiterNode';
 import { ModuleShell } from '@/components/ui/ModuleShell';
 import { Knob } from '@/components/ui/Knob';

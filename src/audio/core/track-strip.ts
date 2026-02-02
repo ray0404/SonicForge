@@ -8,7 +8,7 @@ import {
     IAnalyserNode
 } from "standardized-audio-context";
 import { ContextManager } from "./context-manager";
-import type { RackModule } from "@/store/useAudioStore";
+import type { RackModule } from "@/audio/types";
 import { NodeFactory } from "./node-factory";
 import { ConvolutionNode } from "../worklets/ConvolutionNode";
 
