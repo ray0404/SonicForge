@@ -1,5 +1,5 @@
 import { IAudioContext, IOfflineAudioContext, IAudioNode } from "standardized-audio-context";
-import type { RackModule } from "@/store/useAudioStore";
+import type { RackModule } from "@/audio/types";
 import { logger } from "@/utils/logger";
 
 import { DynamicEQNode } from "../worklets/DynamicEQNode";

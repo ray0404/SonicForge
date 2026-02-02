@@ -95,7 +95,7 @@ export class OfflineRenderer {
     }
 
     private static async findBufferForTrack(trackId: string): Promise<AudioBuffer | null> {
-        const { mixerEngine } = await import("../audio/mixer");
+        const { mixerEngine } = await import("../store/useAudioStore");
         return mixerEngine.getTrack(trackId)?.sourceBuffer || null;
     }
 }

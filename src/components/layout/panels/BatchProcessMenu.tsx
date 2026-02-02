@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useAudioStore } from '@/store/useAudioStore';
+import { useAudioStore, mixerEngine } from '@/store/useAudioStore';
 import { offlineProcessor } from '@/audio/workers/OfflineProcessorClient';
-import { mixerEngine } from '@/audio/mixer';
 import { set as setIDB } from 'idb-keyval';
 import { audioBufferToWav } from '@/utils/wav-export';
 import { Loader2, Upload, Undo2, Redo2, FileAudio, Layers, Play, Square, Download, Trash2 } from 'lucide-react';

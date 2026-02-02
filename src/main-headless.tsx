@@ -1,7 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { useAudioStore } from './store/useAudioStore';
-import { mixerEngine } from './audio/mixer';
+import { useAudioStore, mixerEngine } from './store/useAudioStore';
 import { getModuleDescriptors } from './audio/module-descriptors';
 
 const HeadlessApp = () => {

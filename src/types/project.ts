@@ -1,4 +1,4 @@
-import { TrackState, RackModule } from '@/store/useAudioStore';
+import { TrackState, RackModule } from '@/audio/types';
 
 /**
  * Represents the purely persistent state of a project.

@@ -128,5 +128,3 @@ export class MixerEngine {
         return { input: db, output: db };
     }
 }
-
-export const mixerEngine = new MixerEngine();
