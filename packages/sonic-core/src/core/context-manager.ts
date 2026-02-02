@@ -30,7 +30,7 @@ export class ContextManager {
       if (ctx.audioWorklet) {
           try {
             const urls = provider.getModuleUrls();
-            await Promise.all(urls.map(url => ctx.audioWorklet.addModule(url)));
+            await Promise.all(urls.map(url => ctx.audioWorklet!.addModule(url)));
             logger.info("AudioWorklet modules loaded successfully.");
           } catch (err) {
             logger.error(`Failed to load AudioWorklet modules`, err);

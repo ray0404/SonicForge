@@ -3,7 +3,7 @@ import { arrayMove } from '@dnd-kit/sortable';
 import { MixerEngine } from '@sonic-core/mixer';
 import { logger } from '@/utils/logger';
 import { get as getIDB, set as setIDB } from 'idb-keyval';
-import { RackModuleType, RackModule, TrackState } from '@sonic-core/types';
+import { RackModuleType, TrackState } from '@sonic-core/types';
 import { ViteWorkletProvider } from '@/providers/vite-worklet-provider';
 import { createDefaultModule } from '@sonic-core/core/module-utils';
 

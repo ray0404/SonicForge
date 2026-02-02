@@ -7,6 +7,7 @@ import { audioBufferToWav } from "../utils/wav-export";
 import { saveAs } from "file-saver";
 import { logger } from "../utils/logger";
 import { ExportSettings, TranscoderService } from "./TranscoderService";
+import { ViteWorkletProvider } from "@/providers/vite-worklet-provider";
 
 export interface RenderProgress {
     percentage: number;
@@ -43,7 +44,7 @@ export class OfflineRenderer {
         const offlineCtx = new OfflineAudioContext(2, length, sampleRate) as unknown as IOfflineAudioContext;
 
         // 3. Load worklets into offline context
-        await ContextManager.loadWorklets(offlineCtx);
+        await ContextManager.loadWorklets(offlineCtx, new ViteWorkletProvider());
 
         // 4. Build Offline Graph
         const masterBus = new BusStrip("MASTER_OFFLINE", offlineCtx);
