@@ -307,10 +307,10 @@ export const useAudioStore = create<AudioState>((set, get) => ({
           const newRack = [...currentRack, module];
 
           if (isMaster) {
-              mixerEngine.masterBus.updateRack(newRack);
+              mixerEngine.masterBus.updateRack(newRack, state.assets);
               return { master: { ...state.master, rack: newRack } };
           } else {
-              mixerEngine.getTrack(trackId)?.updateRack(newRack);
+              mixerEngine.getTrack(trackId)?.updateRack(newRack, state.assets);
               return {
                   tracks: {
                       ...state.tracks,
@@ -330,10 +330,10 @@ export const useAudioStore = create<AudioState>((set, get) => ({
           const newRack = currentRack.filter(m => m.id !== moduleId);
 
           if (isMaster) {
-              mixerEngine.masterBus.updateRack(newRack);
+              mixerEngine.masterBus.updateRack(newRack, state.assets);
               return { master: { ...state.master, rack: newRack } };
           } else {
-              mixerEngine.getTrack(trackId)?.updateRack(newRack);
+              mixerEngine.getTrack(trackId)?.updateRack(newRack, state.assets);
               return {
                   tracks: {
                       ...state.tracks,
@@ -353,10 +353,10 @@ export const useAudioStore = create<AudioState>((set, get) => ({
           const newRack = currentRack.map(m => m.id === moduleId ? { ...m, bypass: !m.bypass } : m);
 
           if (isMaster) {
-              mixerEngine.masterBus.updateRack(newRack);
+              mixerEngine.masterBus.updateRack(newRack, state.assets);
               return { master: { ...state.master, rack: newRack } };
           } else {
-              mixerEngine.getTrack(trackId)?.updateRack(newRack);
+              mixerEngine.getTrack(trackId)?.updateRack(newRack, state.assets);
               return {
                   tracks: {
                       ...state.tracks,
@@ -376,10 +376,10 @@ export const useAudioStore = create<AudioState>((set, get) => ({
           const newRack = arrayMove(currentRack, startIndex, endIndex);
 
           if (isMaster) {
-              mixerEngine.masterBus.updateRack(newRack);
+              mixerEngine.masterBus.updateRack(newRack, state.assets);
               return { master: { ...state.master, rack: newRack } };
           } else {
-              mixerEngine.getTrack(trackId)?.updateRack(newRack);
+              mixerEngine.getTrack(trackId)?.updateRack(newRack, state.assets);
               return {
                   tracks: {
                       ...state.tracks,
@@ -403,10 +403,10 @@ export const useAudioStore = create<AudioState>((set, get) => ({
           );
 
           if (isMaster) {
-               mixerEngine.masterBus.updateModuleParam(moduleId, param, value);
+               mixerEngine.masterBus.updateModuleParam(moduleId, param, value, state.assets);
                return { master: { ...state.master, rack: newRack } };
           } else {
-               mixerEngine.getTrack(trackId)?.updateModuleParam(moduleId, param, value);
+               mixerEngine.getTrack(trackId)?.updateModuleParam(moduleId, param, value, state.assets);
                return {
                   tracks: {
                       ...state.tracks,
@@ -464,14 +464,14 @@ export const useAudioStore = create<AudioState>((set, get) => ({
                // Restore engine state
                // Restore master rack
                if (meta.master && meta.master.rack) {
-                   mixerEngine.masterBus.updateRack(meta.master.rack);
+                   mixerEngine.masterBus.updateRack(meta.master.rack, get().assets);
                }
 
                // Restore tracks
                if (meta.tracks) {
                    for (const [id, trackState] of Object.entries(meta.tracks as Record<string, TrackState>)) {
                        mixerEngine.addTrack(id);
-                       mixerEngine.getTrack(id)?.updateRack(trackState.rack);
+                       mixerEngine.getTrack(id)?.updateRack(trackState.rack, get().assets);
                        mixerEngine.getTrack(id)?.setVolume(trackState.volume);
                        mixerEngine.getTrack(id)?.setPan(trackState.pan);
 

@@ -1,5 +1,5 @@
 import { IAudioContext, IOfflineAudioContext, IAudioNode } from "standardized-audio-context";
-import { RackModule, useAudioStore } from "@/store/useAudioStore";
+import type { RackModule } from "@/store/useAudioStore";
 import { logger } from "@/utils/logger";
 
 import { DynamicEQNode } from "../worklets/DynamicEQNode";
@@ -24,7 +24,7 @@ import { StereoImagerNode } from "../worklets/StereoImagerNode";
 import { MultibandCompressorNode } from "../worklets/MultibandCompressorNode";
 
 export class NodeFactory {
-    static create(module: RackModule, context: IAudioContext | IOfflineAudioContext, assets?: Record<string, AudioBuffer>): IAudioNode<IAudioContext | IOfflineAudioContext> | ConvolutionNode | null {
+    static create(module: RackModule, context: IAudioContext | IOfflineAudioContext, assets: Record<string, AudioBuffer>): IAudioNode<IAudioContext | IOfflineAudioContext> | ConvolutionNode | null {
         try {
             let node: any = null;
             switch (module.type) {
@@ -61,11 +61,10 @@ export class NodeFactory {
         }
     }
 
-    static updateParams(node: IAudioNode<IAudioContext | IOfflineAudioContext> | ConvolutionNode, module: RackModule, assetsOverride?: Record<string, AudioBuffer>) {
+    static updateParams(node: IAudioNode<IAudioContext | IOfflineAudioContext> | ConvolutionNode, module: RackModule, assets: Record<string, AudioBuffer>) {
         if (node instanceof ConvolutionNode) {
             if (module.parameters.mix !== undefined) node.setMix(module.parameters.mix);
             if (module.parameters.irAssetId) {
-                const assets = assetsOverride || useAudioStore.getState().assets;
                 const buffer = assets[module.parameters.irAssetId];
                 if (buffer) node.setBuffer(buffer);
             }

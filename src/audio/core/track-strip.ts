@@ -8,7 +8,7 @@ import {
     IAnalyserNode
 } from "standardized-audio-context";
 import { ContextManager } from "./context-manager";
-import { RackModule } from "@/store/useAudioStore";
+import type { RackModule } from "@/store/useAudioStore";
 import { NodeFactory } from "./node-factory";
 import { ConvolutionNode } from "../worklets/ConvolutionNode";
 
@@ -59,7 +59,7 @@ export class TrackStrip {
 
     disconnect() {
         this.outputNode.disconnect();
-        this.fullRebuildGraph([]);
+        this.fullRebuildGraph([], {});
     }
 
     setSource(buffer: AudioBuffer) {
@@ -109,7 +109,7 @@ export class TrackStrip {
 
     // --- Rack Management ---
 
-    updateRack(rack: RackModule[]) {
+    updateRack(rack: RackModule[], assets: Record<string, AudioBuffer>) {
         const nextActiveModules = rack.filter(m => !m.bypass);
         const nextIds = nextActiveModules.map(m => m.id);
 
@@ -125,16 +125,16 @@ export class TrackStrip {
 
         // 2. If no structural changes, just sync params
         if (firstMismatchIndex === -1) {
-            this.syncParams(rack);
+            this.syncParams(rack, assets);
             this.cleanupNodeMap(rack);
             return;
         }
 
         // 3. Partial Rebuild
-        this.partialRebuildGraph(rack, firstMismatchIndex);
+        this.partialRebuildGraph(rack, firstMismatchIndex, assets);
     }
 
-    private partialRebuildGraph(rack: RackModule[], startIndex: number) {
+    private partialRebuildGraph(rack: RackModule[], startIndex: number, assets: Record<string, AudioBuffer>) {
         // Find the node that preceded the first mismatch
         let previousNode: IAudioNode<IAudioContext | IOfflineAudioContext>;
         if (startIndex === 0) {
@@ -145,7 +145,7 @@ export class TrackStrip {
             const prevId = this.connectedIds[startIndex - 1];
             const prevNode = this.nodeMap.get(prevId);
             if (!prevNode) {
-                return this.fullRebuildGraph(rack);
+                return this.fullRebuildGraph(rack, assets);
             }
             previousNode = (prevNode instanceof ConvolutionNode)
                 ? prevNode.output as unknown as IAudioNode<IAudioContext | IOfflineAudioContext>
@@ -174,8 +174,8 @@ export class TrackStrip {
                 return;
             }
 
-            const node = this.getOrCreateNode(module);
-            NodeFactory.updateParams(node, module);
+            const node = this.getOrCreateNode(module, assets);
+            NodeFactory.updateParams(node, module, assets);
 
             if (!module.bypass) {
                 this.connectNodes(previousNode, node);
@@ -193,7 +193,7 @@ export class TrackStrip {
         this.connectedIds = activeIds;
     }
 
-    private fullRebuildGraph(rack: RackModule[]) {
+    private fullRebuildGraph(rack: RackModule[], assets: Record<string, AudioBuffer>) {
         this.inputGain.disconnect();
         this.nodeMap.forEach(node => node.disconnect());
         this.cleanupNodeMap(rack);
@@ -202,8 +202,8 @@ export class TrackStrip {
         const activeIds: string[] = [];
 
         rack.forEach(module => {
-            let node = this.getOrCreateNode(module);
-            NodeFactory.updateParams(node, module);
+            let node = this.getOrCreateNode(module, assets);
+            NodeFactory.updateParams(node, module, assets);
 
             if (!module.bypass) {
                 this.connectNodes(previousNode, node);
@@ -227,19 +227,19 @@ export class TrackStrip {
         }
     }
 
-    private syncParams(rack: RackModule[]) {
+    private syncParams(rack: RackModule[], assets: Record<string, AudioBuffer>) {
         rack.forEach(module => {
             const node = this.nodeMap.get(module.id);
             if (node) {
-                NodeFactory.updateParams(node, module);
+                NodeFactory.updateParams(node, module, assets);
             }
         });
     }
 
-    private getOrCreateNode(module: RackModule): IAudioNode<IAudioContext | IOfflineAudioContext> | ConvolutionNode {
+    private getOrCreateNode(module: RackModule, assets: Record<string, AudioBuffer>): IAudioNode<IAudioContext | IOfflineAudioContext> | ConvolutionNode {
         let node: IAudioNode<IAudioContext | IOfflineAudioContext> | ConvolutionNode | undefined | null = this.nodeMap.get(module.id);
         if (!node) {
-            node = NodeFactory.create(module, this.context);
+            node = NodeFactory.create(module, this.context, assets);
             if (node) {
                 this.nodeMap.set(module.id, node);
             } else {
@@ -257,14 +257,14 @@ export class TrackStrip {
         }
     }
 
-    public updateModuleParam(id: string, param: string, value: any) {
+    public updateModuleParam(id: string, param: string, value: any, assets: Record<string, AudioBuffer>) {
         const node = this.nodeMap.get(id);
         const module = { id, parameters: { [param]: value } } as any; // Partial mock
         // We need the full module or just the param update logic?
         // NodeFactory.updateParams can handle it but it iterates over module.parameters.
         // So this partial mock works.
         if (node) {
-             NodeFactory.updateParams(node, module);
+             NodeFactory.updateParams(node, module, assets);
         }
     }
 

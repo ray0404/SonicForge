@@ -47,7 +47,7 @@ export class OfflineRenderer {
 
         // 4. Build Offline Graph
         const masterBus = new BusStrip("MASTER_OFFLINE", offlineCtx);
-        masterBus.updateRack(master.rack);
+        masterBus.updateRack(master.rack, assets);
         masterBus.setVolume(master.volume);
         masterBus.setPan(master.pan);
         masterBus.connectTo(offlineCtx.destination as any);
@@ -62,7 +62,7 @@ export class OfflineRenderer {
             
             if (sourceBuffer) {
                 strip.setSource(sourceBuffer);
-                strip.updateRack(trackState.rack);
+                strip.updateRack(trackState.rack, assets);
                 strip.setVolume(trackState.volume);
                 strip.setPan(trackState.pan);
                 strip.connectTo(masterBus.inputGain as any);
