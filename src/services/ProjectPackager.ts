@@ -3,7 +3,7 @@ import { saveAs } from 'file-saver';
 import { get as getIDB } from 'idb-keyval';
 import { PersistentProjectState, ProjectManifest, PersistentTrackState, ProjectAssetEntry } from '../types/project';
 import { AudioState } from '../store/useAudioStore';
-import { TrackState, RackModule } from '../audio/types';
+import { TrackState, RackModule } from '@sonic-core/types';
 
 export class ProjectPackager {
   

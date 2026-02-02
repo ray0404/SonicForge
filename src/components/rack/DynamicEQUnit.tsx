@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { RackModule, mixerEngine } from '@/store/useAudioStore';
-import { DynamicEQNode } from '@/audio/worklets/DynamicEQNode';
+import { DynamicEQNode } from '@sonic-core/worklets/DynamicEQNode';
 import { ModuleShell } from '@/components/ui/ModuleShell';
 import { Knob } from '@/components/ui/Knob';
 

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Download, Loader2, CheckCircle2, Settings2, Activity } from 'lucide-react';
 import { OfflineRenderer, RenderProgress } from '@/services/OfflineRenderer';
 import { ExportFormat, ExportSettings } from '@/services/TranscoderService';
-import { ContextManager } from '@/audio/core/context-manager';
+import { ContextManager } from '@sonic-core/core/context-manager';
 import { logger } from '@/utils/logger';
 import { clsx } from 'clsx';
 

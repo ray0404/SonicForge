@@ -8,7 +8,7 @@ import {
     IAnalyserNode
 } from "standardized-audio-context";
 import { ContextManager } from "./context-manager";
-import type { RackModule } from "@/audio/types";
+import type { RackModule } from "../types";
 import { NodeFactory } from "./node-factory";
 import { ConvolutionNode } from "../worklets/ConvolutionNode";
 
@@ -26,6 +26,7 @@ export class TrackStrip {
     // Rack State
     private nodeMap = new Map<string, IAudioNode<IAudioContext | IOfflineAudioContext> | ConvolutionNode>();
     private connectedIds: string[] = [];
+    private _rack: RackModule[] = [];
 
     private isPlaying: boolean = false;
 
@@ -110,6 +111,7 @@ export class TrackStrip {
     // --- Rack Management ---
 
     updateRack(rack: RackModule[], assets: Record<string, AudioBuffer>) {
+        this._rack = rack;
         const nextActiveModules = rack.filter(m => !m.bypass);
         const nextIds = nextActiveModules.map(m => m.id);
 
@@ -132,6 +134,16 @@ export class TrackStrip {
 
         // 3. Partial Rebuild
         this.partialRebuildGraph(rack, firstMismatchIndex, assets);
+    }
+
+    addModule(module: RackModule, assets: Record<string, AudioBuffer>) {
+        const newRack = [...this._rack, module];
+        this.updateRack(newRack, assets);
+    }
+
+    removeModule(moduleId: string, assets: Record<string, AudioBuffer>) {
+        const newRack = this._rack.filter(m => m.id !== moduleId);
+        this.updateRack(newRack, assets);
     }
 
     private partialRebuildGraph(rack: RackModule[], startIndex: number, assets: Record<string, AudioBuffer>) {

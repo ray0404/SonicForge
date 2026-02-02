@@ -1,8 +1,8 @@
 import { OfflineAudioContext, IOfflineAudioContext } from "standardized-audio-context";
 import { useAudioStore } from "../store/useAudioStore";
-import { ContextManager } from "../audio/core/context-manager";
-import { TrackStrip } from "../audio/core/track-strip";
-import { BusStrip } from "../audio/core/bus-strip";
+import { ContextManager } from "@sonic-core/core/context-manager";
+import { TrackStrip } from "@sonic-core/core/track-strip";
+import { BusStrip } from "@sonic-core/core/bus-strip";
 import { audioBufferToWav } from "../utils/wav-export";
 import { saveAs } from "file-saver";
 import { logger } from "../utils/logger";

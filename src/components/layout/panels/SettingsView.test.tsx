@@ -11,8 +11,8 @@ describe('SettingsView', () => {
         vi.clearAllMocks();
         (useAudioStore as any).mockReturnValue({
             isInitialized: true,
-            masterVolume: 0.8,
-            setMasterVolume: vi.fn(),
+            master: { volume: 0.8 },
+            setTrackVolume: vi.fn(),
         });
     });
 

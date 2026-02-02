@@ -15,13 +15,30 @@ HTMLCanvasElement.prototype.getContext = vi.fn();
 
 // AudioWorkletNode
 class AudioWorkletNodeMock {
-  constructor() {}
+  context: any;
+  constructor(context: any) {
+    this.context = context;
+  }
   connect() {}
   disconnect() {}
-  parameters = { get: () => ({ value: 0 }) };
+  parameters = { 
+    get: vi.fn(() => ({ 
+      value: 0, 
+      setTargetAtTime: vi.fn(),
+      setValueAtTime: vi.fn()
+    })) 
+  };
   port = { postMessage: () => {}, onmessage: null };
 }
 vi.stubGlobal('AudioWorkletNode', AudioWorkletNodeMock);
+
+// Mock Worker
+class WorkerMock {
+    onmessage = null;
+    postMessage = vi.fn();
+    terminate = vi.fn();
+}
+vi.stubGlobal('Worker', WorkerMock);
 
 // AudioNode (often needed if extending)
 class AudioNodeMock {
@@ -48,6 +65,11 @@ class AudioContextMock {
     getByteFrequencyData: vi.fn(),
     getByteTimeDomainData: vi.fn(),
     getFloatTimeDomainData: vi.fn(),
+  }));
+  createStereoPanner = vi.fn(() => ({
+    pan: { value: 0, setTargetAtTime: vi.fn(), setValueAtTime: vi.fn() },
+    connect: vi.fn(),
+    disconnect: vi.fn(),
   }));
   createConvolver = vi.fn(() => ({ 
       connect: vi.fn(), 

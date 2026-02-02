@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { useAudioStore, mixerEngine } from './store/useAudioStore';
-import { getModuleDescriptors } from './audio/module-descriptors';
+import { getModuleDescriptors } from '@sonic-core/module-descriptors';
 
 const HeadlessApp = () => {
   return <div data-testid="headless-mount" style={{ display: 'none' }}>Sonic Forge Engine Running</div>;

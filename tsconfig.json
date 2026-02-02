@@ -19,11 +19,13 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "baseUrl": "./src",
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["src/*"],
+      "@sonic-core/*": ["packages/sonic-core/src/*"],
+      "@sonic-core": ["packages/sonic-core/src/index.ts"]
     }
   },
-  "include": ["src"],
+  "include": ["src", "packages/sonic-core/src"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

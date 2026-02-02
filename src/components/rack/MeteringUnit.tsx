@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { RackModule, mixerEngine } from '@/store/useAudioStore';
-import { MeteringNode } from '@/audio/worklets/MeteringNode';
+import { MeteringNode } from '@sonic-core/worklets/MeteringNode';
 import { ModuleShell } from '@/components/ui/ModuleShell';
 import { LEDBar } from '@/components/ui/LEDBar';
 

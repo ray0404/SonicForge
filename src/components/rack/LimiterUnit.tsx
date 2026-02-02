@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { RackModule, mixerEngine } from '@/store/useAudioStore';
-import { LimiterNode } from '@/audio/worklets/LimiterNode';
+import { LimiterNode } from '@sonic-core/worklets/LimiterNode';
 import { ModuleShell } from '@/components/ui/ModuleShell';
 import { Knob } from '@/components/ui/Knob';
 import { LEDBar } from '@/components/ui/LEDBar';

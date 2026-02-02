@@ -1,4 +1,4 @@
-import { TrackState, RackModule } from '@/audio/types';
+import { TrackState, RackModule } from '@sonic-core/types';
 
 /**
  * Represents the purely persistent state of a project.

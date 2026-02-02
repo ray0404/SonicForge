@@ -84,9 +84,9 @@ The Smart Processing tools operate in two distinct modes to fit your workflow:
 ## 🛠️ Architecture for Developers
 
 *   **State:** `Zustand` stores the "Intent" (UI state).
-*   **Orchestration:** `AudioEngine` (`src/audio/mixer.ts`) subscribes to the store and manages the Web Audio Graph.
-*   **Real-time DSP:** `AudioWorklets` (`src/audio/worklets/`) run in the Audio Thread for glitch-free playback.
-*   **Offline DSP:** `Zig` code (`src/audio/dsp/zig/`) is compiled to WASM and runs in a Web Worker for heavy lifting.
+*   **Orchestration:** `AudioEngine` (`packages/sonic-core/src/mixer.ts`) subscribes to the store and manages the Web Audio Graph.
+*   **Real-time DSP:** `AudioWorklets` (`packages/sonic-core/src/worklets/`) run in the Audio Thread for glitch-free playback.
+*   **Offline DSP:** `Zig` code (`packages/sonic-core/src/dsp/zig/`) is compiled to WASM and runs in a Web Worker for heavy lifting.
 
 ## 🏗️ Build Commands
 

@@ -46,27 +46,27 @@ Sonic Forge follows a strict **Three-Layer Architecture**:
 
 2.  **Orchestration Layer (Audio Engine):**
     *   **Role:** Translates state changes into Web Audio API calls.
-    *   **Key Files:** `src/audio/mixer.ts`, `src/audio/core/track-strip.ts`, `src/audio/core/bus-strip.ts`
+    *   **Key Files:** `packages/sonic-core/src/mixer.ts`, `packages/sonic-core/src/core/track-strip.ts`, `packages/sonic-core/src/core/bus-strip.ts`
     *   **Behavior:** Manages `AudioContext`, `AudioNode` connections, and parameter automation (`setTargetAtTime`).
 
 3.  **Processing Layer (DSP):**
     *   **Role:** The actual math modifying audio samples.
-    *   **Key Files:** `src/audio/worklets/*.js` (Real-time), `src/audio/dsp/zig/*.zig` (Offline)
+    *   **Key Files:** `packages/sonic-core/src/worklets/*.js` (Real-time), `packages/sonic-core/src/dsp/zig/*.zig` (Offline)
     *   **Behavior:** Runs in isolated threads (Audio or Worker) to prevent UI blocking.
 
 ## 4. Key Workflows & Features
 
 ### A. Real-time Effects Rack ("The Trinity Pattern")
 Adding a new real-time effect requires three components:
-1.  **Processor (DSP):** `src/audio/worklets/[name]-processor.js` (Extends `AudioWorkletProcessor`).
-2.  **Node (Bridge):** `src/audio/worklets/[Name]Node.ts` (Extends `AudioWorkletNode`, handles parameter mapping).
+1.  **Processor (DSP):** `packages/sonic-core/src/worklets/[name]-processor.js` (Extends `AudioWorkletProcessor`).
+2.  **Node (Bridge):** `packages/sonic-core/src/worklets/[Name]Node.ts` (Extends `AudioWorkletNode`, handles parameter mapping).
 3.  **UI (Component):** `src/components/rack/[Name]Unit.tsx` (React controls).
 
 ### B. Smart Processing (Zig/WASM)
 High-performance offline processing for file repair and normalization.
-*   **Source:** `src/audio/dsp/zig/main.zig`
+*   **Source:** `packages/sonic-core/src/dsp/zig/main.zig`
 *   **Build:** `npm run build:wasm` (Outputs to `public/wasm/dsp.wasm`)
-*   **Bridge:** `src/audio/workers/offline-processor.worker.ts` loads WASM and manages memory (`alloc`/`free`).
+*   **Bridge:** `packages/sonic-core/src/workers/offline-processor.worker.ts` loads WASM and manages memory (`alloc`/`free`).
 *   **UI:** `src/components/layout/panels/BatchProcessMenu.tsx`
 *   **Features:**
     *   **Loudness Normalization:** Target specific LUFS (e.g., -14).

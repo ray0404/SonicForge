@@ -54,6 +54,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@sonic-core': path.resolve(__dirname, './packages/sonic-core/src'),
     },
   },
   build: {
@@ -75,6 +76,6 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
-    include: ['src/**/*.{test,spec}.{ts,tsx,js,jsx}'],
+    include: ['src/**/*.{test,spec}.{ts,tsx,js,jsx}', 'packages/sonic-core/src/**/*.{test,spec}.{ts,tsx,js,jsx}'],
   },
 })
