@@ -121,3 +121,8 @@ src/
 *   **WASM Memory:** The Zig allocator is a `GeneralPurposeAllocator`. The worker bridge manually handles `alloc` and `free` to prevent leaks.
 *   **Persistence:** Large audio files are stored in IndexedDB. Use `src/hooks/useProjectPersistence.ts` for managing saves.
 *   **CLI:** The CLI relies on `puppeteer-core`. Ensure a compatible Chrome/Chromium binary is available if running outside standard environments.
+
+## 7. Agent Directives
+
+### Skill Utilization
+*   **New Audio Modules:** When asked to create, scaffold, or implement a new JavaScript/TypeScript-based audio module (Effect/Processor), **YOU MUST** activate and utilize the `sonic-dsp-scaffolder` skill located at `skill/sonic-dsp-scaffolder/SKILL.md`. This skill automates the creation of the "Trinity" files (Processor, Node, UI) and ensures adherence to the project's strict architectural patterns.
